@@ -1,19 +1,31 @@
 name: membar
-description: "Simple app for repeating the cocktail recipes."
-publish_to: 'none'
-version: 0.1.0+1
+description: A Very Good Project created by Very Good CLI.
+version: 1.0.0+1
+publish_to: none
 
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.12.0
+  flutter: ^3.44.0
 
 dependencies:
+  bloc: ^9.2.1
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
 
+  forui: any
 dev_dependencies:
+  bloc_lint: ^0.4.1
+  bloc_test: ^10.0.0
+  bloc_tools: ^0.1.0-dev.24
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  mocktail: ^1.0.5
+  very_good_analysis: ^10.3.0
 
 flutter:
+  generate: true
   uses-material-design: true
