@@ -630,7 +630,7 @@ context window, and the 4/5 boundary is available as a PR seam whenever you want
 
 ### Phase 4: RecipesBloc + bootstrap wiring
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Implement `RecipesBloc` (immutable `Equatable` state with `status`/`saveStatus` and
   `copyWith`; derived `activeLibrary` / `visibleRecipes` getters; `restartable` `emit.forEach`
   subscription with `onData`/`onError`; `sequential` mutation events via `bloc_concurrency`) with

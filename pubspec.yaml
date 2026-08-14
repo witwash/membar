@@ -9,13 +9,23 @@ environment:
 
 dependencies:
   bloc: ^9.2.1
+  bloc_concurrency: ^0.3.0
+  equatable: ^2.1.0
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
   flutter_localizations:
     sdk: flutter
-  forui: any
+  # Pinned exactly: forui is pre-1.0 and every widget this app uses was
+  # verified against 0.24.1's source. A caret would admit 0.24.2/0.24.3, which
+  # is the drift this pin exists to prevent. Treat a bump as its own PR.
+  forui: 0.24.1
   intl: ^0.20.2
+  local_storage_recipes_api:
+    path: packages/local_storage_recipes_api
+  recipes_repository:
+    path: packages/recipes_repository
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   bloc_lint: ^0.4.1
