@@ -591,7 +591,7 @@ context window, and the 4/5 boundary is available as a PR seam whenever you want
 
 ### Phase 2: local_storage_recipes_api data package
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Flutter package implementing `RecipesApi` over `shared_preferences` with a single
   `BehaviorSubject<RecipesSnapshot>`: seeds from `LibraryTemplates.all()` when the schema-version
   key is absent, recovers per key from a corrupt blob, rewrites the affected key on every
