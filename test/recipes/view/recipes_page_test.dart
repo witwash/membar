@@ -1,6 +1,4 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:membar/app/app.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
@@ -10,7 +8,7 @@ import '../../helpers/helpers.dart';
 class _MockRecipesRepository extends Mock implements RecipesRepository {}
 
 void main() {
-  group('App', () {
+  group('RecipesPage', () {
     late RecipesRepository recipesRepository;
 
     setUp(() {
@@ -26,22 +24,23 @@ void main() {
       );
     });
 
-    testWidgets('renders RecipesPage', (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
-      expect(find.byType(RecipesPage), findsOneWidget);
+    testWidgets('renders RecipesView', (tester) async {
+      await tester.pumpApp(
+        const RecipesPage(),
+        recipesRepository: recipesRepository,
+      );
+
+      expect(find.byType(RecipesView), findsOneWidget);
     });
 
-    testWidgets('provides the repository to the tree', (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
-
-      final context = tester.element(find.byType(RecipesPage));
-      expect(context.read<RecipesRepository>(), same(recipesRepository));
-    });
-
-    testWidgets("boots to the active library's recipe list", (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
+    testWidgets('subscribes to the repository', (tester) async {
+      await tester.pumpApp(
+        const RecipesPage(),
+        recipesRepository: recipesRepository,
+      );
       await tester.pump();
 
+      verify(recipesRepository.watch).called(1);
       expect(find.text(cocktailsLibrary.name), findsOneWidget);
     });
   });

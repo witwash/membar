@@ -655,7 +655,7 @@ context window, and the 4/5 boundary is available as a PR seam whenever you want
 
 ### Phase 5: list + details screens, library switcher, counter removal (read-only)
 
-- **Status:** Not started
+- **Status:** Done
 - **Phase 5 ships no write affordances at all** — no header `+`, no empty-state Add button, no
   edit or delete action. Every entry point to the editor lands in Phase 6 alongside the editor
   itself, so neither phase merges with a control that does nothing.

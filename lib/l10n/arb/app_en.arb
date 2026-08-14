@@ -1,7 +1,73 @@
 {
     "@@locale": "en",
-    "counterAppBarTitle": "Counter",
-    "@counterAppBarTitle": {
-        "description": "Text shown in the AppBar of the Counter Page"
+    "recipesTitle": "Recipes",
+    "@recipesTitle": {
+        "description": "Header title on the recipe list before the first snapshot names a library"
+    },
+    "recipesSearchHint": "Search recipes",
+    "@recipesSearchHint": {
+        "description": "Placeholder shown in the recipe list's search field"
+    },
+    "recipesTagFilterLabel": "Filter by tag",
+    "@recipesTagFilterLabel": {
+        "description": "Label above the tag filter on the recipe list"
+    },
+    "recipesLibrarySwitcherLabel": "Switch library",
+    "@recipesLibrarySwitcherLabel": {
+        "description": "Accessibility label for the library switcher in the header"
+    },
+    "recipesActiveLibraryLabel": "Active library",
+    "@recipesActiveLibraryLabel": {
+        "description": "Accessibility label for the check mark beside the active library"
+    },
+    "recipesLoadFailure": "Your recipes could not be loaded.",
+    "@recipesLoadFailure": {
+        "description": "Shown when the subscription to the recipe repository fails"
+    },
+    "recipesEmptyLibraryTitle": "No recipes in {library} yet",
+    "@recipesEmptyLibraryTitle": {
+        "description": "Title of the empty state shown when the active library holds no recipes",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
+    "recipesEmptyLibraryDescription": "Recipes you add to this library will show up here.",
+    "@recipesEmptyLibraryDescription": {
+        "description": "Body of the empty state shown when the active library holds no recipes"
+    },
+    "recipesNoResultsTitle": "No matching recipes",
+    "@recipesNoResultsTitle": {
+        "description": "Title of the empty state shown when the search term or tag filter excludes every recipe"
+    },
+    "recipesNoResultsDescription": "Try a different search term, or clear the tag filter.",
+    "@recipesNoResultsDescription": {
+        "description": "Body of the empty state shown when the search term or tag filter excludes every recipe"
+    },
+    "recipeImagePlaceholderLabel": "No photo yet",
+    "@recipeImagePlaceholderLabel": {
+        "description": "Accessibility label for the placeholder standing in for a recipe photo"
+    },
+    "recipeDetailsSectionTitle": "Details",
+    "@recipeDetailsSectionTitle": {
+        "description": "Heading above the schema fields on the recipe details screen"
+    },
+    "recipeIngredientsSectionTitle": "Ingredients",
+    "@recipeIngredientsSectionTitle": {
+        "description": "Heading above the ingredient list on the recipe details screen"
+    },
+    "recipeStepsSectionTitle": "Steps",
+    "@recipeStepsSectionTitle": {
+        "description": "Heading above the steps on the recipe details screen"
+    },
+    "recipeTagsSectionTitle": "Tags",
+    "@recipeTagsSectionTitle": {
+        "description": "Heading above the tags on the recipe details screen"
+    },
+    "recipeNotesSectionTitle": "Notes",
+    "@recipeNotesSectionTitle": {
+        "description": "Heading above the notes on the recipe details screen"
     }
 }

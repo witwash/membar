@@ -1,5 +1,11 @@
 # Cocktail Study & Manager App: Implementation Plan
 
+> **Superseded.** This document is kept for its product intent only. Its technology choices —
+> `Hive`, `fpdart`, `freezed`, and a cocktail-only `Cocktail` model — have all been replaced.
+> The stack in force is `equatable` + `json_serializable` models over `shared_preferences`,
+> with per-library field schemas rather than a hard-coded cocktail domain. See
+> `docs/plan/2026-08-14-feat-add-schema-driven-recipe-libraries-plan.md`.
+
 ## Goal Description
 Create a Flutter-based hobby app that allows the user to manage a personal directory of cocktails (CRUD operations) and test their knowledge of the ingredients and processes using interactive quizzes. The app will feature a local-first architecture with cloud syncing, built using functional programming principles and a modern, premium UI.
 
