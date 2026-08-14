@@ -9,20 +9,33 @@ environment:
 
 dependencies:
   bloc: ^9.2.1
+  bloc_concurrency: ^0.3.0
+  equatable: ^2.1.0
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
   flutter_localizations:
     sdk: flutter
+  # Pinned exactly: forui is pre-1.0 and every widget this app uses was
+  # verified against 0.24.1's source. A caret would admit 0.24.2/0.24.3, which
+  # is the drift this pin exists to prevent. Treat a bump as its own PR.
+  forui: 0.24.1
   intl: ^0.20.2
+  local_storage_recipes_api:
+    path: packages/local_storage_recipes_api
+  recipes_repository:
+    path: packages/recipes_repository
+  shared_preferences: ^2.5.3
 
-  forui: any
 dev_dependencies:
   bloc_lint: ^0.4.1
   bloc_test: ^10.0.0
   bloc_tools: ^0.1.0-dev.24
   flutter_test:
     sdk: flutter
+  # Proves the editor disposes the controllers of a removed ingredient or step
+  # row, rather than trusting a reading of dispose().
+  leak_tracker_flutter_testing: ^3.0.10
   mocktail: ^1.0.5
   very_good_analysis: ^10.3.0
 

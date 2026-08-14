@@ -1,0 +1,464 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:local_storage_recipes_api/local_storage_recipes_api.dart';
+import 'package:recipes_api/recipes_api.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
+
+/// A store whose every write fails, so the persistence failure paths can be
+/// driven without mocking the `shared_preferences` surface itself.
+class _FailingStore extends SharedPreferencesStorePlatform {
+  _FailingStore({this.throws = false});
+
+  /// Whether a write throws rather than reporting failure by returning false.
+  final bool throws;
+
+  @override
+  Future<bool> clear() async => false;
+
+  @override
+  Future<Map<String, Object>> getAll() async => {};
+
+  @override
+  Future<bool> remove(String key) async => false;
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    if (throws) throw Exception('the disk is on fire');
+    return false;
+  }
+}
+
+/// Builds `id_0`, `id_1`, … so a seeded library's ids can be named in a test.
+String Function() _counterIds() {
+  var next = 0;
+  return () => 'id_${next++}';
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('LocalStorageRecipesApi', () {
+    late SharedPreferences plugin;
+    late List<String> reported;
+    final templates = LibraryTemplates(idBuilder: _counterIds());
+    final seeded = templates.all();
+    final cocktails = seeded.first;
+    final coffee = seeded.last;
+
+    /// The api under test, closed in `tearDown` so no subject outlives its
+    /// test.
+    late LocalStorageRecipesApi api;
+    final opened = <LocalStorageRecipesApi>[];
+
+    LocalStorageRecipesApi buildApi() {
+      final built = LocalStorageRecipesApi(
+        plugin: plugin,
+        templates: LibraryTemplates(idBuilder: _counterIds()),
+        onRecoveryError: reported.add,
+      );
+      opened.add(built);
+      return built;
+    }
+
+    /// Prefs holding an already-seeded install: both templates, no recipes,
+    /// Cocktails active.
+    Map<String, Object> seededPrefs({
+      List<Library>? libraries,
+      List<Recipe>? recipes,
+      String? activeLibraryId,
+    }) {
+      return {
+        LocalStorageRecipesApi.kSchemaVersionKey:
+            LocalStorageRecipesApi.kSchemaVersion,
+        LocalStorageRecipesApi.kLibrariesKey: jsonEncode([
+          for (final library in libraries ?? seeded) library.toJson(),
+        ]),
+        LocalStorageRecipesApi.kRecipesKey: jsonEncode([
+          for (final recipe in recipes ?? const <Recipe>[]) recipe.toJson(),
+        ]),
+        LocalStorageRecipesApi.kActiveLibraryIdKey:
+            activeLibraryId ?? cocktails.id,
+      };
+    }
+
+    Future<void> setUpPrefs(Map<String, Object> values) async {
+      SharedPreferences.setMockInitialValues(values);
+      plugin = await SharedPreferences.getInstance();
+    }
+
+    setUp(() async {
+      reported = [];
+      await setUpPrefs({});
+    });
+
+    tearDown(() async {
+      for (final open in opened) {
+        await open.close();
+      }
+      opened.clear();
+    });
+
+    group('on a fresh install', () {
+      setUp(() async {
+        api = buildApi();
+        await api.initialWrite;
+      });
+
+      test('seeds every template and opens on the first one', () async {
+        final snapshot = await api.watch().first;
+
+        expect(
+          snapshot.libraries.map((library) => library.name),
+          equals(['Cocktails', 'Coffee']),
+        );
+        expect(snapshot.recipes, isEmpty);
+        expect(snapshot.activeLibraryId, equals(snapshot.libraries.first.id));
+      });
+
+      test('writes the libraries, the active id and the schema version', () {
+        expect(
+          plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
+          equals(LocalStorageRecipesApi.kSchemaVersion),
+        );
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kActiveLibraryIdKey),
+          equals(cocktails.id),
+        );
+
+        final stored =
+            jsonDecode(
+                  plugin.getString(LocalStorageRecipesApi.kLibrariesKey)!,
+                )
+                as List<dynamic>;
+        expect(
+          [
+            for (final library in stored)
+              Library.fromJson(library as Map<String, dynamic>).name,
+          ],
+          equals(['Cocktails', 'Coffee']),
+        );
+      });
+
+      test('reports nothing', () {
+        expect(reported, isEmpty);
+      });
+    });
+
+    test('seeds the subject synchronously', () async {
+      // A subscriber attached in the same tick as construction must reach the
+      // seeded snapshot without waiting on disk: an api that seeded from an
+      // awaited read would still be empty a microtask later, and the app would
+      // render an empty first frame.
+      api = buildApi();
+
+      RecipesSnapshot? observed;
+      api.watch().listen((snapshot) => observed = snapshot);
+      await Future<void>.microtask(() {});
+
+      expect(observed?.libraries, hasLength(2));
+      await api.initialWrite;
+    });
+
+    test(
+      'does not re-seed a second construction over the same prefs',
+      () async {
+        final first = buildApi();
+        await first.initialWrite;
+        final firstIds = (await first.watch().first).libraries.map(
+          (library) => library.id,
+        );
+
+        final second = buildApi();
+        await second.initialWrite;
+
+        expect(
+          (await second.watch().first).libraries.map((library) => library.id),
+          equals(firstIds),
+        );
+        expect(reported, isEmpty);
+      },
+    );
+
+    test('preserves an explicitly empty libraries list', () async {
+      await setUpPrefs({
+        LocalStorageRecipesApi.kSchemaVersionKey:
+            LocalStorageRecipesApi.kSchemaVersion,
+        LocalStorageRecipesApi.kLibrariesKey: '[]',
+        LocalStorageRecipesApi.kActiveLibraryIdKey: '',
+      });
+
+      api = buildApi();
+      await api.initialWrite;
+
+      // A deliberately emptied library list is a PR2 state; it must not
+      // resurrect on the next launch.
+      final snapshot = await api.watch().first;
+      expect(snapshot.libraries, isEmpty);
+      expect(snapshot.activeLibraryId, isEmpty);
+      expect(reported, isEmpty);
+    });
+
+    group('recovery', () {
+      test(
+        're-seeds an unreadable libraries blob, keeping the recipes',
+        () async {
+          // Re-seeded libraries carry fresh ids, so a recipe written against
+          // the unreadable ones is orphaned — kept, not deleted.
+          final orphan = Recipe(id: 'r1', libraryId: 'gone', name: 'Sour');
+          await setUpPrefs({
+            LocalStorageRecipesApi.kSchemaVersionKey:
+                LocalStorageRecipesApi.kSchemaVersion,
+            LocalStorageRecipesApi.kLibrariesKey: 'not json at all',
+            LocalStorageRecipesApi.kRecipesKey: jsonEncode([orphan.toJson()]),
+          });
+
+          api = buildApi();
+          await api.initialWrite;
+
+          final snapshot = await api.watch().first;
+          expect(snapshot.libraries, hasLength(2));
+          expect(snapshot.recipes, equals([orphan]));
+          expect(
+            reported,
+            equals([
+              contains('libraries could not be read'),
+              contains('belong to a library that no longer exists'),
+            ]),
+          );
+        },
+      );
+
+      test('re-seeds when the libraries key is missing entirely', () async {
+        await setUpPrefs({
+          LocalStorageRecipesApi.kSchemaVersionKey:
+              LocalStorageRecipesApi.kSchemaVersion,
+        });
+
+        api = buildApi();
+        await api.initialWrite;
+
+        expect((await api.watch().first).libraries, hasLength(2));
+        expect(reported.single, contains('No libraries were stored'));
+      });
+
+      test('recovers an unreadable recipes blob as an empty list', () async {
+        await setUpPrefs(
+          seededPrefs()
+            ..[LocalStorageRecipesApi.kRecipesKey] = '{"not":"a list"}',
+        );
+
+        api = buildApi();
+        await api.initialWrite;
+
+        final snapshot = await api.watch().first;
+        expect(snapshot.recipes, isEmpty);
+        expect(snapshot.libraries, hasLength(2), reason: 'left intact');
+        expect(reported.single, contains('recipes could not be read'));
+      });
+
+      test('falls back to the first library for a stale active id', () async {
+        await setUpPrefs(seededPrefs(activeLibraryId: 'gone'));
+
+        api = buildApi();
+        await api.initialWrite;
+
+        expect((await api.watch().first).activeLibraryId, equals(cocktails.id));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kActiveLibraryIdKey),
+          equals(cocktails.id),
+          reason: 'the fallback is rewritten, so it settles after one launch',
+        );
+      });
+
+      test('keeps a recipe whose library is gone, and reports it', () async {
+        final orphan = Recipe(id: 'r1', libraryId: 'gone', name: 'Sour');
+        await setUpPrefs(seededPrefs(recipes: [orphan]));
+
+        api = buildApi();
+        await api.initialWrite;
+
+        expect((await api.watch().first).recipes, equals([orphan]));
+        expect(
+          reported.single,
+          contains('belong to a library that no longer exists'),
+        );
+      });
+
+      test(
+        'keeps running on the in-memory snapshot when seeding fails',
+        () async {
+          SharedPreferencesStorePlatform.instance = _FailingStore();
+
+          api = buildApi();
+          await api.initialWrite;
+
+          expect((await api.watch().first).libraries, hasLength(2));
+          expect(reported.single, contains('running on unsaved data'));
+        },
+      );
+
+      test('reports through debugPrint by default', () async {
+        await setUpPrefs({
+          LocalStorageRecipesApi.kSchemaVersionKey:
+              LocalStorageRecipesApi.kSchemaVersion,
+          LocalStorageRecipesApi.kLibrariesKey: 'not json at all',
+        });
+        final printed = <String?>[];
+        final previous = debugPrint;
+        debugPrint = (message, {wrapWidth}) => printed.add(message);
+        addTearDown(() => debugPrint = previous);
+
+        final defaulted = LocalStorageRecipesApi(plugin: plugin);
+        opened.add(defaulted);
+        await defaulted.initialWrite;
+
+        expect(printed.single, contains('libraries could not be read'));
+      });
+    });
+
+    group('saveRecipe', () {
+      late Recipe negroni;
+
+      setUp(() async {
+        negroni = Recipe(id: 'r1', libraryId: cocktails.id, name: 'Negroni');
+        await setUpPrefs(seededPrefs());
+        api = buildApi();
+        await api.initialWrite;
+      });
+
+      test('adds a recipe and re-emits the snapshot', () async {
+        await api.saveRecipe(negroni);
+
+        expect((await api.watch().first).recipes, equals([negroni]));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+          equals(jsonEncode([negroni.toJson()])),
+        );
+      });
+
+      test('replaces a recipe that already carries the id', () async {
+        await api.saveRecipe(negroni);
+        final renamed = Recipe(
+          id: negroni.id,
+          libraryId: cocktails.id,
+          name: 'Boulevardier',
+        );
+
+        await api.saveRecipe(renamed);
+
+        expect((await api.watch().first).recipes, equals([renamed]));
+      });
+
+      test('leaves the libraries and the active library alone', () async {
+        await api.saveRecipe(negroni);
+
+        final snapshot = await api.watch().first;
+        expect(snapshot.libraries, hasLength(2));
+        expect(snapshot.activeLibraryId, equals(cocktails.id));
+      });
+
+      test('throws when the write fails', () async {
+        SharedPreferencesStorePlatform.instance = _FailingStore();
+
+        expect(
+          () => api.saveRecipe(negroni),
+          throwsA(isA<RecipesPersistenceException>()),
+        );
+      });
+
+      test('throws when the write itself throws', () async {
+        SharedPreferencesStorePlatform.instance = _FailingStore(throws: true);
+
+        await expectLater(
+          () => api.saveRecipe(negroni),
+          throwsA(
+            isA<RecipesPersistenceException>().having(
+              (exception) => exception.message,
+              'message',
+              contains('the disk is on fire'),
+            ),
+          ),
+        );
+      });
+    });
+
+    group('deleteRecipe', () {
+      late Recipe negroni;
+
+      setUp(() async {
+        negroni = Recipe(id: 'r1', libraryId: cocktails.id, name: 'Negroni');
+        await setUpPrefs(seededPrefs(recipes: [negroni]));
+        api = buildApi();
+        await api.initialWrite;
+      });
+
+      test('removes the recipe and re-emits the snapshot', () async {
+        await api.deleteRecipe(negroni.id);
+
+        expect((await api.watch().first).recipes, isEmpty);
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+          equals('[]'),
+        );
+      });
+
+      test('throws RecipeNotFoundException for an id that is gone', () async {
+        await expectLater(
+          () => api.deleteRecipe('nope'),
+          throwsA(
+            isA<RecipeNotFoundException>().having(
+              (exception) => exception.id,
+              'id',
+              equals('nope'),
+            ),
+          ),
+        );
+      });
+    });
+
+    group('setActiveLibraryId', () {
+      setUp(() async {
+        await setUpPrefs(seededPrefs());
+        api = buildApi();
+        await api.initialWrite;
+      });
+
+      test('persists the id and re-emits the snapshot', () async {
+        await api.setActiveLibraryId(coffee.id);
+
+        expect((await api.watch().first).activeLibraryId, equals(coffee.id));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kActiveLibraryIdKey),
+          equals(coffee.id),
+        );
+      });
+
+      test('throws when the write fails', () async {
+        SharedPreferencesStorePlatform.instance = _FailingStore();
+
+        await expectLater(
+          () => api.setActiveLibraryId(coffee.id),
+          throwsA(isA<RecipesPersistenceException>()),
+        );
+      });
+    });
+
+    test('close ends the stream', () async {
+      api = buildApi();
+      await api.initialWrite;
+
+      final stream = api.watch();
+      await api.close();
+
+      // The last snapshot is still replayed to a late subscriber; what closing
+      // guarantees is that nothing follows it.
+      await expectLater(
+        stream,
+        emitsInOrder(<Object>[isA<RecipesSnapshot>(), emitsDone]),
+      );
+    });
+  });
+}

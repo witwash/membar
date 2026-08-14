@@ -1,0 +1,25 @@
+name: local_storage_recipes_api
+description: A local storage implementation of the recipes API, backed by shared_preferences.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+  flutter: ^3.44.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  recipes_api:
+    path: ../recipes_api
+  rxdart: ^0.28.0
+  shared_preferences: ^2.5.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mocktail: ^1.0.5
+  # Lets a test swap in a store whose writes fail, which is the only way to
+  # drive the persistence-failure paths without mocking SharedPreferences.
+  shared_preferences_platform_interface: ^2.4.1
+  very_good_analysis: ^10.3.0

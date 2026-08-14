@@ -22,6 +22,22 @@ jobs:
       flutter_version: "3.44.x"
       run_bloc_lint: true
 
+  build-recipes-api:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/dart_package.yml@v1
+    with:
+      working_directory: packages/recipes_api
+
+  build-recipes-repository:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/dart_package.yml@v1
+    with:
+      working_directory: packages/recipes_repository
+
+  build-local-storage-recipes-api:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1
+    with:
+      flutter_version: "3.44.x"
+      working_directory: packages/local_storage_recipes_api
+
   spell-check:
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
     with:

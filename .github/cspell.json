@@ -16,13 +16,19 @@
   ],
   "useGitignore": true,
   "words": [
-    "Contador",
-    "localizable",
-    "mostrado",
-    "página",
-    "Texto",
-    "Hola",
-    "Mundo",
-    "Saludo"
+    "Aeropress",
+    "cspell",
+    "dependabot",
+    "Equatable",
+    "forui",
+    "fpdart",
+    "freezed",
+    "Glassware",
+    "lcov",
+    "mocktail",
+    "puro",
+    "rxdart",
+    "talker",
+    "uuid"
   ]
 }
