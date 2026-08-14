@@ -204,6 +204,9 @@ class SchemaFieldControl extends StatelessWidget {
     final l10n = context.l10n;
     final field = controller.field;
     String? validate() => controller.validate(l10n);
+    // Every control validates as the user works, so a correction clears its
+    // error there and then rather than leaving it up until the next Save.
+    const autovalidate = AutovalidateMode.onUserInteraction;
 
     return switch (controller) {
       _TextSchemaFieldController(controller: final text) => FTextFormField(
@@ -211,6 +214,7 @@ class SchemaFieldControl extends StatelessWidget {
         control: FTextFieldControl.managed(controller: text),
         minLines: field.type == FieldType.longText ? 3 : null,
         maxLines: field.type == FieldType.longText ? 5 : 1,
+        autovalidateMode: autovalidate,
         validator: (_) => validate(),
       ),
       _NumberSchemaFieldController(controller: final text) => FTextFormField(
@@ -219,6 +223,7 @@ class SchemaFieldControl extends StatelessWidget {
         ),
         control: FTextFieldControl.managed(controller: text),
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        autovalidateMode: autovalidate,
         validator: (_) => validate(),
       ),
       _SelectSchemaFieldController(controller: final select) => FSelect<String>(
@@ -227,7 +232,7 @@ class SchemaFieldControl extends StatelessWidget {
           for (final option in field.optionsOrEmpty) option: option,
         },
         control: FSelectControl.managed(controller: select),
-        autovalidateMode: AutovalidateMode.disabled,
+        autovalidateMode: autovalidate,
         validator: (_) => validate(),
       ),
     };
