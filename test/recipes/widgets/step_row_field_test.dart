@@ -5,19 +5,43 @@ import 'package:membar/recipes/recipes.dart';
 import '../../helpers/helpers.dart';
 
 void main() {
+  group('StepRowControllers', () {
+    test('primes the controller from the step it was given', () {
+      final controllers = StepRowControllers(0, step: 'Stir with ice.');
+      addTearDown(controllers.dispose);
+
+      expect(controllers.text.text, 'Stir with ice.');
+      expect(controllers.step, 'Stir with ice.');
+    });
+
+    test('reads a blank row as no step', () {
+      final controllers = StepRowControllers(0, step: '   ');
+      addTearDown(controllers.dispose);
+
+      expect(controllers.step, isNull);
+    });
+
+    test('trims the step it describes', () {
+      final controllers = StepRowControllers(0, step: '  Shake hard. ');
+      addTearDown(controllers.dispose);
+
+      expect(controllers.step, 'Shake hard.');
+    });
+  });
+
   group('StepRowField', () {
-    late TextEditingController controller;
+    late StepRowControllers controllers;
 
     setUp(() {
-      controller = TextEditingController(text: 'Stir with ice.');
-      addTearDown(controller.dispose);
+      controllers = StepRowControllers(0, step: 'Stir with ice.');
+      addTearDown(controllers.dispose);
     });
 
     Future<void> pumpRow(
       WidgetTester tester, {
       VoidCallback onRemove = _noop,
     }) => tester.pumpApp(
-      StepRowField(number: 2, controller: controller, onRemove: onRemove),
+      StepRowField(number: 2, controllers: controllers, onRemove: onRemove),
     );
 
     testWidgets('labels the row with its position', (tester) async {
@@ -32,7 +56,7 @@ void main() {
 
       await tester.enterText(find.byType(EditableText), 'Shake hard.');
 
-      expect(controller.text, 'Shake hard.');
+      expect(controllers.text.text, 'Shake hard.');
     });
 
     testWidgets('calls onRemove when the remove action is tapped', (

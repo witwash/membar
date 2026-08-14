@@ -180,6 +180,28 @@ void main() {
         expect(find.text('92.0'), findsNothing);
       });
 
+      testWidgets('reads a rendered value as untouched', (tester) async {
+        final (controller, _) = await pumpControl(
+          tester,
+          field,
+          recipe: Recipe(
+            libraryId: 'library-coffee',
+            name: 'Morning cup',
+            fieldValues: const {'field-dose': 92.0},
+          ),
+        );
+
+        expect(controller.isDirty, isFalse);
+      });
+
+      testWidgets('reads a retyped value as touched', (tester) async {
+        final (controller, _) = await pumpControl(tester, field);
+
+        await tester.enterText(find.byType(EditableText), '18');
+
+        expect(controller.isDirty, isTrue);
+      });
+
       testWidgets('parses a grouped entry through the locale, not by '
           'replacing separators', (tester) async {
         final (controller, _) = await pumpControl(tester, field);

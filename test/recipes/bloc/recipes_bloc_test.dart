@@ -77,8 +77,14 @@ void main() {
         build: buildBloc,
         act: (bloc) => bloc.add(RecipesRecipeSaved(negroni)),
         expect: () => const [
-          RecipesState(saveStatus: RecipesSaveStatus.loading),
-          RecipesState(saveStatus: RecipesSaveStatus.success),
+          RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
         ],
         verify: (_) => verify(() => repository.saveRecipe(negroni)).called(1),
       );
@@ -91,8 +97,14 @@ void main() {
         build: buildBloc,
         act: (bloc) => bloc.add(RecipesRecipeSaved(negroni)),
         expect: () => const [
-          RecipesState(saveStatus: RecipesSaveStatus.loading),
-          RecipesState(saveStatus: RecipesSaveStatus.failure),
+          RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
         ],
       );
     });
@@ -105,8 +117,14 @@ void main() {
         build: buildBloc,
         act: (bloc) => bloc.add(const RecipesRecipeDeleted('r1')),
         expect: () => const [
-          RecipesState(saveStatus: RecipesSaveStatus.loading),
-          RecipesState(saveStatus: RecipesSaveStatus.success),
+          RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
         ],
         verify: (_) => verify(() => repository.deleteRecipe('r1')).called(1),
       );
@@ -119,8 +137,14 @@ void main() {
         build: buildBloc,
         act: (bloc) => bloc.add(const RecipesRecipeDeleted('r1')),
         expect: () => const [
-          RecipesState(saveStatus: RecipesSaveStatus.loading),
-          RecipesState(saveStatus: RecipesSaveStatus.failure),
+          RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
         ],
       );
 
@@ -132,8 +156,14 @@ void main() {
         build: buildBloc,
         act: (bloc) => bloc.add(const RecipesRecipeDeleted('r1')),
         expect: () => const [
-          RecipesState(saveStatus: RecipesSaveStatus.loading),
-          RecipesState(saveStatus: RecipesSaveStatus.failure),
+          RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
         ],
       );
     });
@@ -153,11 +183,15 @@ void main() {
         act: (bloc) => bloc.add(const RecipesLibrarySelected('l2')),
         expect: () => const [
           RecipesState(
-            saveStatus: RecipesSaveStatus.loading,
+            mutation: RecipesMutation.librarySelected,
+            mutationStatus: RecipesMutationStatus.loading,
             activeLibraryId: 'l1',
+            searchTerm: 'neg',
+            activeTags: {'Classic'},
           ),
           RecipesState(
-            saveStatus: RecipesSaveStatus.success,
+            mutation: RecipesMutation.librarySelected,
+            mutationStatus: RecipesMutationStatus.success,
             activeLibraryId: 'l1',
           ),
         ],
@@ -178,21 +212,34 @@ void main() {
       );
 
       blocTest<RecipesBloc, RecipesState>(
-        'emits failure when the write fails',
+        'keeps the search term and tag filter when the write fails',
         setUp: () => when(() => repository.setActiveLibraryId(any())).thenThrow(
           const RecipesPersistenceException('disk full'),
         ),
         build: buildBloc,
-        seed: () => const RecipesState(activeLibraryId: 'l1'),
+        seed: () => const RecipesState(
+          activeLibraryId: 'l1',
+          searchTerm: 'neg',
+          activeTags: {'Classic'},
+        ),
         act: (bloc) => bloc.add(const RecipesLibrarySelected('l2')),
+        // Clearing the filters for a switch that never took effect would
+        // leave the user in the library they started in, with the filters
+        // they had chosen silently thrown away.
         expect: () => const [
           RecipesState(
-            saveStatus: RecipesSaveStatus.loading,
+            mutation: RecipesMutation.librarySelected,
+            mutationStatus: RecipesMutationStatus.loading,
             activeLibraryId: 'l1',
+            searchTerm: 'neg',
+            activeTags: {'Classic'},
           ),
           RecipesState(
-            saveStatus: RecipesSaveStatus.failure,
+            mutation: RecipesMutation.librarySelected,
+            mutationStatus: RecipesMutationStatus.failure,
             activeLibraryId: 'l1',
+            searchTerm: 'neg',
+            activeTags: {'Classic'},
           ),
         ],
       );

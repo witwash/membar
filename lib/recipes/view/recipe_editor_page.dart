@@ -72,15 +72,14 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
   final _notesController = TextEditingController();
   final _newTagController = TextEditingController();
   final _tagsController = FMultiValueNotifier<String>();
-  final _ingredientRows = <_IngredientRow>[];
-  final _stepRows = <_StepRow>[];
+  final _ingredientRows = <IngredientRowControllers>[];
+  final _stepRows = <StepRowControllers>[];
   final _fieldControllers = <String, SchemaFieldController>{};
   final _fieldKeys = <String, GlobalKey>{};
 
   var _tagOptions = <String>[];
   var _nextRowId = 0;
   var _initialized = false;
-  var _saving = false;
   var _saveFailed = false;
   late String _initialSnapshot;
 
@@ -101,10 +100,12 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     _nameController.text = recipe?.name ?? '';
     _notesController.text = recipe?.notes ?? '';
     for (final ingredient in recipe?.ingredients ?? const <Ingredient>[]) {
-      _ingredientRows.add(_IngredientRow(_nextRowId++, ingredient: ingredient));
+      _ingredientRows.add(
+        IngredientRowControllers(_nextRowId++, ingredient: ingredient),
+      );
     }
     for (final step in recipe?.steps ?? const <String>[]) {
-      _stepRows.add(_StepRow(_nextRowId++, step: step));
+      _stepRows.add(StepRowControllers(_nextRowId++, step: step));
     }
     for (final field in widget.library.fields) {
       _fieldControllers[field.id] = SchemaFieldController(
@@ -115,7 +116,12 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       _fieldKeys[field.id] = GlobalKey();
     }
     _tagsController.value = {...?recipe?.tags};
-    _tagOptions = _libraryTags();
+    // Read once, at open time: the tags the library already uses, plus
+    // whatever this recipe carries.
+    _tagOptions = foldCaseInsensitive([
+      ..._tagsController.value,
+      ...context.read<RecipesBloc>().state.libraryTags,
+    ])..sort(compareCaseInsensitive);
     _initialSnapshot = _snapshot();
   }
 
@@ -142,14 +148,19 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final adding = widget.recipe == null;
+    final saving = context.select<RecipesBloc, bool>(
+      (bloc) =>
+          bloc.state.mutation == RecipesMutation.recipeSaved &&
+          bloc.state.mutationStatus == RecipesMutationStatus.loading,
+    );
 
-    return BlocListener<RecipesBloc, RecipesState>(
-      listenWhen: (previous, current) =>
-          previous.saveStatus != current.saveStatus,
-      listener: _onSaveStatusChanged,
+    return RecipesMutationListener(
+      mutation: RecipesMutation.recipeSaved,
+      onSuccess: () => Navigator.of(context).pop(),
+      onFailure: () => setState(() => _saveFailed = true),
       child: PopScope(
-        // Every leave route — the back action and the system gesture alike —
-        // runs through maybePop, so the dirty check lives in one place.
+        // Every way out — the back action and the system gesture alike — runs
+        // through maybePop, so the dirty check lives in one place.
         canPop: false,
         onPopInvokedWithResult: (didPop, _) => unawaited(_onPopInvoked(didPop)),
         child: FScaffold(
@@ -166,106 +177,59 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
               FHeaderAction(
                 icon: const Icon(FLucideIcons.check),
                 semanticsLabel: l10n.recipeEditorSaveLabel,
-                onPress: _saving ? null : _save,
+                onPress: saving ? null : _save,
               ),
             ],
           ),
-          // Every control is built, not lazily paged in: scrolling to the
-          // first invalid field needs its key to have a context even when it
-          // sits below the fold, which is exactly where the problem bites.
           child: SingleChildScrollView(
             controller: _scrollController,
+            // Every control is built, not lazily paged in: scrolling to the
+            // first invalid field needs its key to have a context even when it
+            // sits below the fold, which is exactly where the problem bites.
             child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 16,
                 children: [
                   if (_saveFailed) FailureBanner(l10n.recipeEditorSaveFailure),
-                  Padding(
+                  KeyedSubtree(
                     key: _nameKey,
-                    padding: const EdgeInsets.only(bottom: 16),
                     child: FTextFormField(
                       label: Text(l10n.recipeEditorNameLabel),
                       control: FTextFieldControl.managed(
                         controller: _nameController,
                       ),
+                      // Corrections clear the error as they are typed, rather
+                      // than leaving it on screen until the next Save.
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
                       validator: _validateName,
                     ),
                   ),
                   for (final field in widget.library.fields)
-                    Padding(
+                    KeyedSubtree(
                       key: _fieldKeys[field.id],
-                      padding: const EdgeInsets.only(bottom: 16),
                       child: SchemaFieldControl(
                         controller: _fieldControllers[field.id]!,
                       ),
                     ),
-                  _SectionTitle(l10n.recipeIngredientsSectionTitle),
-                  for (final (index, row) in _ingredientRows.indexed)
-                    Padding(
-                      key: ValueKey(row.id),
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: IngredientRowField(
-                        name: row.name,
-                        quantity: row.quantity,
-                        unit: row.unit,
-                        onRemove: () => _removeIngredient(index),
-                      ),
-                    ),
-                  FButton(
-                    variant: FButtonVariant.outline,
-                    prefix: const Icon(FLucideIcons.plus),
-                    onPress: _addIngredient,
-                    child: Text(l10n.recipeEditorAddIngredientLabel),
+                  _IngredientsSection(
+                    rows: _ingredientRows,
+                    onAdd: _addIngredient,
+                    onRemove: _removeIngredient,
                   ),
-                  _SectionTitle(l10n.recipeStepsSectionTitle),
-                  for (final (index, row) in _stepRows.indexed)
-                    Padding(
-                      key: ValueKey(row.id),
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: StepRowField(
-                        number: index + 1,
-                        controller: row.controller,
-                        onRemove: () => _removeStep(index),
-                      ),
-                    ),
-                  FButton(
-                    variant: FButtonVariant.outline,
-                    prefix: const Icon(FLucideIcons.plus),
-                    onPress: _addStep,
-                    child: Text(l10n.recipeEditorAddStepLabel),
+                  _StepsSection(
+                    rows: _stepRows,
+                    onAdd: _addStep,
+                    onRemove: _removeStep,
                   ),
-                  _SectionTitle(l10n.recipeTagsSectionTitle),
-                  FMultiSelect<String>(
-                    label: Text(l10n.recipeEditorTagsLabel),
-                    hint: Text(l10n.recipeEditorTagsHint),
-                    items: {for (final tag in _tagOptions) tag: tag},
-                    control: FMultiValueControl.managed(
-                      controller: _tagsController,
-                    ),
+                  _TagsSection(
+                    options: _tagOptions,
+                    selection: _tagsController,
+                    newTagController: _newTagController,
+                    onAdd: _addTag,
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    spacing: 8,
-                    children: [
-                      Expanded(
-                        child: FTextFormField(
-                          label: Text(l10n.recipeEditorNewTagLabel),
-                          control: FTextFieldControl.managed(
-                            controller: _newTagController,
-                          ),
-                          onSubmit: (_) => _addTag(),
-                        ),
-                      ),
-                      FButton(
-                        variant: FButtonVariant.outline,
-                        onPress: _addTag,
-                        child: Text(l10n.recipeEditorAddTagLabel),
-                      ),
-                    ],
-                  ),
-                  _SectionTitle(l10n.recipeNotesSectionTitle),
+                  RecipeSectionTitle(l10n.recipeNotesSectionTitle),
                   FTextFormField(
                     label: Text(l10n.recipeEditorNotesLabel),
                     control: FTextFieldControl.managed(
@@ -274,7 +238,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
                     minLines: 3,
                     maxLines: 5,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -289,7 +253,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       : null;
 
   void _addIngredient() {
-    setState(() => _ingredientRows.add(_IngredientRow(_nextRowId++)));
+    setState(() => _ingredientRows.add(IngredientRowControllers(_nextRowId++)));
   }
 
   void _removeIngredient(int index) {
@@ -297,7 +261,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
   }
 
   void _addStep() {
-    setState(() => _stepRows.add(_StepRow(_nextRowId++)));
+    setState(() => _stepRows.add(StepRowControllers(_nextRowId++)));
   }
 
   void _removeStep(int index) {
@@ -309,14 +273,16 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     if (typed.isEmpty) return;
 
     setState(() {
-      // Reuse the library's own casing when the tag already exists, so the
-      // filter chips do not sprout a second spelling of the same tag.
-      final tag = _tagOptions.firstWhere(
-        (option) => option.toLowerCase() == typed.toLowerCase(),
-        orElse: () => typed,
-      );
+      // Folding against the options is what reuses the library's own spelling,
+      // so re-typing a tag does not sprout a second chip meaning the same.
+      final folded = foldCaseInsensitive([..._tagOptions, typed]);
+      final tag = folded.length == _tagOptions.length
+          ? folded.firstWhere(
+              (option) => option.toLowerCase() == typed.toLowerCase(),
+            )
+          : typed;
       if (!_tagOptions.contains(tag)) {
-        _tagOptions = [..._tagOptions, tag]..sort(_byLowerCase);
+        _tagOptions = [..._tagOptions, tag]..sort(compareCaseInsensitive);
       }
       _tagsController.update(tag, add: true);
       _newTagController.clear();
@@ -329,31 +295,8 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       return;
     }
 
-    setState(() {
-      _saving = true;
-      _saveFailed = false;
-    });
+    setState(() => _saveFailed = false);
     context.read<RecipesBloc>().add(RecipesRecipeSaved(_buildRecipe()));
-  }
-
-  void _onSaveStatusChanged(BuildContext context, RecipesState state) {
-    // Only a save this editor started concerns it: the same bloc backs the
-    // list and details screens.
-    if (!_saving) return;
-
-    switch (state.saveStatus) {
-      case RecipesSaveStatus.success:
-        _saving = false;
-        Navigator.of(context).pop();
-      case RecipesSaveStatus.failure:
-        setState(() {
-          _saving = false;
-          _saveFailed = true;
-        });
-      case RecipesSaveStatus.initial:
-      case RecipesSaveStatus.loading:
-        break;
-    }
   }
 
   Future<void> _onPopInvoked(bool didPop) async {
@@ -362,39 +305,17 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     if (mounted) Navigator.of(context).pop();
   }
 
-  Future<bool> _confirmDiscard() async {
+  Future<bool> _confirmDiscard() {
     final l10n = context.l10n;
-    final discard = await showFDialog<bool>(
+    return showRecipeConfirmDialog(
       context: context,
-      builder: (dialogContext, _, animation) => FDialog(
-        animation: animation,
-        builder: (context, style) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 8,
-          children: [
-            Text(l10n.recipeEditorDiscardTitle, style: style.titleTextStyle),
-            Text(
-              widget.recipe == null
-                  ? l10n.recipeEditorDiscardAddDescription
-                  : l10n.recipeEditorDiscardEditDescription,
-              style: style.bodyTextStyle,
-            ),
-            FButton(
-              variant: FButtonVariant.destructive,
-              onPress: () => Navigator.of(dialogContext).pop(true),
-              child: Text(l10n.recipeEditorDiscardConfirm),
-            ),
-            FButton(
-              variant: FButtonVariant.outline,
-              onPress: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l10n.recipeEditorKeepEditingLabel),
-            ),
-          ],
-        ),
-      ),
+      title: l10n.recipeEditorDiscardTitle,
+      description: widget.recipe == null
+          ? l10n.recipeEditorDiscardAddDescription
+          : l10n.recipeEditorDiscardEditDescription,
+      confirmLabel: l10n.recipeEditorDiscardConfirm,
+      cancelLabel: l10n.recipeEditorKeepEditingLabel,
     );
-    return discard ?? false;
   }
 
   /// Puts the first field that failed validation on screen.
@@ -448,19 +369,8 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       id: existing?.id,
       libraryId: widget.library.id,
       name: _nameController.text,
-      ingredients: [
-        for (final row in _ingredientRows)
-          if (row.name.text.trim().isNotEmpty)
-            Ingredient(
-              name: row.name.text,
-              quantity: row.quantity.text,
-              unit: row.unit.text,
-            ),
-      ],
-      steps: [
-        for (final row in _stepRows)
-          if (row.controller.text.trim().isNotEmpty) row.controller.text.trim(),
-      ],
+      ingredients: [for (final row in _ingredientRows) ?row.ingredient],
+      steps: [for (final row in _stepRows) ?row.step],
       tags: _tagsController.value.toList(),
       notes: _notesController.text.trim(),
       fieldValues: fieldValues,
@@ -477,83 +387,140 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
   String _snapshot() => jsonEncode({
     'name': _nameController.text.trim(),
     'notes': _notesController.text.trim(),
-    'ingredients': [
-      for (final row in _ingredientRows)
-        [row.name.text.trim(), row.quantity.text.trim(), row.unit.text.trim()],
-    ],
-    'steps': [for (final row in _stepRows) row.controller.text.trim()],
-    'tags': _tagsController.value.toList()..sort(_byLowerCase),
-    'fields': {
+    'ingredients': [for (final row in _ingredientRows) row.state],
+    'steps': [for (final row in _stepRows) row.text.text.trim()],
+    'tags': _tagsController.value.toList()..sort(compareCaseInsensitive),
+    'fields': [
       for (final field in widget.library.fields)
-        field.id: _fieldControllers[field.id]!.value,
-    },
+        if (_fieldControllers[field.id]!.isDirty) field.id,
+    ],
+  });
+}
+
+class _IngredientsSection extends StatelessWidget {
+  const _IngredientsSection({
+    required this.rows,
+    required this.onAdd,
+    required this.onRemove,
   });
 
-  /// The tags the multi-select offers: those already used in this library,
-  /// plus any the recipe itself carries.
-  List<String> _libraryTags() {
-    final seen = <String>{};
-    final tags = <String>[];
-    void add(String tag) {
-      if (seen.add(tag.toLowerCase())) tags.add(tag);
-    }
-
-    _tagsController.value.forEach(add);
-    for (final recipe in context.read<RecipesBloc>().state.recipes) {
-      if (recipe.libraryId == widget.library.id) recipe.tags.forEach(add);
-    }
-    return tags..sort(_byLowerCase);
-  }
-
-  static int _byLowerCase(String a, String b) =>
-      a.toLowerCase().compareTo(b.toLowerCase());
-}
-
-/// The controllers behind one ingredient row, kept together so the row can be
-/// added and disposed as a unit.
-class _IngredientRow {
-  _IngredientRow(this.id, {Ingredient? ingredient})
-    : name = TextEditingController(text: ingredient?.name ?? ''),
-      quantity = TextEditingController(text: ingredient?.quantity ?? ''),
-      unit = TextEditingController(text: ingredient?.unit ?? '');
-
-  final int id;
-  final TextEditingController name;
-  final TextEditingController quantity;
-  final TextEditingController unit;
-
-  void dispose() {
-    name.dispose();
-    quantity.dispose();
-    unit.dispose();
-  }
-}
-
-class _StepRow {
-  _StepRow(this.id, {String step = ''})
-    : controller = TextEditingController(text: step);
-
-  final int id;
-  final TextEditingController controller;
-
-  void dispose() => controller.dispose();
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.title);
-
-  final String title;
+  final List<IngredientRowControllers> rows;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
+    final l10n = context.l10n;
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 8),
-      child: Text(
-        title,
-        style: theme.typography.body.lg.copyWith(fontWeight: FontWeight.w600),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        RecipeSectionTitle(l10n.recipeIngredientsSectionTitle),
+        for (final (index, row) in rows.indexed)
+          IngredientRowField(
+            key: ValueKey(row.id),
+            controllers: row,
+            onRemove: () => onRemove(index),
+          ),
+        FButton(
+          variant: FButtonVariant.outline,
+          prefix: const Icon(FLucideIcons.plus),
+          onPress: onAdd,
+          child: Text(l10n.recipeEditorAddIngredientLabel),
+        ),
+      ],
+    );
+  }
+}
+
+class _StepsSection extends StatelessWidget {
+  const _StepsSection({
+    required this.rows,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<StepRowControllers> rows;
+  final VoidCallback onAdd;
+  final void Function(int index) onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        RecipeSectionTitle(l10n.recipeStepsSectionTitle),
+        for (final (index, row) in rows.indexed)
+          StepRowField(
+            key: ValueKey(row.id),
+            number: index + 1,
+            controllers: row,
+            onRemove: () => onRemove(index),
+          ),
+        FButton(
+          variant: FButtonVariant.outline,
+          prefix: const Icon(FLucideIcons.plus),
+          onPress: onAdd,
+          child: Text(l10n.recipeEditorAddStepLabel),
+        ),
+      ],
+    );
+  }
+}
+
+class _TagsSection extends StatelessWidget {
+  const _TagsSection({
+    required this.options,
+    required this.selection,
+    required this.newTagController,
+    required this.onAdd,
+  });
+
+  final List<String> options;
+  final FMultiValueNotifier<String> selection;
+  final TextEditingController newTagController;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        RecipeSectionTitle(l10n.recipeTagsSectionTitle),
+        FMultiSelect<String>(
+          label: Text(l10n.recipeEditorTagsLabel),
+          hint: Text(l10n.recipeEditorTagsHint),
+          items: {for (final tag in options) tag: tag},
+          control: FMultiValueControl.managed(controller: selection),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          spacing: 8,
+          children: [
+            Expanded(
+              child: FTextFormField(
+                label: Text(l10n.recipeEditorNewTagLabel),
+                control: FTextFieldControl.managed(
+                  controller: newTagController,
+                ),
+                onSubmit: (_) => onAdd(),
+              ),
+            ),
+            FButton(
+              variant: FButtonVariant.outline,
+              onPress: onAdd,
+              child: Text(l10n.recipeEditorAddTagLabel),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

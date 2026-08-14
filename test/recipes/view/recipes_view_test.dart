@@ -205,6 +205,41 @@ void main() {
       ).called(1);
     });
 
+    testWidgets('reports a library switch that did not take effect', (
+      tester,
+    ) async {
+      mockState(
+        RecipesState(
+          status: RecipesStatus.success,
+          mutation: RecipesMutation.librarySelected,
+          mutationStatus: RecipesMutationStatus.failure,
+          libraries: [cocktailsLibrary, coffeeLibrary],
+          recipes: [negroni],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await pumpView(tester);
+
+      expect(find.text('That library could not be opened.'), findsOneWidget);
+      expect(find.text('Cocktails'), findsOneWidget);
+    });
+
+    testWidgets('reports nothing when another mutation failed', (tester) async {
+      mockState(
+        RecipesState(
+          status: RecipesStatus.success,
+          mutation: RecipesMutation.recipeSaved,
+          mutationStatus: RecipesMutationStatus.failure,
+          libraries: [cocktailsLibrary],
+          recipes: [negroni],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await pumpView(tester);
+
+      expect(find.text('That library could not be opened.'), findsNothing);
+    });
+
     testWidgets('opens the editor from the header action', (tester) async {
       mockState(
         RecipesState(

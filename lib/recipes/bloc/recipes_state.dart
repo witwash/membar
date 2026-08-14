@@ -3,17 +3,24 @@ part of 'recipes_bloc.dart';
 /// The state of the subscription to the repository.
 enum RecipesStatus { initial, loading, success, failure }
 
-/// The state of the mutation currently in flight — a save, a delete, or a
-/// library switch.
+/// The state of the mutation currently in flight.
 ///
 /// Kept separate from [RecipesStatus] so a failed save in the editor cannot
 /// flash a banner over the list screen.
-enum RecipesSaveStatus { initial, loading, success, failure }
+enum RecipesMutationStatus { initial, loading, success, failure }
+
+/// Which mutation [RecipesState.mutationStatus] is reporting on.
+///
+/// Three screens share one bloc, and each cares about exactly one kind of
+/// mutation. Naming the kind here is what lets each of them ignore the others
+/// without keeping its own copy of "was that mine?" in widget state.
+enum RecipesMutation { none, recipeSaved, recipeDeleted, librarySelected }
 
 final class RecipesState extends Equatable {
   const RecipesState({
     this.status = RecipesStatus.initial,
-    this.saveStatus = RecipesSaveStatus.initial,
+    this.mutation = RecipesMutation.none,
+    this.mutationStatus = RecipesMutationStatus.initial,
     this.libraries = const [],
     this.recipes = const [],
     this.activeLibraryId = '',
@@ -24,8 +31,11 @@ final class RecipesState extends Equatable {
   /// How the subscription to the repository is faring.
   final RecipesStatus status;
 
+  /// The kind of mutation [mutationStatus] describes.
+  final RecipesMutation mutation;
+
   /// How the mutation currently in flight is faring.
-  final RecipesSaveStatus saveStatus;
+  final RecipesMutationStatus mutationStatus;
 
   /// Every library that exists, in creation order.
   final List<Library> libraries;
@@ -75,14 +85,25 @@ final class RecipesState extends Equatable {
         return false;
       }
       return true;
-    }).toList()..sort(
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-    );
+    }).toList()..sort((a, b) => compareCaseInsensitive(a.name, b.name));
   }
+
+  /// The distinct tags used anywhere in the active library, in the spelling
+  /// each was first given, ordered case-insensitively.
+  ///
+  /// Both the list's filter row and the editor's tag selector read this, so
+  /// they cannot offer different tags — and a `blocTest` can reach it, which
+  /// neither widget's own copy of the rule could.
+  List<String> get libraryTags => foldCaseInsensitive(
+    recipes
+        .where((recipe) => recipe.libraryId == activeLibraryId)
+        .expand((recipe) => recipe.tags),
+  )..sort(compareCaseInsensitive);
 
   RecipesState copyWith({
     RecipesStatus? status,
-    RecipesSaveStatus? saveStatus,
+    RecipesMutation? mutation,
+    RecipesMutationStatus? mutationStatus,
     List<Library>? libraries,
     List<Recipe>? recipes,
     String? activeLibraryId,
@@ -91,7 +112,8 @@ final class RecipesState extends Equatable {
   }) {
     return RecipesState(
       status: status ?? this.status,
-      saveStatus: saveStatus ?? this.saveStatus,
+      mutation: mutation ?? this.mutation,
+      mutationStatus: mutationStatus ?? this.mutationStatus,
       libraries: libraries ?? this.libraries,
       recipes: recipes ?? this.recipes,
       activeLibraryId: activeLibraryId ?? this.activeLibraryId,
@@ -103,7 +125,8 @@ final class RecipesState extends Equatable {
   @override
   List<Object?> get props => [
     status,
-    saveStatus,
+    mutation,
+    mutationStatus,
     libraries,
     recipes,
     activeLibraryId,

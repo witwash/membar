@@ -21,6 +21,12 @@ class Library extends Equatable {
     String? id,
     List<FieldDefinition> fields = const [],
   }) : assert(name.trim().isNotEmpty, 'A library name must not be blank.'),
+       // Two fields sharing an id would share a value, a controller and a
+       // form key, which collapses them into one broken control.
+       assert(
+         fields.map((field) => field.id).toSet().length == fields.length,
+         'A library must not declare the same field twice.',
+       ),
        id = id ?? const Uuid().v4(),
        name = name.trim(),
        fields = List.unmodifiable(fields);

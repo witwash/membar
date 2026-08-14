@@ -49,7 +49,6 @@ class RecipeDetailsPage extends StatefulWidget {
 }
 
 class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
-  var _deleting = false;
   var _deleteFailed = false;
 
   @override
@@ -58,9 +57,11 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
     // The pushed recipe is only the starting point: an edit saved from the
     // editor lands in the bloc, and this screen is what the editor pops back
     // to. Falling back to it covers the frame in which it has been deleted.
-    final recipe = context.watch<RecipesBloc>().state.recipes.firstWhere(
-      (it) => it.id == widget.recipe.id,
-      orElse: _pushedRecipe,
+    final recipe = context.select<RecipesBloc, Recipe>(
+      (bloc) => bloc.state.recipes.firstWhere(
+        (it) => it.id == widget.recipe.id,
+        orElse: () => widget.recipe,
+      ),
     );
 
     final schemaFields = <(FieldDefinition, String)>[
@@ -69,10 +70,10 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
           (field, value),
     ];
 
-    return BlocListener<RecipesBloc, RecipesState>(
-      listenWhen: (previous, current) =>
-          previous.saveStatus != current.saveStatus,
-      listener: _onSaveStatusChanged,
+    return RecipesMutationListener(
+      mutation: RecipesMutation.recipeDeleted,
+      onSuccess: () => Navigator.of(context).pop(),
+      onFailure: () => setState(() => _deleteFailed = true),
       child: FScaffold(
         header: FHeader.nested(
           title: Text(recipe.name),
@@ -92,7 +93,7 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
             FHeaderAction(
               icon: const Icon(FLucideIcons.trash2),
               semanticsLabel: l10n.recipeDeleteLabel,
-              onPress: _deleting ? null : () => unawaited(_delete(recipe)),
+              onPress: () => unawaited(_delete(recipe)),
             ),
           ],
         ),
@@ -151,73 +152,19 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
     );
   }
 
-  Recipe _pushedRecipe() => widget.recipe;
-
   Future<void> _delete(Recipe recipe) async {
-    if (!await _confirmDelete(recipe)) return;
-    if (!mounted) return;
-
-    setState(() {
-      _deleting = true;
-      _deleteFailed = false;
-    });
-    context.read<RecipesBloc>().add(RecipesRecipeDeleted(recipe.id));
-  }
-
-  Future<bool> _confirmDelete(Recipe recipe) async {
     final l10n = context.l10n;
-    final confirmed = await showFDialog<bool>(
+    final confirmed = await showRecipeConfirmDialog(
       context: context,
-      builder: (dialogContext, _, animation) => FDialog(
-        animation: animation,
-        builder: (context, style) => Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 8,
-          children: [
-            Text(
-              l10n.recipeDeleteDialogTitle(recipe.name),
-              style: style.titleTextStyle,
-            ),
-            Text(
-              l10n.recipeDeleteDialogDescription,
-              style: style.bodyTextStyle,
-            ),
-            FButton(
-              variant: FButtonVariant.destructive,
-              onPress: () => Navigator.of(dialogContext).pop(true),
-              child: Text(l10n.recipeDeleteDialogConfirm),
-            ),
-            FButton(
-              variant: FButtonVariant.outline,
-              onPress: () => Navigator.of(dialogContext).pop(false),
-              child: Text(l10n.recipeDeleteDialogCancel),
-            ),
-          ],
-        ),
-      ),
+      title: l10n.recipeDeleteDialogTitle(recipe.name),
+      description: l10n.recipeDeleteDialogDescription,
+      confirmLabel: l10n.recipeDeleteDialogConfirm,
+      cancelLabel: l10n.recipeDeleteDialogCancel,
     );
-    return confirmed ?? false;
-  }
+    if (!confirmed || !mounted) return;
 
-  void _onSaveStatusChanged(BuildContext context, RecipesState state) {
-    // Only a deletion this screen started concerns it: the same bloc backs the
-    // list and editor screens.
-    if (!_deleting) return;
-
-    switch (state.saveStatus) {
-      case RecipesSaveStatus.success:
-        _deleting = false;
-        Navigator.of(context).pop();
-      case RecipesSaveStatus.failure:
-        setState(() {
-          _deleting = false;
-          _deleteFailed = true;
-        });
-      case RecipesSaveStatus.initial:
-      case RecipesSaveStatus.loading:
-        break;
-    }
+    setState(() => _deleteFailed = false);
+    context.read<RecipesBloc>().add(RecipesRecipeDeleted(recipe.id));
   }
 
   String _ingredientLine(Ingredient ingredient) => [
@@ -235,22 +182,12 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.theme;
-
     return Padding(
       padding: const EdgeInsets.only(top: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 8,
-        children: [
-          Text(
-            title,
-            style: theme.typography.body.lg.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          ...children,
-        ],
+        children: [RecipeSectionTitle(title), ...children],
       ),
     );
   }

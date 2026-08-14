@@ -4,8 +4,10 @@ library;
 
 // The models travel with the repository: for a local-first app with no wire
 // schema to insulate against, a second set of domain models plus a
-// transformation layer would be speculative. `RecipesApi` comes along because
-// it is the type of the repository's constructor argument.
+// transformation layer would be speculative. `RecipesApi` deliberately does
+// not travel with them — being the only thing that can reach the data layer is
+// the repository's whole job, and re-exporting its contract would hand that
+// reach to every widget and bloc above it.
 export 'package:recipes_api/recipes_api.dart'
     show
         FieldDefinition,
@@ -14,7 +16,8 @@ export 'package:recipes_api/recipes_api.dart'
         Library,
         Recipe,
         RecipeNotFoundException,
-        RecipesApi,
         RecipesPersistenceException,
-        RecipesSnapshot;
+        RecipesSnapshot,
+        compareCaseInsensitive,
+        foldCaseInsensitive;
 export 'src/recipes_repository.dart';

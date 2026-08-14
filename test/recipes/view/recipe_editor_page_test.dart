@@ -133,7 +133,7 @@ void main() {
       );
     });
 
-    testWidgets('renders the control each field type calls for', (
+    testWidgets('renders a control per field of a schema with no Select', (
       tester,
     ) async {
       await pumpEditor(tester, library: coffeeLibrary);
@@ -202,8 +202,7 @@ void main() {
         fields: [requiredGarnish],
       );
 
-      testWidgets('blocks a blank required field but not a blank optional '
-          'one', (tester) async {
+      testWidgets('blocks a save on a blank required field', (tester) async {
         await pumpEditor(tester, library: requiredLibrary);
         await tester.enterText(fieldNamed('Name'), 'Martini');
 
@@ -431,11 +430,21 @@ void main() {
         await tapSave(tester);
 
         // The bloc reports the save in flight before it reports the outcome.
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.loading));
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+        );
         await tester.pumpAndSettle();
         expect(find.byType(RecipeEditorPage), findsOneWidget);
 
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.success));
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        );
         await tester.pumpAndSettle();
 
         expect(find.byType(RecipeEditorPage), findsNothing);
@@ -450,7 +459,10 @@ void main() {
         await tapSave(tester);
 
         states.add(
-          const RecipesState(saveStatus: RecipesSaveStatus.failure),
+          const RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
         );
         await tester.pumpAndSettle();
 
@@ -458,12 +470,19 @@ void main() {
         expect(find.text('Your recipe could not be saved.'), findsOneWidget);
       });
 
-      testWidgets('ignores a save status change it did not cause', (
+      testWidgets('ignores the outcome of another kind of mutation', (
         tester,
       ) async {
         await pushEditor(tester);
 
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.success));
+        // One bloc backs all three screens, so a delete or a library switch
+        // reaching the editor must not pop it.
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        );
         await tester.pumpAndSettle();
 
         expect(find.byType(RecipeEditorPage), findsOneWidget);

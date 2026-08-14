@@ -20,6 +20,10 @@
     "@recipesActiveLibraryLabel": {
         "description": "Accessibility label for the check mark beside the active library"
     },
+    "recipesLibrarySwitchFailure": "That library could not be opened.",
+    "@recipesLibrarySwitchFailure": {
+        "description": "Shown on the recipe list when switching to another library fails to persist"
+    },
     "recipesLoadFailure": "Your recipes could not be loaded.",
     "@recipesLoadFailure": {
         "description": "Shown when the subscription to the recipe repository fails"

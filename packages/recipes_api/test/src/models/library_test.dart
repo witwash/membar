@@ -88,4 +88,28 @@ void main() {
       expect(decoded.fields, isEmpty);
     });
   });
+
+  group('field ids', () {
+    test('asserts on a schema that declares the same field twice', () {
+      final field = FieldDefinition(label: 'Glassware', type: FieldType.text);
+
+      expect(
+        () => Library(name: 'Cocktails', fields: [field, field]),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('accepts a schema whose fields are all distinct', () {
+      expect(
+        () => Library(
+          name: 'Cocktails',
+          fields: [
+            FieldDefinition(label: 'Glassware', type: FieldType.text),
+            FieldDefinition(label: 'Garnish', type: FieldType.text),
+          ],
+        ),
+        returnsNormally,
+      );
+    });
+  });
 }

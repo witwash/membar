@@ -33,7 +33,7 @@ class Recipe extends Equatable {
        name = name.trim(),
        ingredients = List.unmodifiable(ingredients),
        steps = List.unmodifiable(steps),
-       tags = List.unmodifiable(_normalizeTags(tags)),
+       tags = List.unmodifiable(foldCaseInsensitive(tags)),
        fieldValues = Map.unmodifiable(_normalizeFieldValues(fieldValues));
 
   /// Converts a JSON [Map] into a [Recipe].
@@ -104,17 +104,6 @@ class Recipe extends Equatable {
     notes,
     fieldValues,
   ];
-
-  static List<String> _normalizeTags(List<String> tags) {
-    final seen = <String>{};
-    final normalized = <String>[];
-    for (final tag in tags) {
-      final trimmed = tag.trim();
-      if (trimmed.isEmpty) continue;
-      if (seen.add(trimmed.toLowerCase())) normalized.add(trimmed);
-    }
-    return normalized;
-  }
 
   static Map<String, Object?> _normalizeFieldValues(
     Map<String, Object?> fieldValues,

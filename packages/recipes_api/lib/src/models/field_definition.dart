@@ -49,8 +49,11 @@ class FieldDefinition extends Equatable {
        options = options == null ? null : List.unmodifiable(options);
 
   /// Converts a JSON [Map] into a [FieldDefinition].
+  ///
+  /// A stored field that breaks the type-conditional contract is repaired
+  /// rather than rejected — see [_repaired].
   factory FieldDefinition.fromJson(Map<String, dynamic> json) =>
-      _$FieldDefinitionFromJson(json);
+      _$FieldDefinitionFromJson(_repaired(json));
 
   /// The unique identifier of this field. Recipe values are keyed off it.
   final String id;
@@ -73,8 +76,47 @@ class FieldDefinition extends Equatable {
   /// `g` or `°C`; null for every other type.
   final String? unit;
 
+  /// The choices this field offers, empty for every type but
+  /// [FieldType.select].
+  ///
+  /// A select always decodes with a usable option list, so this is empty only
+  /// for a field that never had one. Reading through this rather than through
+  /// a `!` on [options] keeps a malformed field a rendering oddity rather than
+  /// a crash.
+  List<String> get optionsOrEmpty => options ?? const [];
+
   /// Converts this [FieldDefinition] into a JSON [Map].
   Map<String, dynamic> toJson() => _$FieldDefinitionToJson(this);
+
+  /// Brings a stored field back inside the type-conditional contract the
+  /// constructor asserts.
+  ///
+  /// The asserts are stripped from a release build, so a hand-edited or
+  /// half-written blob that reached the constructor unchecked would crash the
+  /// editor on a null option list instead of merely reading oddly. A select
+  /// with no usable options cannot render a working control, so it decodes as
+  /// plain text; duplicate options — which would collide in the control's
+  /// label-to-value map — are folded; and an option list or unit on a type
+  /// that cannot carry one is dropped.
+  static Map<String, dynamic> _repaired(Map<String, dynamic> json) {
+    final repaired = {...json};
+
+    if (repaired['type'] == 'select') {
+      final options = (repaired['options'] as List<dynamic>?)
+          ?.whereType<String>()
+          .toSet()
+          .toList();
+      if (options == null || options.isEmpty) {
+        repaired['type'] = 'text';
+      } else {
+        repaired['options'] = options;
+      }
+    }
+
+    if (repaired['type'] != 'select') repaired['options'] = null;
+    if (repaired['type'] != 'number') repaired['unit'] = null;
+    return repaired;
+  }
 
   @override
   List<Object?> get props => [id, label, type, required, options, unit];

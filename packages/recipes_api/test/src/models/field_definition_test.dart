@@ -170,4 +170,108 @@ void main() {
       });
     });
   });
+
+  group('optionsOrEmpty', () {
+    test('is the option list of a select field', () {
+      final field = FieldDefinition(
+        label: 'Glassware',
+        type: FieldType.select,
+        options: const ['Coupe'],
+      );
+
+      expect(field.optionsOrEmpty, ['Coupe']);
+    });
+
+    test('is empty for a field that offers no choices', () {
+      final field = FieldDefinition(label: 'Garnish', type: FieldType.text);
+
+      expect(field.optionsOrEmpty, isEmpty);
+    });
+  });
+
+  group('fromJson repairs a field that breaks its own contract', () {
+    // The constructor's asserts are stripped in release, so a hand-edited blob
+    // has to be brought back inside the contract on the way in rather than
+    // crashing a screen later.
+    test('decodes a select with no options as plain text', () {
+      final field = FieldDefinition.fromJson(const {
+        'id': 'field-glassware',
+        'label': 'Glassware',
+        'type': 'select',
+        'required': false,
+        'options': null,
+        'unit': null,
+      });
+
+      expect(field.type, FieldType.text);
+      expect(field.options, isNull);
+    });
+
+    test('decodes a select with an empty option list as plain text', () {
+      final field = FieldDefinition.fromJson(const {
+        'id': 'field-glassware',
+        'label': 'Glassware',
+        'type': 'select',
+        'required': false,
+        'options': <String>[],
+        'unit': null,
+      });
+
+      expect(field.type, FieldType.text);
+    });
+
+    test('folds duplicate options rather than rejecting the field', () {
+      final field = FieldDefinition.fromJson(const {
+        'id': 'field-glassware',
+        'label': 'Glassware',
+        'type': 'select',
+        'required': false,
+        'options': ['Coupe', 'Coupe', 'Rocks'],
+        'unit': null,
+      });
+
+      expect(field.options, ['Coupe', 'Rocks']);
+    });
+
+    test('drops options from a type that cannot carry them', () {
+      final field = FieldDefinition.fromJson(const {
+        'id': 'field-garnish',
+        'label': 'Garnish',
+        'type': 'text',
+        'required': false,
+        'options': ['Coupe'],
+        'unit': null,
+      });
+
+      expect(field.options, isNull);
+    });
+
+    test('drops a unit from a type that cannot carry one', () {
+      final field = FieldDefinition.fromJson(const {
+        'id': 'field-garnish',
+        'label': 'Garnish',
+        'type': 'text',
+        'required': false,
+        'options': null,
+        'unit': 'g',
+      });
+
+      expect(field.unit, isNull);
+    });
+
+    test('keeps a well-formed select untouched', () {
+      final field = FieldDefinition.fromJson(const {
+        'id': 'field-glassware',
+        'label': 'Glassware',
+        'type': 'select',
+        'required': true,
+        'options': ['Coupe', 'Rocks'],
+        'unit': null,
+      });
+
+      expect(field.type, FieldType.select);
+      expect(field.options, ['Coupe', 'Rocks']);
+      expect(field.required, isTrue);
+    });
+  });
 }

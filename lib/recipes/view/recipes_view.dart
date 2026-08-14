@@ -63,12 +63,19 @@ class _RecipeList extends StatelessWidget {
     final libraryRecipes = state.recipes
         .where((recipe) => recipe.libraryId == library.id)
         .toList();
-    final tags = _distinctTags(libraryRecipes);
+    final tags = state.libraryTags;
     final visible = state.visibleRecipes;
+    final switchFailed =
+        state.mutation == RecipesMutation.librarySelected &&
+        state.mutationStatus == RecipesMutationStatus.failure;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // A switch that did not take effect leaves the user looking at the
+        // library they were already in; without this they would have nothing
+        // to tell them why.
+        if (switchFailed) FailureBanner(l10n.recipesLibrarySwitchFailure),
         FTextField(
           hint: l10n.recipesSearchHint,
           control: FTextFieldControl.managed(
@@ -117,20 +124,6 @@ class _RecipeList extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  /// The tags offered by the filter: every tag in the library, not just those
-  /// on the recipes currently visible — otherwise selecting one would remove
-  /// the rest from the row that offered it.
-  List<String> _distinctTags(List<Recipe> recipes) {
-    final seen = <String>{};
-    final tags = <String>[];
-    for (final recipe in recipes) {
-      for (final tag in recipe.tags) {
-        if (seen.add(tag.toLowerCase())) tags.add(tag);
-      }
-    }
-    return tags..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 }
 

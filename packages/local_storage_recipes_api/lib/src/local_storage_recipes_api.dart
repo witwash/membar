@@ -81,8 +81,7 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   @override
   Future<void> saveRecipe(Recipe recipe) async {
-    final snapshot = _subject.value;
-    final recipes = [...snapshot.recipes];
+    final recipes = [..._subject.value.recipes];
     final index = recipes.indexWhere((stored) => stored.id == recipe.id);
     if (index == -1) {
       recipes.add(recipe);
@@ -91,42 +90,43 @@ class LocalStorageRecipesApi extends RecipesApi {
     }
 
     await _write(kRecipesKey, _encodeRecipes(recipes));
-    _emit(snapshot, recipes: recipes);
+    _emit(recipes: recipes);
   }
 
   @override
   Future<void> deleteRecipe(String id) async {
-    final snapshot = _subject.value;
-    final recipes = [...snapshot.recipes];
+    final recipes = [..._subject.value.recipes];
     final index = recipes.indexWhere((stored) => stored.id == id);
     if (index == -1) throw RecipeNotFoundException(id);
     recipes.removeAt(index);
 
     await _write(kRecipesKey, _encodeRecipes(recipes));
-    _emit(snapshot, recipes: recipes);
+    _emit(recipes: recipes);
   }
 
   @override
   Future<void> setActiveLibraryId(String id) async {
-    final snapshot = _subject.value;
-
     await _write(kActiveLibraryIdKey, id);
-    _emit(snapshot, activeLibraryId: id);
+    _emit(activeLibraryId: id);
   }
 
   @override
   Future<void> close() => _subject.close();
 
-  void _emit(
-    RecipesSnapshot previous, {
-    List<Recipe>? recipes,
-    String? activeLibraryId,
-  }) {
+  /// Emits [recipes] and [activeLibraryId] over whatever the subject holds
+  /// *now*.
+  ///
+  /// Reading the subject after the write rather than before it is what stops
+  /// two overlapping mutations from reverting each other: the api owes its
+  /// callers a consistent snapshot on its own, not one that depends on a
+  /// caller two layers up serializing them.
+  void _emit({List<Recipe>? recipes, String? activeLibraryId}) {
+    final current = _subject.value;
     _subject.add(
       RecipesSnapshot(
-        libraries: previous.libraries,
-        recipes: recipes ?? previous.recipes,
-        activeLibraryId: activeLibraryId ?? previous.activeLibraryId,
+        libraries: current.libraries,
+        recipes: recipes ?? current.recipes,
+        activeLibraryId: activeLibraryId ?? current.activeLibraryId,
       ),
     );
   }

@@ -39,13 +39,20 @@ sealed class SchemaFieldController {
   }
 
   SchemaFieldController._(this.field) {
-    _initialValue = value;
+    _initialState = _controlState;
   }
 
   /// The schema field this controller stands for.
   final FieldDefinition field;
 
-  late final Object? _initialValue;
+  late final Object? _initialState;
+
+  /// What the control literally holds: the text in it, or the option picked.
+  ///
+  /// Dirtiness is measured on this rather than on [value], because the control
+  /// is what the user touched. Rendering a stored value into a control is not
+  /// an edit, whatever the rendering does to it.
+  Object? get _controlState;
 
   /// Whether the user changed this field since the editor opened.
   ///
@@ -53,7 +60,7 @@ sealed class SchemaFieldController {
   /// as it is stored — which is what keeps a Select value the schema no longer
   /// offers, and which the control therefore shows as no selection, from being
   /// wiped by a round trip that never touched it.
-  bool get isDirty => value != _initialValue;
+  bool get isDirty => _controlState != _initialState;
 
   /// The value to store for [field], or null when it holds nothing.
   ///
@@ -75,7 +82,7 @@ sealed class SchemaFieldController {
   /// survives the round trip.
   static String? _selectedOption(FieldDefinition field, Recipe? recipe) {
     final stored = recipe?.textValue(field.id);
-    return field.options!.contains(stored) ? stored : null;
+    return field.optionsOrEmpty.contains(stored) ? stored : null;
   }
 }
 
@@ -85,6 +92,9 @@ final class _TextSchemaFieldController extends SchemaFieldController {
       super._();
 
   final TextEditingController controller;
+
+  @override
+  Object? get _controlState => controller.text;
 
   @override
   Object? get value {
@@ -112,6 +122,9 @@ final class _NumberSchemaFieldController extends SchemaFieldController {
   final NumberFormat _format;
 
   final TextEditingController controller;
+
+  @override
+  Object? get _controlState => controller.text;
 
   @override
   Object? get value => _parse(controller.text);
@@ -162,6 +175,9 @@ final class _SelectSchemaFieldController extends SchemaFieldController {
   final FSelectController<String> controller;
 
   @override
+  Object? get _controlState => controller.value;
+
+  @override
   Object? get value => controller.value;
 
   @override
@@ -207,7 +223,9 @@ class SchemaFieldControl extends StatelessWidget {
       ),
       _SelectSchemaFieldController(controller: final select) => FSelect<String>(
         label: Text(field.label),
-        items: {for (final option in field.options!) option: option},
+        items: {
+          for (final option in field.optionsOrEmpty) option: option,
+        },
         control: FSelectControl.managed(controller: select),
         autovalidateMode: AutovalidateMode.disabled,
         validator: (_) => validate(),

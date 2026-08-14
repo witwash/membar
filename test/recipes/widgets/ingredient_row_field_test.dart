@@ -1,34 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:recipes_repository/recipes_repository.dart';
 
 import '../../helpers/helpers.dart';
 
 void main() {
+  group('IngredientRowControllers', () {
+    test('primes each controller from the ingredient it was given', () {
+      final controllers = IngredientRowControllers(
+        0,
+        ingredient: Ingredient(name: 'Gin', quantity: '2', unit: 'oz'),
+      );
+      addTearDown(controllers.dispose);
+
+      expect(controllers.name.text, 'Gin');
+      expect(controllers.quantity.text, '2');
+      expect(controllers.unit.text, 'oz');
+      expect(controllers.state, ['Gin', '2', 'oz']);
+    });
+
+    test('starts blank when there is no ingredient yet', () {
+      final controllers = IngredientRowControllers(0);
+      addTearDown(controllers.dispose);
+
+      expect(controllers.ingredient, isNull);
+      expect(controllers.state, ['', '', '']);
+    });
+
+    test(
+      'reads a row with no name as no ingredient, whatever else it holds',
+      () {
+        final controllers = IngredientRowControllers(0);
+        addTearDown(controllers.dispose);
+        controllers.quantity.text = '2';
+
+        expect(controllers.ingredient, isNull);
+      },
+    );
+
+    test('builds the ingredient the row describes', () {
+      final controllers = IngredientRowControllers(0);
+      addTearDown(controllers.dispose);
+      controllers.name.text = ' Gin ';
+      controllers.quantity.text = '2';
+
+      expect(
+        controllers.ingredient,
+        Ingredient(name: 'Gin', quantity: '2'),
+      );
+    });
+  });
+
   group('IngredientRowField', () {
-    late TextEditingController name;
-    late TextEditingController quantity;
-    late TextEditingController unit;
+    late IngredientRowControllers controllers;
 
     setUp(() {
-      name = TextEditingController(text: 'Gin');
-      quantity = TextEditingController(text: '2');
-      unit = TextEditingController(text: 'oz');
-      addTearDown(name.dispose);
-      addTearDown(quantity.dispose);
-      addTearDown(unit.dispose);
+      controllers = IngredientRowControllers(
+        0,
+        ingredient: Ingredient(name: 'Gin', quantity: '2', unit: 'oz'),
+      );
+      addTearDown(controllers.dispose);
     });
 
     Future<void> pumpRow(
       WidgetTester tester, {
       VoidCallback onRemove = _noop,
     }) => tester.pumpApp(
-      IngredientRowField(
-        name: name,
-        quantity: quantity,
-        unit: unit,
-        onRemove: onRemove,
-      ),
+      IngredientRowField(controllers: controllers, onRemove: onRemove),
     );
 
     testWidgets('renders each controller behind its own label', (tester) async {
@@ -47,7 +86,7 @@ void main() {
 
       await tester.enterText(find.byType(EditableText).first, 'Campari');
 
-      expect(name.text, 'Campari');
+      expect(controllers.name.text, 'Campari');
     });
 
     testWidgets('calls onRemove when the remove action is tapped', (

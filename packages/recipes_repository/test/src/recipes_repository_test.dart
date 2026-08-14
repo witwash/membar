@@ -1,4 +1,5 @@
 import 'package:mocktail/mocktail.dart';
+import 'package:recipes_api/recipes_api.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 import 'package:test/test.dart';
 

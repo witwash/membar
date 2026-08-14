@@ -115,7 +115,7 @@ void main() {
       test('replaces every value it is given', () {
         final replaced = loaded.copyWith(
           status: RecipesStatus.failure,
-          saveStatus: RecipesSaveStatus.loading,
+          mutationStatus: RecipesMutationStatus.loading,
           libraries: [coffee],
           recipes: [v60],
           activeLibraryId: 'l2',
@@ -127,7 +127,7 @@ void main() {
           replaced,
           RecipesState(
             status: RecipesStatus.failure,
-            saveStatus: RecipesSaveStatus.loading,
+            mutationStatus: RecipesMutationStatus.loading,
             libraries: [coffee],
             recipes: [v60],
             activeLibraryId: 'l2',

@@ -56,13 +56,18 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     RecipesRecipeSaved event,
     Emitter<RecipesState> emit,
   ) async {
-    emit(state.copyWith(saveStatus: RecipesSaveStatus.loading));
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.recipeSaved,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
 
     try {
       await _recipesRepository.saveRecipe(event.recipe);
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.success));
+      emit(state.copyWith(mutationStatus: RecipesMutationStatus.success));
     } on RecipesPersistenceException {
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.failure));
+      emit(state.copyWith(mutationStatus: RecipesMutationStatus.failure));
     }
   }
 
@@ -70,18 +75,23 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     RecipesRecipeDeleted event,
     Emitter<RecipesState> emit,
   ) async {
-    emit(state.copyWith(saveStatus: RecipesSaveStatus.loading));
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.recipeDeleted,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
 
     try {
       await _recipesRepository.deleteRecipe(event.id);
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.success));
+      emit(state.copyWith(mutationStatus: RecipesMutationStatus.success));
     } on RecipeNotFoundException {
       // Deleting an already-deleted recipe — a double-tapped confirm dialog,
       // or a stale details route. Letting it escape would strand saveStatus on
       // loading and leave the user watching a spinner forever.
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.failure));
+      emit(state.copyWith(mutationStatus: RecipesMutationStatus.failure));
     } on RecipesPersistenceException {
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.failure));
+      emit(state.copyWith(mutationStatus: RecipesMutationStatus.failure));
     }
   }
 
@@ -91,21 +101,28 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
   ) async {
     if (event.libraryId == state.activeLibraryId) return;
 
-    // A filter carried into a library that never had that tag would strand the
-    // user on "No results" with chips nothing can match.
     emit(
       state.copyWith(
-        saveStatus: RecipesSaveStatus.loading,
-        searchTerm: '',
-        activeTags: const {},
+        mutation: RecipesMutation.librarySelected,
+        mutationStatus: RecipesMutationStatus.loading,
       ),
     );
 
     try {
       await _recipesRepository.setActiveLibraryId(event.libraryId);
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.success));
+      // The filters clear only once the switch has actually happened. A filter
+      // carried into a library that never had that tag would strand the user
+      // on "No results" with chips nothing can match — but clearing it for a
+      // switch that never took effect is worse still.
+      emit(
+        state.copyWith(
+          mutationStatus: RecipesMutationStatus.success,
+          searchTerm: '',
+          activeTags: const {},
+        ),
+      );
     } on RecipesPersistenceException {
-      emit(state.copyWith(saveStatus: RecipesSaveStatus.failure));
+      emit(state.copyWith(mutationStatus: RecipesMutationStatus.failure));
     }
   }
 

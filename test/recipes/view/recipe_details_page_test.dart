@@ -301,11 +301,21 @@ void main() {
         await tester.tap(find.text('Delete'));
         await tester.pumpAndSettle();
         // The bloc reports the delete in flight before it reports the outcome.
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.loading));
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+        );
         await tester.pumpAndSettle();
         expect(find.byType(RecipeDetailsPage), findsOneWidget);
 
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.success));
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        );
         await tester.pumpAndSettle();
 
         expect(find.byType(RecipeDetailsPage), findsNothing);
@@ -317,19 +327,31 @@ void main() {
         await tapDelete(tester);
         await tester.tap(find.text('Delete'));
         await tester.pumpAndSettle();
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.failure));
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeDeleted,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
+        );
         await tester.pumpAndSettle();
 
         expect(find.byType(RecipeDetailsPage), findsOneWidget);
         expect(find.text('Your recipe could not be deleted.'), findsOneWidget);
       });
 
-      testWidgets('ignores a save status change it did not cause', (
+      testWidgets('ignores the outcome of another kind of mutation', (
         tester,
       ) async {
         await pushDetails(tester);
 
-        states.add(const RecipesState(saveStatus: RecipesSaveStatus.success));
+        // One bloc backs all three screens, so a save reaching details must
+        // not pop it.
+        states.add(
+          const RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        );
         await tester.pumpAndSettle();
 
         expect(find.byType(RecipeDetailsPage), findsOneWidget);
