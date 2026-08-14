@@ -25,6 +25,14 @@ class RecipesView extends StatelessWidget {
                 libraries: state.libraries,
                 activeLibrary: library,
               ),
+        suffixes: [
+          if (library != null)
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.plus),
+              semanticsLabel: l10n.recipeAddLabel,
+              onPress: () => RecipeEditorPage.open(context, library),
+            ),
+        ],
       ),
       child: switch ((state.status, library)) {
         (RecipesStatus.failure, _) => Center(
@@ -83,6 +91,12 @@ class _RecipeList extends StatelessWidget {
                   description: libraryRecipes.isEmpty
                       ? l10n.recipesEmptyLibraryDescription
                       : l10n.recipesNoResultsDescription,
+                  // A blank screen needs a stronger affordance than the
+                  // header's `+`; a screen filtered down to nothing does not,
+                  // and offering one there would misread as "nothing exists".
+                  onAdd: libraryRecipes.isEmpty
+                      ? () => RecipeEditorPage.open(context, library)
+                      : null,
                 )
               : FTileGroup.builder(
                   count: visible.length,
@@ -167,10 +181,15 @@ class _TagFilter extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.title, required this.description});
+  const _EmptyState({
+    required this.title,
+    required this.description,
+    this.onAdd,
+  });
 
   final String title;
   final String description;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -189,6 +208,15 @@ class _EmptyState extends StatelessWidget {
               color: theme.colors.mutedForeground,
             ),
           ),
+          if (onAdd case final onAdd?) ...[
+            const SizedBox(height: 16),
+            FButton(
+              mainAxisSize: MainAxisSize.min,
+              prefix: const Icon(FLucideIcons.plus),
+              onPress: onAdd,
+              child: Text(context.l10n.recipeAddLabel),
+            ),
+          ],
         ],
       ),
     );

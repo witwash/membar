@@ -33,6 +33,9 @@ dev_dependencies:
   bloc_tools: ^0.1.0-dev.24
   flutter_test:
     sdk: flutter
+  # Proves the editor disposes the controllers of a removed ingredient or step
+  # row, rather than trusting a reading of dispose().
+  leak_tracker_flutter_testing: ^3.0.10
   mocktail: ^1.0.5
   very_good_analysis: ^10.3.0
 

@@ -686,7 +686,7 @@ context window, and the 4/5 boundary is available as a PR seam whenever you want
 
 ### Phase 6: schema-driven recipe editor
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `RecipeEditorPage` — core fields plus one dynamically-rendered control per schema
   field, per-type validation, required-field enforcement, dirty-state `PopScope` guard,
   controller lifecycle, and delete confirmation — **plus every entry point to it**: the header

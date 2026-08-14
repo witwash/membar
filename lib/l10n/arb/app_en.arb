@@ -69,5 +69,153 @@
     "recipeNotesSectionTitle": "Notes",
     "@recipeNotesSectionTitle": {
         "description": "Heading above the notes on the recipe details screen"
+    },
+    "recipeAddLabel": "Add recipe",
+    "@recipeAddLabel": {
+        "description": "Label of the action that opens the editor on a new recipe"
+    },
+    "recipeEditLabel": "Edit recipe",
+    "@recipeEditLabel": {
+        "description": "Label of the action that opens the editor on an existing recipe"
+    },
+    "recipeDeleteLabel": "Delete recipe",
+    "@recipeDeleteLabel": {
+        "description": "Label of the action that deletes the recipe being viewed"
+    },
+    "recipeDeleteDialogTitle": "Delete {recipe}?",
+    "@recipeDeleteDialogTitle": {
+        "description": "Title of the dialog confirming a recipe deletion",
+        "placeholders": {
+            "recipe": {
+                "type": "String",
+                "example": "Negroni"
+            }
+        }
+    },
+    "recipeDeleteDialogDescription": "This recipe will be removed. There is no undo.",
+    "@recipeDeleteDialogDescription": {
+        "description": "Body of the dialog confirming a recipe deletion"
+    },
+    "recipeDeleteDialogConfirm": "Delete",
+    "@recipeDeleteDialogConfirm": {
+        "description": "Button that confirms a recipe deletion"
+    },
+    "recipeDeleteDialogCancel": "Cancel",
+    "@recipeDeleteDialogCancel": {
+        "description": "Button that dismisses the delete confirmation and keeps the recipe"
+    },
+    "recipeDeleteFailure": "Your recipe could not be deleted.",
+    "@recipeDeleteFailure": {
+        "description": "Shown on the details screen when a deletion fails"
+    },
+    "recipeEditorNewTitle": "New recipe",
+    "@recipeEditorNewTitle": {
+        "description": "Header title of the editor when adding a recipe"
+    },
+    "recipeEditorEditTitle": "Edit recipe",
+    "@recipeEditorEditTitle": {
+        "description": "Header title of the editor when changing an existing recipe"
+    },
+    "recipeEditorSaveLabel": "Save recipe",
+    "@recipeEditorSaveLabel": {
+        "description": "Label of the editor's save action"
+    },
+    "recipeEditorNameLabel": "Name",
+    "@recipeEditorNameLabel": {
+        "description": "Label of the editor's recipe name field"
+    },
+    "recipeEditorNameRequiredError": "Enter a name.",
+    "@recipeEditorNameRequiredError": {
+        "description": "Validation error shown when the recipe name is blank"
+    },
+    "recipeEditorRequiredFieldError": "This field is required.",
+    "@recipeEditorRequiredFieldError": {
+        "description": "Validation error shown when a required schema field is blank"
+    },
+    "recipeEditorNumberFieldError": "Enter a number.",
+    "@recipeEditorNumberFieldError": {
+        "description": "Validation error shown when a Number field holds something that is not a number, kept distinct from the required-field error"
+    },
+    "recipeEditorQuantityLabel": "Quantity",
+    "@recipeEditorQuantityLabel": {
+        "description": "Label of an ingredient row's quantity field"
+    },
+    "recipeEditorUnitLabel": "Unit",
+    "@recipeEditorUnitLabel": {
+        "description": "Label of an ingredient row's unit field"
+    },
+    "recipeEditorIngredientLabel": "Ingredient",
+    "@recipeEditorIngredientLabel": {
+        "description": "Label of an ingredient row's name field"
+    },
+    "recipeEditorAddIngredientLabel": "Add ingredient",
+    "@recipeEditorAddIngredientLabel": {
+        "description": "Button that appends an empty ingredient row"
+    },
+    "recipeEditorRemoveIngredientLabel": "Remove ingredient",
+    "@recipeEditorRemoveIngredientLabel": {
+        "description": "Action that removes an ingredient row"
+    },
+    "recipeEditorStepLabel": "Step {number}",
+    "@recipeEditorStepLabel": {
+        "description": "Label of a step row, numbered from one",
+        "placeholders": {
+            "number": {
+                "type": "int",
+                "example": "1"
+            }
+        }
+    },
+    "recipeEditorAddStepLabel": "Add step",
+    "@recipeEditorAddStepLabel": {
+        "description": "Button that appends an empty step row"
+    },
+    "recipeEditorRemoveStepLabel": "Remove step",
+    "@recipeEditorRemoveStepLabel": {
+        "description": "Action that removes a step row"
+    },
+    "recipeEditorTagsLabel": "Tags",
+    "@recipeEditorTagsLabel": {
+        "description": "Label of the editor's tag selector"
+    },
+    "recipeEditorTagsHint": "Select tags",
+    "@recipeEditorTagsHint": {
+        "description": "Placeholder shown in the editor's tag selector while nothing is selected"
+    },
+    "recipeEditorNewTagLabel": "New tag",
+    "@recipeEditorNewTagLabel": {
+        "description": "Label of the field that adds a tag the library does not have yet"
+    },
+    "recipeEditorAddTagLabel": "Add tag",
+    "@recipeEditorAddTagLabel": {
+        "description": "Button that adds the typed tag to the selection"
+    },
+    "recipeEditorNotesLabel": "Notes",
+    "@recipeEditorNotesLabel": {
+        "description": "Label of the editor's notes field"
+    },
+    "recipeEditorSaveFailure": "Your recipe could not be saved.",
+    "@recipeEditorSaveFailure": {
+        "description": "Shown in the editor when a save fails, keeping the user on the form"
+    },
+    "recipeEditorDiscardTitle": "Discard changes?",
+    "@recipeEditorDiscardTitle": {
+        "description": "Title of the dialog shown when leaving a dirty editor"
+    },
+    "recipeEditorDiscardAddDescription": "This recipe has not been saved yet.",
+    "@recipeEditorDiscardAddDescription": {
+        "description": "Body of the discard dialog when the editor is adding a recipe"
+    },
+    "recipeEditorDiscardEditDescription": "Your changes to this recipe have not been saved.",
+    "@recipeEditorDiscardEditDescription": {
+        "description": "Body of the discard dialog when the editor is changing an existing recipe"
+    },
+    "recipeEditorDiscardConfirm": "Discard",
+    "@recipeEditorDiscardConfirm": {
+        "description": "Button that leaves the editor and throws the changes away"
+    },
+    "recipeEditorKeepEditingLabel": "Keep editing",
+    "@recipeEditorKeepEditingLabel": {
+        "description": "Button that dismisses the discard dialog and stays on the editor"
     }
 }

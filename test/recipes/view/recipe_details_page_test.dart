@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 import '../../helpers/helpers.dart';
@@ -32,11 +35,15 @@ void main() {
       },
     );
 
+    late StreamController<RecipesState> states;
+
     setUp(() {
       recipesBloc = _MockRecipesBloc();
+      states = StreamController<RecipesState>.broadcast();
+      addTearDown(states.close);
       whenListen(
         recipesBloc,
-        const Stream<RecipesState>.empty(),
+        states.stream,
         initialState: const RecipesState(),
       );
     });
@@ -49,6 +56,27 @@ void main() {
       RecipeDetailsPage(recipe: recipe, library: library),
       recipesBloc: recipesBloc,
     );
+
+    /// Pumps details on a pushed route, so popping it can be observed.
+    Future<void> pushDetails(WidgetTester tester) async {
+      await tester.pumpApp(
+        Builder(
+          builder: (context) => FButton(
+            onPress: () => Navigator.of(context).push(
+              RecipeDetailsPage.route(
+                bloc: recipesBloc,
+                recipe: negroni,
+                library: cocktailsLibrary,
+              ),
+            ),
+            child: const Text('Open'),
+          ),
+        ),
+        recipesBloc: recipesBloc,
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }
 
     testWidgets('renders the recipe name and the placeholder image', (
       tester,
@@ -183,30 +211,129 @@ void main() {
     });
 
     testWidgets('pops when the back action is tapped', (tester) async {
-      await tester.pumpApp(
-        Builder(
-          builder: (context) => FButton(
-            onPress: () => Navigator.of(context).push(
-              RecipeDetailsPage.route(
-                bloc: recipesBloc,
-                recipe: negroni,
-                library: cocktailsLibrary,
-              ),
-            ),
-            child: const Text('Open'),
-          ),
-        ),
-        recipesBloc: recipesBloc,
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
+      await pushDetails(tester);
       expect(find.byType(RecipeDetailsPage), findsOneWidget);
 
-      await tester.tap(find.byType(FHeaderAction));
+      // The back action is the header's only prefix; edit and delete follow.
+      await tester.tap(find.byType(FHeaderAction).first);
       await tester.pumpAndSettle();
 
       expect(find.byType(RecipeDetailsPage), findsNothing);
+    });
+
+    testWidgets('renders the edited recipe the bloc now holds', (tester) async {
+      whenListen(
+        recipesBloc,
+        states.stream,
+        initialState: RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          recipes: [
+            Recipe(
+              id: negroni.id,
+              libraryId: cocktailsLibrary.id,
+              name: 'Negroni Sbagliato',
+            ),
+          ],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+
+      await pumpDetails(tester, recipe: negroni, library: cocktailsLibrary);
+
+      expect(find.text('Negroni Sbagliato'), findsOneWidget);
+      expect(find.text('Negroni'), findsNothing);
+    });
+
+    testWidgets('opens the editor from the edit action', (tester) async {
+      await pumpDetails(tester, recipe: negroni, library: cocktailsLibrary);
+
+      await tester.tap(find.bySemanticsLabel('Edit recipe'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RecipeEditorPage), findsOneWidget);
+    });
+
+    group('delete', () {
+      Future<void> tapDelete(WidgetTester tester) async {
+        await tester.tap(find.bySemanticsLabel('Delete recipe'));
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('asks for confirmation first', (tester) async {
+        await pumpDetails(tester, recipe: negroni, library: cocktailsLibrary);
+
+        await tapDelete(tester);
+
+        expect(find.text('Delete Negroni?'), findsOneWidget);
+        verifyNever(() => recipesBloc.add(RecipesRecipeDeleted(negroni.id)));
+      });
+
+      testWidgets('keeps the recipe when the dialog is cancelled', (
+        tester,
+      ) async {
+        await pumpDetails(tester, recipe: negroni, library: cocktailsLibrary);
+
+        await tapDelete(tester);
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Delete Negroni?'), findsNothing);
+        verifyNever(() => recipesBloc.add(RecipesRecipeDeleted(negroni.id)));
+      });
+
+      testWidgets('dispatches the deletion once confirmed', (tester) async {
+        await pumpDetails(tester, recipe: negroni, library: cocktailsLibrary);
+
+        await tapDelete(tester);
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+
+        verify(
+          () => recipesBloc.add(RecipesRecipeDeleted(negroni.id)),
+        ).called(1);
+      });
+
+      testWidgets('pops once the deletion succeeds', (tester) async {
+        await pushDetails(tester);
+
+        await tapDelete(tester);
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+        // The bloc reports the delete in flight before it reports the outcome.
+        states.add(const RecipesState(saveStatus: RecipesSaveStatus.loading));
+        await tester.pumpAndSettle();
+        expect(find.byType(RecipeDetailsPage), findsOneWidget);
+
+        states.add(const RecipesState(saveStatus: RecipesSaveStatus.success));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(RecipeDetailsPage), findsNothing);
+      });
+
+      testWidgets('reports a failed deletion and stays put', (tester) async {
+        await pushDetails(tester);
+
+        await tapDelete(tester);
+        await tester.tap(find.text('Delete'));
+        await tester.pumpAndSettle();
+        states.add(const RecipesState(saveStatus: RecipesSaveStatus.failure));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(RecipeDetailsPage), findsOneWidget);
+        expect(find.text('Your recipe could not be deleted.'), findsOneWidget);
+      });
+
+      testWidgets('ignores a save status change it did not cause', (
+        tester,
+      ) async {
+        await pushDetails(tester);
+
+        states.add(const RecipesState(saveStatus: RecipesSaveStatus.success));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(RecipeDetailsPage), findsOneWidget);
+      });
     });
 
     testWidgets('route re-provides the bloc to the pushed page', (

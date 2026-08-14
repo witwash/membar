@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -201,6 +203,84 @@ void main() {
       verify(
         () => recipesBloc.add(const RecipesSearchTermChanged('neg')),
       ).called(1);
+    });
+
+    testWidgets('opens the editor from the header action', (tester) async {
+      mockState(
+        RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          recipes: [negroni],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await pumpView(tester);
+
+      await tester.tap(find.bySemanticsLabel('Add recipe'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RecipeEditorPage), findsOneWidget);
+    });
+
+    testWidgets('offers an Add button on an empty library', (tester) async {
+      mockState(
+        RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await pumpView(tester);
+
+      await tester.tap(find.widgetWithText(FButton, 'Add recipe'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RecipeEditorPage), findsOneWidget);
+    });
+
+    testWidgets('offers no Add button when a filter emptied the list', (
+      tester,
+    ) async {
+      mockState(
+        RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          recipes: [negroni],
+          activeLibraryId: cocktailsLibrary.id,
+          searchTerm: 'martini',
+        ),
+      );
+      await pumpView(tester);
+
+      expect(find.widgetWithText(FButton, 'Add recipe'), findsNothing);
+    });
+
+    testWidgets('shows a newly saved recipe without a restart', (tester) async {
+      final states = StreamController<RecipesState>.broadcast();
+      addTearDown(states.close);
+      whenListen(
+        recipesBloc,
+        states.stream,
+        initialState: RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await pumpView(tester);
+      expect(find.byType(RecipeTile), findsNothing);
+
+      states.add(
+        RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          recipes: [negroni],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Negroni'), findsOneWidget);
     });
 
     testWidgets('opens the details screen for a tapped recipe', (tester) async {
