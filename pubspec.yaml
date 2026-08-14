@@ -14,9 +14,9 @@ dependencies:
   flutter_bloc: ^9.1.1
   flutter_localizations:
     sdk: flutter
+  forui: any
   intl: ^0.20.2
 
-  forui: any
 dev_dependencies:
   bloc_lint: ^0.4.1
   bloc_test: ^10.0.0

@@ -556,7 +556,7 @@ context window, and the 4/5 boundary is available as a PR seam whenever you want
 
 ### Phase 1: recipes_api data package
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Pure-Dart package with the `Recipe`, `Ingredient`, `Library`, `FieldDefinition`, and
   `RecipesSnapshot` models (`equatable` + `json_serializable`, uuid-generated ids), the
   `FieldType` enum, the `LibraryTemplates` builders, the abstract `RecipesApi`, and the
