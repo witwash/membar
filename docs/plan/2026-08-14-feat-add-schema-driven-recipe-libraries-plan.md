@@ -615,7 +615,7 @@ context window, and the 4/5 boundary is available as a PR seam whenever you want
 
 ### Phase 3: recipes_repository package
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Pure-Dart repository wrapping a constructor-injected `RecipesApi`, exposing
   `watch() → Stream<RecipesSnapshot>`, `saveRecipe`, `deleteRecipe`, `setActiveLibraryId`, and
   `close()`; it re-exports the models via its barrel.
