@@ -348,6 +348,15 @@ them.
   `bloc_concurrency`. No `fpdart`/`freezed`/`hive` — VGV conventions use `equatable` +
   `json_serializable`, and blocs signal errors with typed exceptions and a failure state, not
   `Either`. **Pin `forui: 0.24.1`** exactly (currently `any`) — see Dependencies & Risks.
+  - **`freezed` is also unavailable, not merely unidiomatic** (verified during Phase 1). Stable
+    `freezed 3.2.5` needs `analyzer >=9.0.0 <11.0.0` while `build_runner 2.16.0` needs
+    `analyzer >=13.3.0 <15.0.0`, so version solving fails; only the `4.0.0-dev` prerelease
+    resolves, and it downgrades `analyzer` to 13.3.0. Two further costs if it is ever
+    reconsidered: freezed generates the constructor, so `Recipe`'s normalization (invariant 2)
+    would split into `@JsonKey(fromJson:)` converters plus a wrapper factory — one rule, two
+    entry points — and `*.freezed.dart` would have to be excluded from the 100% coverage gate,
+    which the `*.g.dart` files today do not need. Revisit when freezed 4.0.0 ships stable; the
+    models are plain classes, so the migration stays mechanical.
 - **Bootstrap:** `bootstrap.dart` keeps only `WidgetsFlutterBinding.ensureInitialized()` (the
   binding must exist before a plugin channel is used). The **three flavor entrypoints** —
   `lib/main_development.dart`, `main_staging.dart`, `main_production.dart` — each `await
