@@ -22,4 +22,4 @@ dev_dependencies:
   # Lets a test swap in a store whose writes fail, which is the only way to
   # drive the persistence-failure paths without mocking SharedPreferences.
   shared_preferences_platform_interface: ^2.4.1
-  very_good_analysis: ^10.3.0
+  very_good_analysis: ^11.0.0
