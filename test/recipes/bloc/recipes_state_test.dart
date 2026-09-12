@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
+import '../../helpers/helpers.dart';
+
 void main() {
   group('RecipesState', () {
     final cocktails = Library(id: 'l1', name: 'Cocktails');
@@ -107,6 +109,124 @@ void main() {
       });
     });
 
+    group('catalog', () {
+      final catalog = RecipesState(
+        libraries: [cocktailsLibrary, coffeeLibrary],
+        ingredients: [ginIngredient, cinnamonIngredient, sugarIngredient],
+        activeLibraryId: cocktailsLibrary.id,
+      );
+
+      group('libraryIngredients', () {
+        test('holds entries visible in the active library, ordered '
+            'case-insensitively', () {
+          expect(catalog.libraryIngredients, [ginIngredient, sugarIngredient]);
+        });
+
+        test('follows the active library', () {
+          expect(
+            catalog
+                .copyWith(activeLibraryId: coffeeLibrary.id)
+                .libraryIngredients,
+            [cinnamonIngredient, sugarIngredient],
+          );
+        });
+      });
+
+      group('otherLibraryIngredients', () {
+        test('holds the entries the active library does not see', () {
+          expect(catalog.otherLibraryIngredients, [cinnamonIngredient]);
+        });
+
+        test('orders them case-insensitively', () {
+          final apricot = CatalogIngredient(
+            id: 'ingredient-apricot',
+            name: 'apricot',
+            libraryIds: {coffeeLibrary.id},
+          );
+
+          expect(
+            catalog
+                .copyWith(
+                  ingredients: [cinnamonIngredient, apricot],
+                )
+                .otherLibraryIngredients,
+            [apricot, cinnamonIngredient],
+          );
+        });
+      });
+
+      group('ingredientUsage', () {
+        Recipe recipeUsing(String id, String libraryId, List<String?> links) =>
+            Recipe(
+              id: id,
+              libraryId: libraryId,
+              name: id,
+              ingredients: [
+                for (final link in links)
+                  Ingredient(name: 'Row', catalogId: link),
+              ],
+            );
+
+        test('is empty when no recipe links to the catalog', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', cocktailsLibrary.id, [null]),
+                  ],
+                )
+                .ingredientUsage,
+            isEmpty,
+          );
+        });
+
+        test('counts distinct recipes across every library', () {
+          final usage = catalog
+              .copyWith(
+                recipes: [
+                  recipeUsing('r1', cocktailsLibrary.id, [
+                    ginIngredient.id,
+                    sugarIngredient.id,
+                  ]),
+                  recipeUsing('r2', coffeeLibrary.id, [
+                    sugarIngredient.id,
+                    null,
+                  ]),
+                ],
+              )
+              .ingredientUsage;
+
+          expect(usage, {ginIngredient.id: 1, sugarIngredient.id: 2});
+        });
+
+        test('counts a recipe using one entry on two rows once', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', cocktailsLibrary.id, [
+                      ginIngredient.id,
+                      ginIngredient.id,
+                    ]),
+                  ],
+                )
+                .ingredientUsage,
+            {ginIngredient.id: 1},
+          );
+        });
+      });
+
+      group('ingredientById', () {
+        test('is the entry carrying the id', () {
+          expect(catalog.ingredientById(sugarIngredient.id), sugarIngredient);
+        });
+
+        test('is null for an unknown id', () {
+          expect(catalog.ingredientById('gone'), isNull);
+        });
+      });
+    });
+
     group('copyWith', () {
       test('keeps every value when given nothing', () {
         expect(loaded.copyWith(), loaded);
@@ -118,6 +238,7 @@ void main() {
           mutationStatus: RecipesMutationStatus.loading,
           libraries: [coffee],
           recipes: [v60],
+          ingredients: [ginIngredient],
           activeLibraryId: 'l2',
           searchTerm: 'v60',
           activeTags: const {'Filter'},
@@ -130,6 +251,7 @@ void main() {
             mutationStatus: RecipesMutationStatus.loading,
             libraries: [coffee],
             recipes: [v60],
+            ingredients: [ginIngredient],
             activeLibraryId: 'l2',
             searchTerm: 'v60',
             activeTags: const {'Filter'},

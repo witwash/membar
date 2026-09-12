@@ -22,6 +22,15 @@ void main() {
       expect(ingredient.unit, isEmpty);
     });
 
+    test('is unlinked by default', () {
+      expect(Ingredient(name: 'Gin').catalogId, isNull);
+    });
+
+    test('normalizes a blank catalog id to null', () {
+      expect(Ingredient(name: 'Gin', catalogId: '').catalogId, isNull);
+      expect(Ingredient(name: 'Gin', catalogId: '  ').catalogId, isNull);
+    });
+
     test('asserts on a blank name', () {
       expect(() => Ingredient(name: '   '), throwsA(isA<AssertionError>()));
     });
@@ -37,6 +46,13 @@ void main() {
       );
     });
 
+    test('tells a linked row from an unlinked one', () {
+      expect(
+        Ingredient(name: 'Gin', catalogId: 'i1'),
+        isNot(equals(Ingredient(name: 'Gin'))),
+      );
+    });
+
     group('json', () {
       test('round-trips', () {
         final ingredient = Ingredient(name: 'Gin', quantity: '2', unit: 'oz');
@@ -44,7 +60,35 @@ void main() {
         expect(Ingredient.fromJson(ingredient.toJson()), equals(ingredient));
       });
 
-      test('serializes every field', () {
+      test('round-trips a catalog link', () {
+        final ingredient = Ingredient(name: 'Gin', catalogId: 'i1');
+
+        expect(Ingredient.fromJson(ingredient.toJson()), equals(ingredient));
+      });
+
+      test('serializes the catalog link when there is one', () {
+        expect(
+          Ingredient(name: 'Gin', catalogId: 'i1').toJson(),
+          equals({
+            'name': 'Gin',
+            'quantity': '',
+            'unit': '',
+            'catalogId': 'i1',
+          }),
+        );
+      });
+
+      test('decodes a row written before the catalog as unlinked', () {
+        final ingredient = Ingredient.fromJson(const {
+          'name': 'Gin',
+          'quantity': '2',
+          'unit': 'oz',
+        });
+
+        expect(ingredient.catalogId, isNull);
+      });
+
+      test('serializes an unlinked row without a catalog link', () {
         expect(
           Ingredient(name: 'Gin', quantity: '2', unit: 'oz').toJson(),
           equals({'name': 'Gin', 'quantity': '2', 'unit': 'oz'}),

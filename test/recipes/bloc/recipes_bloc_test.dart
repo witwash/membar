@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
@@ -8,9 +10,12 @@ class _MockRecipesRepository extends Mock implements RecipesRepository {}
 
 class _FakeRecipe extends Fake implements Recipe {}
 
+class _FakeCatalogIngredient extends Fake implements CatalogIngredient {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_FakeRecipe());
+    registerFallbackValue(_FakeCatalogIngredient());
   });
 
   group('RecipesBloc', () {
@@ -20,9 +25,16 @@ void main() {
     final coffee = Library(id: 'l2', name: 'Coffee');
     final negroni = Recipe(id: 'r1', libraryId: 'l1', name: 'Negroni');
     final v60 = Recipe(id: 'r2', libraryId: 'l2', name: 'V60');
+    final gin = CatalogIngredient(
+      id: 'i1',
+      name: 'Gin',
+      defaultUnit: const KnownUnit(StandardUnit.ml),
+      libraryIds: const {'l1'},
+    );
     final snapshot = RecipesSnapshot(
       libraries: [cocktails, coffee],
       recipes: [negroni, v60],
+      ingredients: [gin],
       activeLibraryId: 'l1',
     );
 
@@ -50,9 +62,21 @@ void main() {
             status: RecipesStatus.success,
             libraries: snapshot.libraries,
             recipes: snapshot.recipes,
+            ingredients: snapshot.ingredients,
             activeLibraryId: 'l1',
           ),
         ],
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        "carries the snapshot's catalog into the state",
+        setUp: () => when(
+          () => repository.watch(),
+        ).thenAnswer((_) => Stream.value(snapshot)),
+        build: buildBloc,
+        act: (bloc) => bloc.add(const RecipesSubscriptionRequested()),
+        skip: 1,
+        verify: (bloc) => expect(bloc.state.ingredients, equals([gin])),
       );
 
       blocTest<RecipesBloc, RecipesState>(
@@ -240,6 +264,213 @@ void main() {
             activeLibraryId: 'l1',
             searchTerm: 'neg',
             activeTags: {'Classic'},
+          ),
+        ],
+      );
+    });
+
+    group('RecipesIngredientSaved', () {
+      blocTest<RecipesBloc, RecipesState>(
+        'emits loading then success and delegates to the repository',
+        setUp: () => when(
+          () => repository.saveIngredient(any()),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        act: (bloc) => bloc.add(RecipesIngredientSaved(gin)),
+        expect: () => const [
+          RecipesState(
+            mutation: RecipesMutation.ingredientSaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.ingredientSaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        ],
+        verify: (_) => verify(() => repository.saveIngredient(gin)).called(1),
+      );
+
+      for (final (reason, exception) in [
+        ('the name is taken', const IngredientNameTakenException('Gin')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure when $reason',
+          setUp: () =>
+              when(() => repository.saveIngredient(any())).thenThrow(exception),
+          build: buildBloc,
+          act: (bloc) => bloc.add(RecipesIngredientSaved(gin)),
+          expect: () => const [
+            RecipesState(
+              mutation: RecipesMutation.ingredientSaved,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            RecipesState(
+              mutation: RecipesMutation.ingredientSaved,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
+    });
+
+    group('RecipesIngredientDeleted', () {
+      blocTest<RecipesBloc, RecipesState>(
+        'emits loading then success and delegates to the repository',
+        setUp: () => when(
+          () => repository.deleteIngredient(any()),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        act: (bloc) => bloc.add(const RecipesIngredientDeleted('i1')),
+        expect: () => const [
+          RecipesState(
+            mutation: RecipesMutation.ingredientDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.ingredientDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        ],
+        verify: (_) =>
+            verify(() => repository.deleteIngredient('i1')).called(1),
+      );
+
+      for (final (reason, exception) in <(String, Exception)>[
+        ('the entry is already gone', const IngredientNotFoundException('i1')),
+        (
+          'recipes still use the entry',
+          const IngredientInUseException('i1', 2),
+        ),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure when $reason',
+          setUp: () => when(
+            () => repository.deleteIngredient(any()),
+          ).thenThrow(exception),
+          build: buildBloc,
+          act: (bloc) => bloc.add(const RecipesIngredientDeleted('i1')),
+          expect: () => const [
+            RecipesState(
+              mutation: RecipesMutation.ingredientDeleted,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            RecipesState(
+              mutation: RecipesMutation.ingredientDeleted,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
+    });
+
+    group('RecipesIngredientScopeWidened', () {
+      final loaded = RecipesState(
+        status: RecipesStatus.success,
+        libraries: [cocktails, coffee],
+        ingredients: [gin],
+        activeLibraryId: 'l2',
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'adds the library to the entry and reports nothing',
+        setUp: () => when(
+          () => repository.saveIngredient(any()),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) =>
+            bloc.add(const RecipesIngredientScopeWidened('i1', 'l2')),
+        expect: () => const <RecipesState>[],
+        verify: (_) => verify(
+          () => repository.saveIngredient(
+            CatalogIngredient(
+              id: 'i1',
+              name: 'Gin',
+              defaultUnit: const KnownUnit(StandardUnit.ml),
+              libraryIds: const {'l1', 'l2'},
+            ),
+          ),
+        ).called(1),
+      );
+
+      for (final (reason, exception) in <(String, Exception)>[
+        ('the name is taken', const IngredientNameTakenException('Gin')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits no mutation state when $reason',
+          setUp: () =>
+              when(() => repository.saveIngredient(any())).thenThrow(exception),
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) =>
+              bloc.add(const RecipesIngredientScopeWidened('i1', 'l2')),
+          expect: () => const <RecipesState>[],
+        );
+      }
+
+      blocTest<RecipesBloc, RecipesState>(
+        'writes nothing when the entry is already in the library',
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) =>
+            bloc.add(const RecipesIngredientScopeWidened('i1', 'l1')),
+        expect: () => const <RecipesState>[],
+        verify: (_) => verifyNever(() => repository.saveIngredient(any())),
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'writes nothing when the entry no longer exists',
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) =>
+            bloc.add(const RecipesIngredientScopeWidened('gone', 'l2')),
+        expect: () => const <RecipesState>[],
+        verify: (_) => verifyNever(() => repository.saveIngredient(any())),
+      );
+    });
+
+    group('overlapping mutations', () {
+      late Completer<void> recipeWrite;
+
+      blocTest<RecipesBloc, RecipesState>(
+        'every emission carries the kind of the handler that emitted it',
+        setUp: () {
+          recipeWrite = Completer<void>();
+          when(
+            () => repository.saveRecipe(any()),
+          ).thenAnswer((_) => recipeWrite.future);
+          when(
+            () => repository.saveIngredient(any()),
+          ).thenAnswer((_) async {});
+        },
+        build: buildBloc,
+        act: (bloc) async {
+          bloc
+            ..add(RecipesRecipeSaved(negroni))
+            ..add(RecipesIngredientSaved(gin));
+          // The ingredient save completes while the recipe save is in flight.
+          await Future<void>.delayed(Duration.zero);
+          recipeWrite.complete();
+        },
+        expect: () => const [
+          RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.ingredientSaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.ingredientSaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.success,
           ),
         ],
       );

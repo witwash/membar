@@ -14,7 +14,14 @@ enum RecipesMutationStatus { initial, loading, success, failure }
 /// Three screens share one bloc, and each cares about exactly one kind of
 /// mutation. Naming the kind here is what lets each of them ignore the others
 /// without keeping its own copy of "was that mine?" in widget state.
-enum RecipesMutation { none, recipeSaved, recipeDeleted, librarySelected }
+enum RecipesMutation {
+  none,
+  recipeSaved,
+  recipeDeleted,
+  librarySelected,
+  ingredientSaved,
+  ingredientDeleted,
+}
 
 final class RecipesState extends Equatable {
   const RecipesState({
@@ -23,6 +30,7 @@ final class RecipesState extends Equatable {
     this.mutationStatus = RecipesMutationStatus.initial,
     this.libraries = const [],
     this.recipes = const [],
+    this.ingredients = const [],
     this.activeLibraryId = '',
     this.searchTerm = '',
     this.activeTags = const {},
@@ -43,6 +51,10 @@ final class RecipesState extends Equatable {
   /// Every recipe that exists, across all libraries. Read [visibleRecipes] to
   /// render a list.
   final List<Recipe> recipes;
+
+  /// Every catalog entry that exists, across all libraries. Read
+  /// [libraryIngredients] and [otherLibraryIngredients] to offer them.
+  final List<CatalogIngredient> ingredients;
 
   /// The id of the library being browsed. Blank until the first snapshot
   /// arrives.
@@ -100,12 +112,54 @@ final class RecipesState extends Equatable {
         .expand((recipe) => recipe.tags),
   )..sort(compareCaseInsensitive);
 
+  /// Catalog entries visible in the active library, ordered case-insensitively.
+  List<CatalogIngredient> get libraryIngredients => _sortedIngredients(
+    (entry) => entry.libraryIds.contains(activeLibraryId),
+  );
+
+  /// Catalog entries not visible in the active library — the picker's second
+  /// section.
+  List<CatalogIngredient> get otherLibraryIngredients => _sortedIngredients(
+    (entry) => !entry.libraryIds.contains(activeLibraryId),
+  );
+
+  /// How many recipes reference each entry, keyed by catalog id. Absent means
+  /// zero.
+  ///
+  /// Counts distinct recipes across every library, because deleting an entry
+  /// is global. This recomputes on each read, so read it once per build.
+  Map<String, int> get ingredientUsage {
+    final usage = <String, int>{};
+    for (final recipe in recipes) {
+      final ids = {for (final row in recipe.ingredients) ?row.catalogId};
+      for (final id in ids) {
+        usage[id] = (usage[id] ?? 0) + 1;
+      }
+    }
+    return usage;
+  }
+
+  /// The entry carrying [id], or null when it resolves to nothing.
+  CatalogIngredient? ingredientById(String id) {
+    for (final entry in ingredients) {
+      if (entry.id == id) return entry;
+    }
+    return null;
+  }
+
+  List<CatalogIngredient> _sortedIngredients(
+    bool Function(CatalogIngredient entry) test,
+  ) =>
+      ingredients.where(test).toList()
+        ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
+
   RecipesState copyWith({
     RecipesStatus? status,
     RecipesMutation? mutation,
     RecipesMutationStatus? mutationStatus,
     List<Library>? libraries,
     List<Recipe>? recipes,
+    List<CatalogIngredient>? ingredients,
     String? activeLibraryId,
     String? searchTerm,
     Set<String>? activeTags,
@@ -116,6 +170,7 @@ final class RecipesState extends Equatable {
       mutationStatus: mutationStatus ?? this.mutationStatus,
       libraries: libraries ?? this.libraries,
       recipes: recipes ?? this.recipes,
+      ingredients: ingredients ?? this.ingredients,
       activeLibraryId: activeLibraryId ?? this.activeLibraryId,
       searchTerm: searchTerm ?? this.searchTerm,
       activeTags: activeTags ?? this.activeTags,
@@ -129,6 +184,7 @@ final class RecipesState extends Equatable {
     mutationStatus,
     libraries,
     recipes,
+    ingredients,
     activeLibraryId,
     searchTerm,
     activeTags,

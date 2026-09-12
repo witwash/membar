@@ -11,15 +11,18 @@ void _reportRecoveryError(String message) => debugPrint(message);
 /// {@template local_storage_recipes_api}
 /// A [RecipesApi] backed by `shared_preferences`.
 ///
-/// Libraries, recipes and the active library id are stored under separate
-/// keys, each rewritten in full on every mutation. That is O(n) per save,
-/// which is the ceiling that motivates a real database once a library grows
-/// past personal scale.
+/// Libraries, recipes, catalog entries and the active library id are stored
+/// under separate keys, each rewritten in full on every mutation. That is O(n)
+/// per save, which is the ceiling that motivates a real database once a library
+/// grows past personal scale.
 ///
 /// A fresh install — one with no stored schema version — is seeded from
 /// [LibraryTemplates]. Seeding is driven by the schema version rather than by
 /// "the libraries list is empty" so that a deliberately emptied library list
 /// stays empty instead of resurrecting on the next launch.
+///
+/// Every mutation runs after the ones already queued, so two overlapping
+/// callers cannot compute from the same snapshot and drop each other's write.
 /// {@endtemplate}
 class LocalStorageRecipesApi extends RecipesApi {
   /// {@macro local_storage_recipes_api}
@@ -36,7 +39,7 @@ class LocalStorageRecipesApi extends RecipesApi {
   }) {
     final (:snapshot, :writes) = _restore();
     _subject = BehaviorSubject<RecipesSnapshot>.seeded(snapshot);
-    _initialWrite = _persistInitial(writes);
+    _initialWrite = _serialized(() => _persistInitial(writes));
   }
 
   /// The version of the stored schema. Its presence — not the libraries
@@ -52,13 +55,21 @@ class LocalStorageRecipesApi extends RecipesApi {
   @visibleForTesting
   static const kRecipesKey = '__recipes_key__';
 
+  /// The key the encoded list of catalog entries is stored under.
+  @visibleForTesting
+  static const kIngredientsKey = '__ingredients_key__';
+
   /// The key the id of the library being browsed is stored under.
   @visibleForTesting
   static const kActiveLibraryIdKey = '__active_library_id_key__';
 
-  /// The schema version a fresh install is seeded at.
+  /// The schema version a fresh install is seeded at, and the one an older
+  /// install is migrated to.
+  ///
+  /// Version 2 added [kIngredientsKey]. Migrating to it writes an empty
+  /// catalog and leaves recipes and libraries untouched.
   @visibleForTesting
-  static const kSchemaVersion = 1;
+  static const kSchemaVersion = 2;
 
   final SharedPreferences _plugin;
   final LibraryTemplates _templates;
@@ -66,6 +77,7 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   late final BehaviorSubject<RecipesSnapshot> _subject;
   late final Future<void> _initialWrite;
+  Future<void> _queue = Future<void>.value();
 
   /// Completes once the writes the constructor scheduled — seeding a fresh
   /// install, or rewriting a recovered value — have finished.
@@ -80,7 +92,7 @@ class LocalStorageRecipesApi extends RecipesApi {
   Stream<RecipesSnapshot> watch() => _subject.stream;
 
   @override
-  Future<void> saveRecipe(Recipe recipe) async {
+  Future<void> saveRecipe(Recipe recipe) => _serialized(() async {
     final recipes = [..._subject.value.recipes];
     final index = recipes.indexWhere((stored) => stored.id == recipe.id);
     if (index == -1) {
@@ -91,10 +103,10 @@ class LocalStorageRecipesApi extends RecipesApi {
 
     await _write(kRecipesKey, _encodeRecipes(recipes));
     _emit(recipes: recipes);
-  }
+  });
 
   @override
-  Future<void> deleteRecipe(String id) async {
+  Future<void> deleteRecipe(String id) => _serialized(() async {
     final recipes = [..._subject.value.recipes];
     final index = recipes.indexWhere((stored) => stored.id == id);
     if (index == -1) throw RecipeNotFoundException(id);
@@ -102,30 +114,91 @@ class LocalStorageRecipesApi extends RecipesApi {
 
     await _write(kRecipesKey, _encodeRecipes(recipes));
     _emit(recipes: recipes);
-  }
+  });
 
   @override
-  Future<void> setActiveLibraryId(String id) async {
+  Future<void> saveIngredient(CatalogIngredient ingredient) =>
+      _serialized(() async {
+        final ingredients = [..._subject.value.ingredients];
+        final taken = ingredients.any(
+          (stored) =>
+              stored.id != ingredient.id &&
+              compareCaseInsensitive(stored.name, ingredient.name) == 0,
+        );
+        if (taken) throw IngredientNameTakenException(ingredient.name);
+
+        final index = ingredients.indexWhere(
+          (stored) => stored.id == ingredient.id,
+        );
+        if (index == -1) {
+          ingredients.add(ingredient);
+        } else {
+          ingredients[index] = ingredient;
+        }
+
+        await _write(kIngredientsKey, _encodeIngredients(ingredients));
+        _emit(ingredients: ingredients);
+      });
+
+  @override
+  Future<void> deleteIngredient(String id) => _serialized(() async {
+    final current = _subject.value;
+    final ingredients = [...current.ingredients];
+    final index = ingredients.indexWhere((stored) => stored.id == id);
+    if (index == -1) throw IngredientNotFoundException(id);
+
+    final recipeCount = current.recipes
+        .where(
+          (recipe) => recipe.ingredients.any(
+            (ingredient) => ingredient.catalogId == id,
+          ),
+        )
+        .length;
+    if (recipeCount > 0) throw IngredientInUseException(id, recipeCount);
+    ingredients.removeAt(index);
+
+    await _write(kIngredientsKey, _encodeIngredients(ingredients));
+    _emit(ingredients: ingredients);
+  });
+
+  @override
+  Future<void> setActiveLibraryId(String id) => _serialized(() async {
     await _write(kActiveLibraryIdKey, id);
     _emit(activeLibraryId: id);
-  }
+  });
 
   @override
   Future<void> close() => _subject.close();
 
-  /// Emits [recipes] and [activeLibraryId] over whatever the subject holds
-  /// *now*.
+  /// Runs [mutation] after every mutation already queued.
+  ///
+  /// Two overlapping callers would otherwise each compute a list from the same
+  /// snapshot, and the second write would drop the first. Failures reach the
+  /// caller without stalling the queue behind them.
+  Future<void> _serialized(Future<void> Function() mutation) {
+    final result = _queue.then((_) => mutation());
+    _queue = result.then((_) {}, onError: (_, _) {});
+    return result;
+  }
+
+  /// Emits [recipes], [ingredients] and [activeLibraryId] over whatever the
+  /// subject holds *now*.
   ///
   /// Reading the subject after the write rather than before it is what stops
   /// two overlapping mutations from reverting each other: the api owes its
   /// callers a consistent snapshot on its own, not one that depends on a
   /// caller two layers up serializing them.
-  void _emit({List<Recipe>? recipes, String? activeLibraryId}) {
+  void _emit({
+    List<Recipe>? recipes,
+    List<CatalogIngredient>? ingredients,
+    String? activeLibraryId,
+  }) {
     final current = _subject.value;
     _subject.add(
       RecipesSnapshot(
         libraries: current.libraries,
         recipes: recipes ?? current.recipes,
+        ingredients: ingredients ?? current.ingredients,
         activeLibraryId: activeLibraryId ?? current.activeLibraryId,
       ),
     );
@@ -134,21 +207,21 @@ class LocalStorageRecipesApi extends RecipesApi {
   /// Composes the snapshot to start from, plus whatever has to be written back
   /// to bring storage in line with it.
   ({RecipesSnapshot snapshot, Map<String, Object> writes}) _restore() {
+    // The insertion order of this map is the order the writes land in.
     final writes = <String, Object>{};
 
-    var libraries = _plugin.getInt(kSchemaVersionKey) == null
-        ? null
-        : _readLibraries();
+    final storedVersion = _plugin.getInt(kSchemaVersionKey);
+    var libraries = storedVersion == null ? null : _readLibraries();
     if (libraries == null) {
       // Either a fresh install, or a libraries blob that cannot be read. PR1
       // has no way to create a library, so an empty switcher would be an
       // unrecoverable app: re-seed rather than start from nothing.
       libraries = _templates.all();
       writes[kLibrariesKey] = _encodeLibraries(libraries);
-      writes[kSchemaVersionKey] = kSchemaVersion;
     }
 
     final recipes = _readRecipes();
+    final ingredients = _readIngredients();
 
     final storedActiveId = _plugin.getString(kActiveLibraryIdKey);
     final String activeLibraryId;
@@ -164,12 +237,27 @@ class LocalStorageRecipesApi extends RecipesApi {
       activeLibraryId = storedActiveId ?? '';
     }
 
+    // Decided apart from the re-seed above, so a v1 install with unreadable
+    // libraries still gains its catalog. Written only when absent: a migration
+    // re-run after a failed version write must not wipe a catalog the user has
+    // built since.
+    if (!_plugin.containsKey(kIngredientsKey)) {
+      writes[kIngredientsKey] = _encodeIngredients(const []);
+    }
+    // Last, so a partial failure leaves an older install that already has its
+    // catalog rather than a current one without it.
+    if (storedVersion == null || storedVersion < kSchemaVersion) {
+      writes[kSchemaVersionKey] = kSchemaVersion;
+    }
+
     _reportDanglingRecipes(libraries, recipes);
+    _reportDanglingIngredientRefs(ingredients, recipes);
 
     return (
       snapshot: RecipesSnapshot(
         libraries: libraries,
         recipes: recipes,
+        ingredients: ingredients,
         activeLibraryId: activeLibraryId,
       ),
       writes: writes,
@@ -216,6 +304,23 @@ class LocalStorageRecipesApi extends RecipesApi {
     }
   }
 
+  /// Reads the stored catalog, recovering as an empty list rather than
+  /// throwing — a bad catalog must not cost the user their recipes.
+  List<CatalogIngredient> _readIngredients() {
+    final stored = _plugin.getString(kIngredientsKey);
+    if (stored == null) return const [];
+
+    try {
+      return _decodeList(stored, CatalogIngredient.fromJson);
+    } on Object catch (error) {
+      _onRecoveryError(
+        'The stored ingredients could not be read ($error); recovering as an '
+        'empty list.',
+      );
+      return const [];
+    }
+  }
+
   void _reportDanglingRecipes(List<Library> libraries, List<Recipe> recipes) {
     final libraryIds = {for (final library in libraries) library.id};
     final dangling = recipes
@@ -228,6 +333,28 @@ class LocalStorageRecipesApi extends RecipesApi {
     _onRecoveryError(
       '$dangling recipe(s) belong to a library that no longer exists; they '
       'are hidden but kept.',
+    );
+  }
+
+  void _reportDanglingIngredientRefs(
+    List<CatalogIngredient> ingredients,
+    List<Recipe> recipes,
+  ) {
+    final ingredientIds = {for (final entry in ingredients) entry.id};
+    final dangling = recipes
+        .expand((recipe) => recipe.ingredients)
+        .where(
+          (row) =>
+              row.catalogId != null && !ingredientIds.contains(row.catalogId),
+        )
+        .length;
+    if (dangling == 0) return;
+
+    // Reported, never rewritten: a row whose entry is gone still renders the
+    // name it was saved with.
+    _onRecoveryError(
+      '$dangling ingredient row(s) reference a catalog entry that no longer '
+      'exists; they are shown as typed.',
     );
   }
 
@@ -277,4 +404,7 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   static String _encodeRecipes(List<Recipe> recipes) =>
       jsonEncode([for (final recipe in recipes) recipe.toJson()]);
+
+  static String _encodeIngredients(List<CatalogIngredient> ingredients) =>
+      jsonEncode([for (final ingredient in ingredients) ingredient.toJson()]);
 }

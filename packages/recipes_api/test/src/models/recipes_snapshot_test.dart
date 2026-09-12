@@ -7,6 +7,9 @@ void main() {
         RecipesSnapshot(
           libraries: [Library(id: 'l1', name: 'Cocktails')],
           recipes: [Recipe(id: 'r1', libraryId: 'l1', name: 'Negroni')],
+          ingredients: [
+            CatalogIngredient(id: 'i1', name: 'Gin', libraryIds: const {'l1'}),
+          ],
           activeLibraryId: activeLibraryId,
         );
 
@@ -15,6 +18,7 @@ void main() {
 
       expect(snapshot.libraries.single.name, equals('Cocktails'));
       expect(snapshot.recipes.single.name, equals('Negroni'));
+      expect(snapshot.ingredients.single.name, equals('Gin'));
       expect(snapshot.activeLibraryId, equals('l1'));
     });
 

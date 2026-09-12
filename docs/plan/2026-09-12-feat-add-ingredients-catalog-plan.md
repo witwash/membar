@@ -592,7 +592,7 @@ shell-executable, and coverage has its own criterion.
 
 ### Phase 1 (PR1): data layer
 
-- **Status:** Not started
+- **Status:** Done
 - **Ships nothing user-visible.** That is the acknowledged cost of the split, and it buys a
   reviewable data-modelling PR.
 - **Scope:** `CatalogIngredient`, the sealed `Unit` type with its converter,

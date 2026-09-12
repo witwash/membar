@@ -11,8 +11,8 @@ abstract class RecipesApi {
   /// {@macro recipes_api}
   const RecipesApi();
 
-  /// Emits a [RecipesSnapshot] whenever libraries, recipes, or the active
-  /// library change.
+  /// Emits a [RecipesSnapshot] whenever libraries, recipes, catalog entries,
+  /// or the active library change.
   ///
   /// Whether the current snapshot is replayed to a late subscriber is an
   /// implementation detail, not part of this contract.
@@ -28,6 +28,21 @@ abstract class RecipesApi {
   /// Throws a [RecipeNotFoundException] when no such recipe exists, and a
   /// [RecipesPersistenceException] when the write fails.
   Future<void> deleteRecipe(String id);
+
+  /// Stores [ingredient] in the catalog, replacing any entry that already
+  /// carries its id.
+  ///
+  /// Throws an [IngredientNameTakenException] when a different entry already
+  /// carries the same name without regard to case, and a
+  /// [RecipesPersistenceException] when the write fails.
+  Future<void> saveIngredient(CatalogIngredient ingredient);
+
+  /// Removes the catalog entry carrying [id].
+  ///
+  /// Throws an [IngredientNotFoundException] when no such entry exists, an
+  /// [IngredientInUseException] when any recipe in any library still
+  /// references it, and a [RecipesPersistenceException] when the write fails.
+  Future<void> deleteIngredient(String id);
 
   /// Marks the library carrying [id] as the one being browsed.
   ///
@@ -50,6 +65,56 @@ class RecipeNotFoundException implements Exception {
 
   @override
   String toString() => 'RecipeNotFoundException: no recipe with id "$id".';
+}
+
+/// {@template ingredient_not_found_exception}
+/// Thrown when a catalog entry the caller asked for does not exist.
+/// {@endtemplate}
+class IngredientNotFoundException implements Exception {
+  /// {@macro ingredient_not_found_exception}
+  const IngredientNotFoundException(this.id);
+
+  /// The id no catalog entry was found for.
+  final String id;
+
+  @override
+  String toString() =>
+      'IngredientNotFoundException: no catalog entry with id "$id".';
+}
+
+/// {@template ingredient_name_taken_exception}
+/// Thrown when saving a catalog entry whose name, without regard to case,
+/// already belongs to a different entry.
+/// {@endtemplate}
+class IngredientNameTakenException implements Exception {
+  /// {@macro ingredient_name_taken_exception}
+  const IngredientNameTakenException(this.name);
+
+  /// The name another entry already carries.
+  final String name;
+
+  @override
+  String toString() =>
+      'IngredientNameTakenException: "$name" is already in the catalog.';
+}
+
+/// {@template ingredient_in_use_exception}
+/// Thrown when deleting a catalog entry that recipes still reference.
+/// {@endtemplate}
+class IngredientInUseException implements Exception {
+  /// {@macro ingredient_in_use_exception}
+  const IngredientInUseException(this.id, this.recipeCount);
+
+  /// The id of the entry that could not be deleted.
+  final String id;
+
+  /// How many recipes, across all libraries, reference the entry.
+  final int recipeCount;
+
+  @override
+  String toString() =>
+      'IngredientInUseException: catalog entry "$id" is used in '
+      '$recipeCount recipe(s).';
 }
 
 /// {@template recipes_persistence_exception}

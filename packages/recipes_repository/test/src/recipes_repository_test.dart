@@ -7,9 +7,12 @@ class _MockRecipesApi extends Mock implements RecipesApi {}
 
 class _FakeRecipe extends Fake implements Recipe {}
 
+class _FakeCatalogIngredient extends Fake implements CatalogIngredient {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_FakeRecipe());
+    registerFallbackValue(_FakeCatalogIngredient());
   });
 
   group('RecipesRepository', () {
@@ -30,6 +33,7 @@ void main() {
         const snapshot = RecipesSnapshot(
           libraries: [],
           recipes: [],
+          ingredients: [],
           activeLibraryId: 'l1',
         );
         when(() => api.watch()).thenAnswer(
@@ -69,6 +73,54 @@ void main() {
         expect(
           () => repository.deleteRecipe('r1'),
           throwsA(isA<RecipeNotFoundException>()),
+        );
+      });
+    });
+
+    group('saveIngredient', () {
+      test('delegates to the api', () async {
+        final ingredient = CatalogIngredient(
+          name: 'Gin',
+          libraryIds: const {'l1'},
+        );
+        when(() => api.saveIngredient(any())).thenAnswer((_) async {});
+
+        await repository.saveIngredient(ingredient);
+
+        verify(() => api.saveIngredient(ingredient)).called(1);
+      });
+
+      test('passes an IngredientNameTakenException through untranslated', () {
+        when(
+          () => api.saveIngredient(any()),
+        ).thenThrow(const IngredientNameTakenException('Gin'));
+
+        expect(
+          () => repository.saveIngredient(
+            CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
+          ),
+          throwsA(isA<IngredientNameTakenException>()),
+        );
+      });
+    });
+
+    group('deleteIngredient', () {
+      test('delegates to the api', () async {
+        when(() => api.deleteIngredient(any())).thenAnswer((_) async {});
+
+        await repository.deleteIngredient('i1');
+
+        verify(() => api.deleteIngredient('i1')).called(1);
+      });
+
+      test('passes an IngredientInUseException through untranslated', () {
+        when(
+          () => api.deleteIngredient(any()),
+        ).thenThrow(const IngredientInUseException('i1', 2));
+
+        expect(
+          () => repository.deleteIngredient('i1'),
+          throwsA(isA<IngredientInUseException>()),
         );
       });
     });
