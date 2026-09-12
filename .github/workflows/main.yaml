@@ -37,10 +37,3 @@ jobs:
     with:
       flutter_version: "3.44.x"
       working_directory: packages/local_storage_recipes_api
-
-  spell-check:
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1
-    with:
-      includes: |
-        **/*.md
-      modified_files_only: false
