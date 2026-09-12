@@ -228,6 +228,25 @@ void main() {
           ingredients: ingredients,
         );
 
+        test('hands out an unmodifiable library set', () {
+          final importable = catalog
+              .copyWith(
+                ingredients: const [],
+                recipes: [
+                  recipeWith('r1', cocktailsLibrary.id, [
+                    Ingredient(name: 'Gin'),
+                  ]),
+                ],
+              )
+              .importableIngredients
+              .single;
+
+          expect(
+            () => importable.libraryIds.add(coffeeLibrary.id),
+            throwsUnsupportedError,
+          );
+        });
+
         test('is equal across two reads', () {
           final state = catalog.copyWith(
             ingredients: const [],
@@ -388,6 +407,20 @@ void main() {
           test('is null when no row carries a unit', () {
             expect(inferred(['', '']), isNull);
           });
+        });
+      });
+
+      group('ingredientNamed', () {
+        test('is the entry whose name matches, ignoring case and padding', () {
+          expect(catalog.ingredientNamed('  gIN '), ginIngredient);
+        });
+
+        test('is null for a name no entry carries', () {
+          expect(catalog.ingredientNamed('Gin fizz'), isNull);
+        });
+
+        test('is null for a blank name', () {
+          expect(catalog.ingredientNamed('   '), isNull);
         });
       });
 

@@ -12,23 +12,6 @@ class _MockRecipesBloc extends MockBloc<RecipesEvent, RecipesState>
     implements RecipesBloc {}
 
 void main() {
-  group('catalogEntryNamed', () {
-    test('finds the entry whose name matches, ignoring case and padding', () {
-      expect(
-        catalogEntryNamed([sugarIngredient, ginIngredient], '  gIN '),
-        ginIngredient,
-      );
-    });
-
-    test('finds nothing for a name no entry carries', () {
-      expect(catalogEntryNamed([ginIngredient], 'Gin fizz'), isNull);
-    });
-
-    test('finds nothing for a blank name', () {
-      expect(catalogEntryNamed([ginIngredient], '   '), isNull);
-    });
-  });
-
   group('IngredientOption', () {
     test('a catalog option is equal by entry and scope', () {
       expect(

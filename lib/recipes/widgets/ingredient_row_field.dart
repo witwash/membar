@@ -41,17 +41,17 @@ class IngredientRowControllers {
   /// The ingredient this row describes, or null when it is blank.
   ///
   /// A row with no name is not an ingredient, whatever else was typed into it.
-  /// It links to the entry in [catalog] its name matches, and to nothing
-  /// otherwise — so picking an entry, typing its name, and editing a picked
-  /// name back into free text all resolve without the row tracking a link.
-  Ingredient? ingredientIn(Iterable<CatalogIngredient> catalog) =>
-      name.text.trim().isEmpty
+  /// It links to the catalog entry in [state] its name matches, and to
+  /// nothing otherwise — so picking an entry, typing its name, and editing a
+  /// picked name back into free text all resolve without the row tracking a
+  /// link.
+  Ingredient? ingredientIn(RecipesState state) => name.text.trim().isEmpty
       ? null
       : Ingredient(
           name: name.text,
           quantity: quantity.text,
           unit: unit.text,
-          catalogId: catalogEntryNamed(catalog, name.text)?.id,
+          catalogId: state.ingredientNamed(name.text)?.id,
         );
 
   /// What the row holds, for telling a touched editor from an untouched one.

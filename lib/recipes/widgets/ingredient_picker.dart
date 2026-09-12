@@ -8,25 +8,6 @@ import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
-/// The entry in [catalog] whose name matches [name] without regard to case, or
-/// null when none does.
-///
-/// Catalog names are unique on that same folding, so at most one entry can
-/// match. This is the rule that links a saved ingredient row to an entry, and
-/// the rule that makes the create sheet reuse an entry rather than add a
-/// second one spelled differently.
-CatalogIngredient? catalogEntryNamed(
-  Iterable<CatalogIngredient> catalog,
-  String name,
-) {
-  final folded = name.trim().toLowerCase();
-  if (folded.isEmpty) return null;
-  for (final entry in catalog) {
-    if (entry.name.toLowerCase() == folded) return entry;
-  }
-  return null;
-}
-
 /// Something the ingredient picker offers.
 sealed class IngredientOption extends Equatable {
   const IngredientOption();

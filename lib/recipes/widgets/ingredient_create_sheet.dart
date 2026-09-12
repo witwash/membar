@@ -47,17 +47,14 @@ class IngredientCreateSheet extends StatefulWidget {
 class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.name);
-  final _customUnitController = TextEditingController();
-
-  StandardUnit? _standardUnit;
-  var _custom = false;
+  final _unitController = DefaultUnitController();
   var _saveFailed = false;
   CatalogIngredient? _pending;
 
   @override
   void dispose() {
     _nameController.dispose();
-    _customUnitController.dispose();
+    _unitController.dispose();
     super.dispose();
   }
 
@@ -109,20 +106,32 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
                 ),
                 ListenableBuilder(
                   listenable: _nameController,
-                  builder: (context, _) => _UnitSection(
-                    existing: catalogEntryNamed(
-                      context.select<RecipesBloc, List<CatalogIngredient>>(
-                        (bloc) => bloc.state.ingredients,
-                      ),
-                      _nameController.text,
-                    ),
-                    standardUnit: _standardUnit,
-                    customUnitController: _customUnitController,
-                    custom: _custom,
-                    onStandardUnitChanged: (unit) =>
-                        setState(() => _standardUnit = unit),
-                    onCustomToggled: () => setState(() => _custom = !_custom),
-                  ),
+                  builder: (context, _) {
+                    final existing = context
+                        .select<RecipesBloc, CatalogIngredient?>(
+                          (bloc) =>
+                              bloc.state.ingredientNamed(_nameController.text),
+                        );
+                    // While the typed name matches an entry, the unit shows
+                    // that entry's and cannot change, so the user sees what
+                    // reuse will give them before saving.
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      spacing: AppSpacing.spacing100,
+                      children: [
+                        if (existing != null)
+                          Text(
+                            l10n.ingredientCreateReuseNote(existing.name),
+                            style: theme.typography.body.sm,
+                          ),
+                        DefaultUnitField(
+                          controller: _unitController,
+                          locked: existing != null,
+                          lockedUnit: existing?.defaultUnit,
+                        ),
+                      ],
+                    );
+                  },
                 ),
                 FButton(
                   onPress: saving ? null : _save,
@@ -141,26 +150,12 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
     );
   }
 
-  Unit? get _chosenUnit {
-    if (!_custom) {
-      return switch (_standardUnit) {
-        final unit? => KnownUnit(unit),
-        null => null,
-      };
-    }
-    final label = _customUnitController.text.trim();
-    return label.isEmpty ? null : CustomUnit(label);
-  }
-
   void _save() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final bloc = context.read<RecipesBloc>();
     final libraryId = bloc.state.activeLibraryId;
-    final existing = catalogEntryNamed(
-      bloc.state.ingredients,
-      _nameController.text,
-    );
+    final existing = bloc.state.ingredientNamed(_nameController.text);
 
     // Reusing an existing entry is the same act as picking it from the list,
     // and saving its own id is what keeps it clear of the uniqueness guard.
@@ -174,7 +169,7 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
 
     final entry = CatalogIngredient(
       name: _nameController.text,
-      defaultUnit: _chosenUnit,
+      defaultUnit: _unitController.unit,
       libraryIds: {libraryId},
     );
     setState(() {
@@ -182,95 +177,5 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
       _pending = entry;
     });
     bloc.add(RecipesIngredientSaved(entry));
-  }
-}
-
-/// The default unit controls: a list of the standard units, or a field for a
-/// custom one.
-///
-/// While the typed name matches an existing entry, they show that entry's
-/// unit and cannot be changed, so the user sees what reuse will give them
-/// before saving.
-class _UnitSection extends StatelessWidget {
-  const _UnitSection({
-    required this.existing,
-    required this.standardUnit,
-    required this.customUnitController,
-    required this.custom,
-    required this.onStandardUnitChanged,
-    required this.onCustomToggled,
-  });
-
-  final CatalogIngredient? existing;
-  final StandardUnit? standardUnit;
-  final TextEditingController customUnitController;
-  final bool custom;
-  final ValueChanged<StandardUnit?> onStandardUnitChanged;
-  final VoidCallback onCustomToggled;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-    final existing = this.existing;
-    final reusing = existing != null;
-    final existingUnit = existing?.defaultUnit;
-    final showCustom = reusing ? existingUnit is CustomUnit : custom;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: AppSpacing.spacing100,
-      children: [
-        if (existing != null)
-          Text(
-            l10n.ingredientCreateReuseNote(existing.name),
-            style: context.theme.typography.body.sm,
-          ),
-        // Each control is keyed apart from the others, so none of them inherits
-        // another's state — or controller — when they swap places.
-        if (existing != null && existingUnit is CustomUnit)
-          FTextFormField(
-            key: ValueKey(existing.id),
-            label: Text(l10n.ingredientCreateCustomUnitLabel),
-            enabled: false,
-            control: FTextFieldControl.managed(
-              initial: TextEditingValue(text: existingUnit.label),
-            ),
-          )
-        else if (showCustom)
-          FTextFormField(
-            key: const ValueKey('custom-unit'),
-            label: Text(l10n.ingredientCreateCustomUnitLabel),
-            control: FTextFieldControl.managed(
-              controller: customUnitController,
-            ),
-          )
-        else
-          FSelect<StandardUnit>(
-            key: const ValueKey('standard-unit'),
-            label: Text(l10n.ingredientCreateUnitLabel),
-            items: {
-              for (final unit in StandardUnit.values)
-                KnownUnit(unit).label: unit,
-            },
-            clearable: true,
-            enabled: !reusing,
-            control: FSelectControl.lifted(
-              value: reusing
-                  ? (existingUnit as KnownUnit?)?.unit
-                  : standardUnit,
-              onChange: onStandardUnitChanged,
-            ),
-          ),
-        FButton(
-          variant: FButtonVariant.ghost,
-          onPress: reusing ? null : onCustomToggled,
-          child: Text(
-            showCustom
-                ? l10n.ingredientCreateUnitStandardLabel
-                : l10n.ingredientCreateUnitCustomLabel,
-          ),
-        ),
-      ],
-    );
   }
 }

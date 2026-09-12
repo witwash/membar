@@ -58,15 +58,10 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
     // The pushed recipe is only the starting point: an edit saved from the
     // editor lands in the bloc, and this screen is what the editor pops back
     // to. Falling back to it covers the frame in which it has been deleted.
-    final recipe = context.select<RecipesBloc, Recipe>(
-      (bloc) => bloc.state.recipes.firstWhere(
-        (it) => it.id == widget.recipe.id,
-        orElse: () => widget.recipe,
-      ),
-    );
-
-    final catalog = context.select<RecipesBloc, List<CatalogIngredient>>(
-      (bloc) => bloc.state.ingredients,
+    final state = context.watch<RecipesBloc>().state;
+    final recipe = state.recipes.firstWhere(
+      (it) => it.id == widget.recipe.id,
+      orElse: () => widget.recipe,
     );
 
     final schemaFields = <(FieldDefinition, String)>[
@@ -122,7 +117,7 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
                 title: l10n.recipeIngredientsSectionTitle,
                 children: [
                   for (final ingredient in recipe.ingredients)
-                    Text(_ingredientLine(ingredient, catalog)),
+                    Text(_ingredientLine(ingredient, state)),
                 ],
               ),
             if (recipe.steps.isNotEmpty)
@@ -174,17 +169,13 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
 
   /// A referenced row reads as its entry's current name, which is what makes a
   /// rename show; a row whose entry is gone falls back to the name it stored.
-  String _ingredientLine(
-    Ingredient ingredient,
-    List<CatalogIngredient> catalog,
-  ) => [
+  String _ingredientLine(Ingredient ingredient, RecipesState state) => [
     ingredient.quantity,
     ingredient.unit,
-    catalog
-            .where((entry) => entry.id == ingredient.catalogId)
-            .firstOrNull
-            ?.name ??
-        ingredient.name,
+    switch (ingredient.catalogId) {
+      final id? => state.ingredientById(id)?.name ?? ingredient.name,
+      null => ingredient.name,
+    },
   ].where((part) => part.isNotEmpty).join(' ');
 }
 

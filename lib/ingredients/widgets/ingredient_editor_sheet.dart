@@ -46,18 +46,9 @@ class IngredientEditorSheet extends StatefulWidget {
 class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
   final _formKey = GlobalKey<FormState>();
   late final _nameController = TextEditingController(text: widget.entry.name);
-  late final _customUnitController = TextEditingController(
-    text: switch (widget.entry.defaultUnit) {
-      CustomUnit(:final label) => label,
-      _ => '',
-    },
+  late final _unitController = DefaultUnitController(
+    widget.entry.defaultUnit,
   );
-
-  late StandardUnit? _standardUnit = switch (widget.entry.defaultUnit) {
-    KnownUnit(:final unit) => unit,
-    _ => null,
-  };
-  late bool _custom = widget.entry.defaultUnit is CustomUnit;
   late final Set<String> _libraryIds = {...widget.entry.libraryIds};
   var _submitted = false;
   var _saveFailed = false;
@@ -65,7 +56,7 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
   @override
   void dispose() {
     _nameController.dispose();
-    _customUnitController.dispose();
+    _unitController.dispose();
     super.dispose();
   }
 
@@ -117,46 +108,7 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
                   autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _validateName,
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: AppSpacing.spacing100,
-                  children: [
-                    // Keyed apart, so neither control inherits the other's
-                    // state when they swap places.
-                    if (_custom)
-                      FTextFormField(
-                        key: const ValueKey('custom-unit'),
-                        label: Text(l10n.ingredientEditCustomUnitLabel),
-                        control: FTextFieldControl.managed(
-                          controller: _customUnitController,
-                        ),
-                      )
-                    else
-                      FSelect<StandardUnit>(
-                        key: const ValueKey('standard-unit'),
-                        label: Text(l10n.ingredientEditUnitLabel),
-                        items: {
-                          for (final unit in StandardUnit.values)
-                            KnownUnit(unit).label: unit,
-                        },
-                        clearable: true,
-                        control: FSelectControl.lifted(
-                          value: _standardUnit,
-                          onChange: (unit) =>
-                              setState(() => _standardUnit = unit),
-                        ),
-                      ),
-                    FButton(
-                      variant: FButtonVariant.ghost,
-                      onPress: () => setState(() => _custom = !_custom),
-                      child: Text(
-                        _custom
-                            ? l10n.ingredientEditUnitStandardLabel
-                            : l10n.ingredientEditUnitCustomLabel,
-                      ),
-                    ),
-                  ],
-                ),
+                DefaultUnitField(controller: _unitController),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   spacing: AppSpacing.spacing100,
@@ -203,33 +155,18 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
     );
   }
 
-  /// Refuses a rename onto another entry's name by the rule the data layer
-  /// enforces, so the user sees an error rather than a failed save.
+  /// Refuses a rename onto another entry's name before the data layer would,
+  /// so the user sees an error rather than a failed save.
   String? _validateName(String? value) {
     final l10n = context.l10n;
     final name = (value ?? '').trim();
     if (name.isEmpty) return l10n.ingredientEditNameRequiredError;
 
-    final taken = context.read<RecipesBloc>().state.ingredients.where(
-      (other) =>
-          other.id != widget.entry.id &&
-          compareCaseInsensitive(other.name, name) == 0,
-    );
-    return switch (taken.firstOrNull) {
-      final other? => l10n.ingredientEditNameTakenError(other.name),
-      null => null,
+    return switch (context.read<RecipesBloc>().state.ingredientNamed(name)) {
+      final other? when other.id != widget.entry.id =>
+        l10n.ingredientEditNameTakenError(other.name),
+      _ => null,
     };
-  }
-
-  Unit? get _chosenUnit {
-    if (!_custom) {
-      return switch (_standardUnit) {
-        final unit? => KnownUnit(unit),
-        null => null,
-      };
-    }
-    final label = _customUnitController.text.trim();
-    return label.isEmpty ? null : CustomUnit(label);
   }
 
   void _save() {
@@ -245,7 +182,7 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
         CatalogIngredient(
           id: widget.entry.id,
           name: _nameController.text,
-          defaultUnit: _chosenUnit,
+          defaultUnit: _unitController.unit,
           libraryIds: _libraryIds,
         ),
       ),

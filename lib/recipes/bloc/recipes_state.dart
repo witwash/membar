@@ -30,11 +30,11 @@ enum RecipesMutation {
 /// It carries no id: the entry's id is minted when the import is written, so
 /// reading [RecipesState.importableIngredients] twice yields equal values.
 final class ImportableIngredient extends Equatable {
-  const ImportableIngredient({
+  ImportableIngredient({
     required this.name,
-    required this.libraryIds,
+    required Set<String> libraryIds,
     this.defaultUnit,
-  });
+  }) : libraryIds = Set.unmodifiable(libraryIds);
 
   /// The first spelling of the name seen across the recipes using it.
   final String name;
@@ -176,9 +176,8 @@ final class RecipesState extends Equatable {
   /// often, with the first seen winning a tie.
   List<ImportableIngredient> get importableIngredients {
     final libraryIds = {for (final library in libraries) library.id};
-    final claimed = {
-      for (final entry in ingredients) entry.name.toLowerCase(),
-    };
+    final catalogIds = {for (final entry in ingredients) entry.id};
+    final claimed = {for (final entry in ingredients) _fold(entry.name)};
     final names = <String, String>{};
     final scopes = <String, Set<String>>{};
     final unitCounts = <String, Map<String, int>>{};
@@ -186,9 +185,9 @@ final class RecipesState extends Equatable {
     for (final recipe in recipes) {
       if (!libraryIds.contains(recipe.libraryId)) continue;
       for (final row in recipe.ingredients) {
-        final key = row.name.toLowerCase();
+        final key = _fold(row.name);
         if (claimed.contains(key)) continue;
-        if (row.catalogId case final id? when ingredientById(id) != null) {
+        if (catalogIds.contains(row.catalogId)) {
           continue;
         }
 
@@ -209,6 +208,22 @@ final class RecipesState extends Equatable {
     ]..sort((a, b) => compareCaseInsensitive(a.name, b.name));
   }
 
+  /// The entry whose name matches [name] without regard to case or
+  /// surrounding whitespace, or null when none does or [name] is blank.
+  ///
+  /// Catalog names are unique on that same folding, so at most one entry can
+  /// match. This is the rule that links a saved ingredient row to an entry,
+  /// makes the create sheet reuse an entry rather than add a second, and
+  /// refuses a rename onto another entry's name.
+  CatalogIngredient? ingredientNamed(String name) {
+    final folded = _fold(name);
+    if (folded.isEmpty) return null;
+    for (final entry in ingredients) {
+      if (_fold(entry.name) == folded) return entry;
+    }
+    return null;
+  }
+
   /// The entry carrying [id], or null when it resolves to nothing.
   CatalogIngredient? ingredientById(String id) {
     for (final entry in ingredients) {
@@ -216,6 +231,8 @@ final class RecipesState extends Equatable {
     }
     return null;
   }
+
+  static String _fold(String name) => name.trim().toLowerCase();
 
   /// The key counted most often. A map iterates in insertion order and only a
   /// strictly greater count replaces the leader, so the first seen wins a tie.

@@ -45,7 +45,10 @@ void main() {
     });
 
     test('initial state has nothing loaded', () {
-      expect(buildBloc().state, const RecipesState());
+      final bloc = buildBloc();
+      addTearDown(bloc.close);
+
+      expect(bloc.state, const RecipesState());
     });
 
     group('RecipesSubscriptionRequested', () {

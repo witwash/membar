@@ -242,20 +242,20 @@
     "@ingredientCreateNameRequiredError": {
         "description": "Validation error shown when the create sheet's ingredient name is blank"
     },
-    "ingredientCreateUnitLabel": "Default unit",
-    "@ingredientCreateUnitLabel": {
-        "description": "Label of the unit an ingredient row is prefilled with when this ingredient is picked"
+    "defaultUnitLabel": "Default unit",
+    "@defaultUnitLabel": {
+        "description": "Label of the list of standard units an ingredient row is prefilled with when the ingredient is picked"
     },
-    "ingredientCreateUnitCustomLabel": "Custom…",
-    "@ingredientCreateUnitCustomLabel": {
+    "defaultUnitCustomLabel": "Custom…",
+    "@defaultUnitCustomLabel": {
         "description": "Action that swaps the list of standard units for a field accepting any unit"
     },
-    "ingredientCreateUnitStandardLabel": "Standard units",
-    "@ingredientCreateUnitStandardLabel": {
+    "defaultUnitStandardLabel": "Standard units",
+    "@defaultUnitStandardLabel": {
         "description": "Action that swaps the custom unit field back for the list of standard units"
     },
-    "ingredientCreateCustomUnitLabel": "Custom unit",
-    "@ingredientCreateCustomUnitLabel": {
+    "defaultUnitCustomFieldLabel": "Custom unit",
+    "@defaultUnitCustomFieldLabel": {
         "description": "Label of the field accepting a unit outside the standard list, such as pinch"
     },
     "ingredientCreateReuseNote": "{ingredient} is already in your catalog, so it will be reused.",
@@ -391,22 +391,6 @@
                 "example": "Gin"
             }
         }
-    },
-    "ingredientEditUnitLabel": "Default unit",
-    "@ingredientEditUnitLabel": {
-        "description": "Label of the edit sheet's list of standard units"
-    },
-    "ingredientEditUnitCustomLabel": "Custom…",
-    "@ingredientEditUnitCustomLabel": {
-        "description": "Action that swaps the edit sheet's list of standard units for a field accepting any unit"
-    },
-    "ingredientEditUnitStandardLabel": "Standard units",
-    "@ingredientEditUnitStandardLabel": {
-        "description": "Action that swaps the edit sheet's custom unit field back for the list of standard units"
-    },
-    "ingredientEditCustomUnitLabel": "Custom unit",
-    "@ingredientEditCustomUnitLabel": {
-        "description": "Label of the edit sheet's field accepting a unit outside the standard list"
     },
     "ingredientEditLibrariesLabel": "Libraries",
     "@ingredientEditLibrariesLabel": {

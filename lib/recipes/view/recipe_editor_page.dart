@@ -363,7 +363,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     final existing = widget.recipe;
     // Read at save rather than at open: an entry created or deleted while the
     // form was open decides what each row links to.
-    final catalog = context.read<RecipesBloc>().state.ingredients;
+    final state = context.read<RecipesBloc>().state;
     // Edits are laid *over* what is stored, never composed fresh from the
     // rendered controls: a value whose field the schema no longer declares
     // must survive a round trip rather than be silently dropped.
@@ -385,7 +385,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       libraryId: widget.library.id,
       name: _nameController.text,
       ingredients: [
-        for (final row in _ingredientRows) ?row.ingredientIn(catalog),
+        for (final row in _ingredientRows) ?row.ingredientIn(state),
       ],
       steps: [for (final row in _stepRows) ?row.step],
       tags: _tagsController.value.toList(),

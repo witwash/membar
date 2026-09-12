@@ -44,7 +44,7 @@ void main() {
       final controllers = IngredientRowControllers(0);
       addTearDown(controllers.dispose);
 
-      expect(controllers.ingredientIn(const []), isNull);
+      expect(controllers.ingredientIn(const RecipesState()), isNull);
       expect(controllers.state, ['', '', '']);
     });
 
@@ -55,7 +55,10 @@ void main() {
         addTearDown(controllers.dispose);
         controllers.quantity.text = '2';
 
-        expect(controllers.ingredientIn([ginIngredient]), isNull);
+        expect(
+          controllers.ingredientIn(RecipesState(ingredients: [ginIngredient])),
+          isNull,
+        );
       },
     );
 
@@ -66,7 +69,7 @@ void main() {
       controllers.quantity.text = '2';
 
       expect(
-        controllers.ingredientIn(const []),
+        controllers.ingredientIn(const RecipesState()),
         Ingredient(name: 'Gin', quantity: '2'),
       );
     });
@@ -77,7 +80,9 @@ void main() {
       controllers.name.text = ' gIN ';
 
       expect(
-        controllers.ingredientIn([sugarIngredient, ginIngredient]),
+        controllers.ingredientIn(
+          RecipesState(ingredients: [sugarIngredient, ginIngredient]),
+        ),
         Ingredient(name: 'gIN', catalogId: ginIngredient.id),
       );
     });
@@ -87,7 +92,12 @@ void main() {
       addTearDown(controllers.dispose);
       controllers.name.text = 'Gin and tonic';
 
-      expect(controllers.ingredientIn([ginIngredient])?.catalogId, isNull);
+      expect(
+        controllers
+            .ingredientIn(RecipesState(ingredients: [ginIngredient]))
+            ?.catalogId,
+        isNull,
+      );
     });
   });
 
