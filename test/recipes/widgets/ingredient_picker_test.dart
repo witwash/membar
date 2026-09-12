@@ -41,6 +41,10 @@ void main() {
       libraryIds: {cocktailsLibrary.id},
     );
 
+    setUpAll(
+      () => registerFallbackValue(const RecipesSubscriptionRequested()),
+    );
+
     setUp(() {
       recipesBloc = _MockRecipesBloc();
       whenListen(
