@@ -60,6 +60,7 @@ final class RecipesState extends Equatable {
     this.activeLibraryId = '',
     this.searchTerm = '',
     this.activeTags = const {},
+    this.ingredientsImported = false,
   });
 
   /// How the subscription to the repository is faring.
@@ -91,6 +92,10 @@ final class RecipesState extends Equatable {
 
   /// The tags the list is filtered by. Selected tags are OR'd together.
   final Set<String> activeTags;
+
+  /// Whether the one-time import of ingredient names from saved recipes has
+  /// run. Once it has, [importableIngredients] offers nothing.
+  final bool ingredientsImported;
 
   /// The library being browsed, or null before the first snapshot arrives.
   ///
@@ -167,6 +172,7 @@ final class RecipesState extends Equatable {
 
   /// The entries the import would create: one per ingredient name used in a
   /// saved recipe that no catalog entry claims, ordered case-insensitively.
+  /// Empty once [ingredientsImported], so the import is offered only once.
   ///
   /// Names fold case-insensitively, keeping the first spelling seen. A row
   /// whose link resolves is already claimed, whatever name it stored, and a
@@ -175,6 +181,8 @@ final class RecipesState extends Equatable {
   /// library using its name, and its default unit is the spelling used most
   /// often, with the first seen winning a tie.
   List<ImportableIngredient> get importableIngredients {
+    if (ingredientsImported) return const [];
+
     final libraryIds = {for (final library in libraries) library.id};
     final catalogIds = {for (final entry in ingredients) entry.id};
     final claimed = {for (final entry in ingredients) _fold(entry.name)};
@@ -267,6 +275,7 @@ final class RecipesState extends Equatable {
     String? activeLibraryId,
     String? searchTerm,
     Set<String>? activeTags,
+    bool? ingredientsImported,
   }) {
     return RecipesState(
       status: status ?? this.status,
@@ -278,6 +287,7 @@ final class RecipesState extends Equatable {
       activeLibraryId: activeLibraryId ?? this.activeLibraryId,
       searchTerm: searchTerm ?? this.searchTerm,
       activeTags: activeTags ?? this.activeTags,
+      ingredientsImported: ingredientsImported ?? this.ingredientsImported,
     );
   }
 
@@ -292,5 +302,6 @@ final class RecipesState extends Equatable {
     activeLibraryId,
     searchTerm,
     activeTags,
+    ingredientsImported,
   ];
 }

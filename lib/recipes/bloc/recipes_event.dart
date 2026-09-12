@@ -63,8 +63,8 @@ final class RecipesIngredientDeleted extends RecipesEvent {
   List<Object?> get props => [id];
 }
 
-/// Adds every entry in [RecipesState.importableIngredients] to the catalog in
-/// one write.
+/// Adds every entry in [RecipesState.importableIngredients] to the catalog,
+/// links the recipe rows using them, and records the import as done.
 final class RecipesIngredientsImported extends RecipesEvent {
   const RecipesIngredientsImported();
 }

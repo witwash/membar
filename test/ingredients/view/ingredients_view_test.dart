@@ -204,6 +204,15 @@ void main() {
         expect(find.textContaining('Import'), findsNothing);
       });
 
+      testWidgets('is not offered again once it has run', (tester) async {
+        await pumpView(
+          tester,
+          withFreeText.copyWith(ingredientsImported: true),
+        );
+
+        expect(find.textContaining('Import'), findsNothing);
+      });
+
       testWidgets('is offered with its count above a non-empty list', (
         tester,
       ) async {

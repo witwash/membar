@@ -57,9 +57,6 @@ class _IngredientsViewState extends State<IngredientsView> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (_failure case final failure?) FailureBanner(failure),
-              // Offered whenever it would add something, not just on an empty
-              // catalog: the import is idempotent, so a recipe saved later
-              // can still contribute its names.
               if (importable.isNotEmpty) ...[
                 FButton(
                   variant: FButtonVariant.outline,

@@ -36,6 +36,7 @@ void main() {
       recipes: [negroni, v60],
       ingredients: [gin],
       activeLibraryId: 'l1',
+      ingredientsImported: true,
     );
 
     RecipesBloc buildBloc() => RecipesBloc(recipesRepository: repository);
@@ -67,6 +68,7 @@ void main() {
             recipes: snapshot.recipes,
             ingredients: snapshot.ingredients,
             activeLibraryId: 'l1',
+            ingredientsImported: true,
           ),
         ],
       );
@@ -388,9 +390,9 @@ void main() {
       );
 
       blocTest<RecipesBloc, RecipesState>(
-        'saves the importable entries in one call, with ids minted',
+        'imports the importable entries in one call, with ids minted',
         setUp: () => when(
-          () => repository.saveIngredients(any()),
+          () => repository.importIngredients(any()),
         ).thenAnswer((_) async {}),
         build: buildBloc,
         seed: () => withRows,
@@ -408,7 +410,7 @@ void main() {
         verify: (_) {
           final saved =
               verify(
-                    () => repository.saveIngredients(captureAny()),
+                    () => repository.importIngredients(captureAny()),
                   ).captured.single
                   as List<CatalogIngredient>;
           final campari = saved.single;
@@ -425,7 +427,7 @@ void main() {
         seed: () => withRows.copyWith(recipes: const []),
         act: (bloc) => bloc.add(const RecipesIngredientsImported()),
         expect: () => const <RecipesState>[],
-        verify: (_) => verifyNever(() => repository.saveIngredients(any())),
+        verify: (_) => verifyNever(() => repository.importIngredients(any())),
       );
 
       for (final (reason, exception) in <(String, Exception)>[
@@ -435,7 +437,7 @@ void main() {
         blocTest<RecipesBloc, RecipesState>(
           'emits failure when $reason',
           setUp: () => when(
-            () => repository.saveIngredients(any()),
+            () => repository.importIngredients(any()),
           ).thenThrow(exception),
           build: buildBloc,
           seed: () => withRows,

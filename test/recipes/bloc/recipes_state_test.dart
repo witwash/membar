@@ -247,6 +247,23 @@ void main() {
           );
         });
 
+        test('is empty once the import has run', () {
+          expect(
+            catalog
+                .copyWith(
+                  ingredients: const [],
+                  ingredientsImported: true,
+                  recipes: [
+                    recipeWith('r1', cocktailsLibrary.id, [
+                      Ingredient(name: 'Gin'),
+                    ]),
+                  ],
+                )
+                .importableIngredients,
+            isEmpty,
+          );
+        });
+
         test('is equal across two reads', () {
           final state = catalog.copyWith(
             ingredients: const [],
@@ -450,6 +467,7 @@ void main() {
           activeLibraryId: 'l2',
           searchTerm: 'v60',
           activeTags: const {'Filter'},
+          ingredientsImported: true,
         );
 
         expect(
@@ -463,6 +481,7 @@ void main() {
             activeLibraryId: 'l2',
             searchTerm: 'v60',
             activeTags: const {'Filter'},
+            ingredientsImported: true,
           ),
         );
       });

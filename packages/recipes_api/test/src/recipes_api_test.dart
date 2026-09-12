@@ -17,7 +17,7 @@ class _FakeRecipesApi extends RecipesApi {
   Future<void> saveIngredient(CatalogIngredient ingredient) async {}
 
   @override
-  Future<void> saveIngredients(List<CatalogIngredient> ingredients) async {}
+  Future<void> importIngredients(List<CatalogIngredient> ingredients) async {}
 
   @override
   Future<void> deleteIngredient(String id) async {}
@@ -40,7 +40,7 @@ void main() {
       await api.saveIngredient(
         CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
       );
-      await api.saveIngredients(const []);
+      await api.importIngredients(const []);
       await api.deleteIngredient('i1');
       await api.setActiveLibraryId('l1');
       await api.close();

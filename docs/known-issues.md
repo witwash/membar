@@ -59,17 +59,6 @@ two, and merging near-duplicates is a rename on the ingredients screen.
 **Closing it:** introduce a shared normalization for tags and ingredients
 together, and migrate existing duplicates deliberately.
 
-## The ingredient import does not link existing recipe rows
-
-Importing creates catalog entries from the names typed into saved recipes, but
-never rewrites a recipe. A row links to its entry the next time its recipe is
-saved, because the editor resolves each row's link from its name.
-
-**Why it was left:** rewriting every recipe on import would touch user data
-the user did not ask to change, and the link converges on its own.
-
-**Closing it:** a bulk backfill that sets `catalogId` on matching rows, written
-through `saveRecipe` so it stays within the existing persistence path.
 
 ## Usage counts span every library
 

@@ -317,11 +317,11 @@ This is a small, self-contained hardening of code the plan already has to touch.
 // packages/recipes_api/lib/src/recipes_api.dart
 Future<void> saveIngredient(CatalogIngredient ingredient);   // Phase 1
 Future<void> deleteIngredient(String id);                    // Phase 1
-Future<void> saveIngredients(List<CatalogIngredient> ingredients); // Phase 3, with the import
+Future<void> importIngredients(List<CatalogIngredient> ingredients); // Phase 3, with the import
 ```
 
 `saveIngredient` creates or replaces by id, and throws `IngredientNameTakenException(name)` on a
-folded collision with a different id. `saveIngredients` lands **with its only caller in Phase 3**
+folded collision with a different id. `importIngredients` lands **with its only caller in Phase 3**
 rather than shipping two PRs ahead of it: it exists so importing 40 entries is one blob rewrite
 and one snapshot emission instead of 40 of each, and it carries its own coverage burden, so there
 is no reason for Phase 1 to hold it.
@@ -567,8 +567,6 @@ plan only declines to add to the pile.
   library deletion and reassigning the entries.
 - `Unit.label` is not localized. The app ships `en` only.
 - Name folding is case-and-trim only; `St. Germain` and `St Germain` remain two entries.
-- The import creates entries only. A saved recipe's rows link to them the next time that recipe is
-  saved, because invariant 1 resolves the link from the name — there is no bulk backfill.
 - `"used in 4 recipes"` counts every library, including ones the user is not browsing, so the
   recipes behind a refused delete may not all be visible from where they are standing.
 
@@ -691,7 +689,7 @@ shell-executable, and coverage has its own criterion.
 
 - **Status:** Done
 - **Scope:** the catalog list and its navigation entry, the edit sheet (name, default unit,
-  library set), delete with the usage guard, the import, and `saveIngredients`. Moves the two
+  library set), delete with the usage guard, the import, and `importIngredients`. Moves the two
   feature-agnostic widgets `lib/ingredients/` needs — `confirm_dialog.dart` (renamed
   `showConfirmDialog`, since "Recipe" is wrong once ingredients call it) and
   `failure_banner.dart` — from `lib/recipes/widgets/` to `lib/ui/`.
@@ -704,7 +702,7 @@ shell-executable, and coverage has its own criterion.
   the call sites that follow the rename — `recipe_editor_page.dart:310`,
   `recipe_details_page.dart`, `recipes_view.dart` and the Phase 2 sheet —
   `packages/recipes_api/lib/src/recipes_api.dart` and
-  `packages/local_storage_recipes_api/...` (`saveIngredients`),
+  `packages/local_storage_recipes_api/...` (`importIngredients`),
   `packages/recipes_repository/lib/src/recipes_repository.dart`,
   `lib/recipes/bloc/{recipes_bloc.dart,recipes_state.dart}`, `lib/l10n/arb/app_en.arb`,
   `docs/known-issues.md`; tests `test/ingredients/**`, `test/ui/**` (moved from
@@ -722,10 +720,15 @@ shell-executable, and coverage has its own criterion.
   `CatalogIngredient`s would generate fresh uuids on every access, so
   `state.importableIngredients != state.importableIngredients`, the screen would render one set of
   ids and the dispatch would write another, and no `blocTest` could name the result.
-  The write goes through `saveIngredients` — one blob, one emission. **It never rewrites a saved
-  recipe.** It is idempotent rather than one-time — nothing persists an "imported" flag, and the
-  getter excludes names the catalog already covers — so the action is offered whenever it would do
-  something, on the empty state and above a non-empty list alike.
+  The write goes through `importIngredients` — one emission. **It is one-time, and it links the
+  rows it imports from.** *(Revised during the build: the first version created entries only and
+  persisted nothing, so renaming an imported `Gin` freed the name and the import offered `Gin`
+  again, while the renamed entry reached none of its recipes.)* The api stores the catalog, then
+  every recipe with each unlinked row pointed at the entry its name matches, then
+  `__ingredients_import_version_key__` last, so a failure part-way leaves the import on offer.
+  `RecipesSnapshot.ingredientsImported` carries the stored version up, and
+  `importableIngredients` is empty once it is set. Recipe data is rewritten only when the user
+  presses Import — the v1 → v2 migration still leaves it byte-identical.
 - **New ARB keys:** the screen title and header action label, the list's per-entry usage count
   (ICU `plural` — `1 recipe` / `4 recipes`), the delete refusal, the edit sheet's title and
   library-set label, the empty state, and the import action with its count (a second ICU
@@ -760,8 +763,8 @@ SUCCESS CRITERIA:
 - Bloc lints pass | verify: dart run bloc_tools:bloc lint .
 - Localized strings generate cleanly, and the two plural messages compile | verify: flutter gen-l10n && flutter analyze
 - recipes_api: CatalogIngredient round-trips with a null, known and custom defaultUnit and a multi-library libraryIds, ids auto-generate, a blank name and an empty libraryIds assert, Unit round-trips both kinds with an unrecognised standard name decoding to CustomUnit and with KnownUnit(ml) != CustomUnit('ml'), a blank CustomUnit asserts, and an Ingredient blob written without catalogId decodes with catalogId null, normalizes a blank one to null, and carries catalogId in props | verify: cd packages/recipes_api && dart run build_runner build --delete-conflicting-outputs && dart analyze && dart test
-- local_storage_recipes_api: a fresh install writes the catalog key before the version key and lands at version 2, a stored version 1 gains an empty catalog without rewriting recipes or libraries, a v1 install with a corrupt libraries blob re-seeds and still writes the catalog key, a migration finding the catalog key present does not overwrite it, a stored version 2 writes nothing, a corrupt catalog blob recovers as empty through onRecoveryError while leaving recipes intact, dangling catalogIds are reported and kept, two overlapping mutations both land and a failed one does not stall the queue, a mutation dispatched before the initial write lands after it rather than being overwritten by the migration, saveIngredient creates and replaces by id and throws IngredientNameTakenException only on a collision with a different id, saveIngredients performs one write and one emission, and deleteIngredient throws IngredientNotFoundException for an unknown id and IngredientInUseException carrying the count for one in use in any library | verify: cd packages/local_storage_recipes_api && flutter test
-- recipes_repository: saveIngredient, saveIngredients and deleteIngredient delegate to the injected RecipesApi | verify: cd packages/recipes_repository && dart test
+- local_storage_recipes_api: a fresh install writes the catalog key before the version key and lands at version 2, a stored version 1 gains an empty catalog without rewriting recipes or libraries, a v1 install with a corrupt libraries blob re-seeds and still writes the catalog key, a migration finding the catalog key present does not overwrite it, a stored version 2 writes nothing, a corrupt catalog blob recovers as empty through onRecoveryError while leaving recipes intact, dangling catalogIds are reported and kept, two overlapping mutations both land and a failed one does not stall the queue, a mutation dispatched before the initial write lands after it rather than being overwritten by the migration, saveIngredient creates and replaces by id and throws IngredientNameTakenException only on a collision with a different id, importIngredients writes the catalog, then the linked recipes, then the import version, emits once, links every row whose name matches an entry, and leaves the import on offer when a write fails, and deleteIngredient throws IngredientNotFoundException for an unknown id and IngredientInUseException carrying the count for one in use in any library | verify: cd packages/local_storage_recipes_api && flutter test
+- recipes_repository: saveIngredient, importIngredients and deleteIngredient delegate to the injected RecipesApi | verify: cd packages/recipes_repository && dart test
 - App, bloc and widget tests pass, covering: libraryIngredients/otherLibraryIngredients partitioning and ordering; ingredientUsage counting distinct recipes across all libraries and counting one recipe that uses an entry twice as one; ingredientById returning null for an unknown id; a snapshot's ingredients reaching the state through onData; every handler emitting failure rather than throwing for each exception its repository call declares; every emission carrying its own mutation kind under an interleaved recipe save and ingredient save; a failed scope widen emitting no mutation state; the picker's two sections, case-insensitive contains matching, and a create item present on an empty catalog; a row linking whether its name was picked, typed exactly, or typeahead-completed, and unlinking when hand-edited; a renamed entry's recipe opening with the new name, keeping its link on save, and not opening dirty; an entry deleted under an unsaved pick saving as free text; unit prefill only over an empty or previously-prefilled unit; the create sheet persisting, returning the entry, surviving an abandoned recipe, reusing-and-widening a folded duplicate with its unit shown, keeping a failure banner, and leaving the row's text on dismiss; details rendering the catalog's current name for a referenced row and the stored name otherwise; two reads of importableIngredients being equal; the management screen's list, rename propagation, refused folded rename, library-set edit, refused empty library set, usage-guarded delete, and the import's folding, library union and unit inference | verify: flutter test
 - Sheet and row controllers are disposed, proven rather than read | verify: grep -rq "withTrackedAll" test/recipes/widgets && grep -rq "withTrackedAll" test/ingredients
 - Coverage is 100% in the app and all three packages | verify: manual 1) run the very_good_cli MCP `test` tool with min_coverage 100 at the repo root 2) run it again for each of packages/recipes_api, packages/local_storage_recipes_api and packages/recipes_repository 3) confirm all four report 100%

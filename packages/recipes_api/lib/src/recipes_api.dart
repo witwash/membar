@@ -37,14 +37,18 @@ abstract class RecipesApi {
   /// [RecipesPersistenceException] when the write fails.
   Future<void> saveIngredient(CatalogIngredient ingredient);
 
-  /// Stores every entry in [ingredients] in one write, each replacing any
-  /// entry that already carries its id.
+  /// Runs the one-time import of ingredient names from saved recipes: stores
+  /// [ingredients] in the catalog, links every recipe row whose name matches a
+  /// catalog entry without regard to case, and records the import as done.
   ///
-  /// Nothing is stored when any of them fails. Throws an
+  /// Linking the rows is what lets a later rename reach those recipes, and
+  /// what makes the usage guard count them.
+  ///
+  /// Nothing is stored when any entry is refused. Throws an
   /// [IngredientNameTakenException] when an entry's name, without regard to
   /// case, belongs to a different entry — stored or earlier in [ingredients] —
-  /// and a [RecipesPersistenceException] when the write fails.
-  Future<void> saveIngredients(List<CatalogIngredient> ingredients);
+  /// and a [RecipesPersistenceException] when a write fails.
+  Future<void> importIngredients(List<CatalogIngredient> ingredients);
 
   /// Removes the catalog entry carrying [id].
   ///

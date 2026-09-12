@@ -8,9 +8,8 @@ import 'package:recipes_api/recipes_api.dart';
 /// without the library that describes it: emitting them separately would let a
 /// listener observe recipes against a schema that no longer matches.
 ///
-/// This value is never persisted — [libraries], [recipes], [ingredients] and
-/// [activeLibraryId] are stored under separate keys — so it carries no JSON
-/// serialization.
+/// This value is never persisted — each field is stored under its own key — so
+/// it carries no JSON serialization.
 /// {@endtemplate}
 class RecipesSnapshot extends Equatable {
   /// {@macro recipes_snapshot}
@@ -19,6 +18,7 @@ class RecipesSnapshot extends Equatable {
     required this.recipes,
     required this.ingredients,
     required this.activeLibraryId,
+    required this.ingredientsImported,
   });
 
   /// Every library that exists, in creation order.
@@ -36,6 +36,16 @@ class RecipesSnapshot extends Equatable {
   /// active one.
   final String activeLibraryId;
 
+  /// Whether the one-time import of ingredient names from saved recipes has
+  /// run.
+  final bool ingredientsImported;
+
   @override
-  List<Object?> get props => [libraries, recipes, ingredients, activeLibraryId];
+  List<Object?> get props => [
+    libraries,
+    recipes,
+    ingredients,
+    activeLibraryId,
+    ingredientsImported,
+  ];
 }

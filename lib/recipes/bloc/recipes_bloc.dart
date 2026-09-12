@@ -59,6 +59,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         recipes: snapshot.recipes,
         ingredients: snapshot.ingredients,
         activeLibraryId: snapshot.activeLibraryId,
+        ingredientsImported: snapshot.ingredientsImported,
       ),
       // Handling the error here is what turns a broken stream into a failure
       // state rather than an exception escaping the handler.
@@ -267,7 +268,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     );
 
     try {
-      await _recipesRepository.saveIngredients([
+      await _recipesRepository.importIngredients([
         for (final ingredient in importable)
           CatalogIngredient(
             name: ingredient.name,

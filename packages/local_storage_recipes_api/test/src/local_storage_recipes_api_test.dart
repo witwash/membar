@@ -745,7 +745,7 @@ void main() {
       });
     });
 
-    group('saveIngredients', () {
+    group('importIngredients', () {
       final gin = CatalogIngredient(
         id: 'i1',
         name: 'Gin',
@@ -762,27 +762,120 @@ void main() {
         libraryIds: {coffee.id},
       );
 
-      test('writes every entry once and emits one snapshot', () async {
-        final store = await setUpRecordingPrefs(
-          seededPrefs(ingredients: [gin]),
+      test('opens an install that never imported as not imported', () async {
+        await setUpPrefs(seededPrefs());
+        api = buildApi();
+
+        expect((await api.watch().first).ingredientsImported, isFalse);
+      });
+
+      test('opens an install that already imported as imported', () async {
+        await setUpPrefs({
+          ...seededPrefs(),
+          LocalStorageRecipesApi.kIngredientsImportVersionKey:
+              LocalStorageRecipesApi.kIngredientsImportVersion,
+        });
+        api = buildApi();
+
+        expect((await api.watch().first).ingredientsImported, isTrue);
+      });
+
+      test(
+        'writes the catalog, the recipes, then the import version, and '
+        'emits one snapshot',
+        () async {
+          final store = await setUpRecordingPrefs(
+            seededPrefs(ingredients: [gin]),
+          );
+          api = buildApi();
+          await api.initialWrite;
+          store.writtenKeys.clear();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+
+          await api.importIngredients([campari, sugar]);
+          await pumpEventQueue();
+
+          expect(
+            store.writtenKeys,
+            equals([
+              LocalStorageRecipesApi.kIngredientsKey,
+              LocalStorageRecipesApi.kRecipesKey,
+              LocalStorageRecipesApi.kIngredientsImportVersionKey,
+            ]),
+          );
+          expect(emitted, hasLength(1));
+          expect(emitted.single.ingredients, equals([gin, campari, sugar]));
+          expect(emitted.single.ingredientsImported, isTrue);
+          expect(
+            plugin.getInt(LocalStorageRecipesApi.kIngredientsImportVersionKey),
+            equals(LocalStorageRecipesApi.kIngredientsImportVersion),
+          );
+        },
+      );
+
+      test('links every row whose name matches an entry', () async {
+        await setUpPrefs(
+          seededPrefs(
+            ingredients: [gin],
+            recipes: [
+              Recipe(
+                id: 'r1',
+                libraryId: cocktails.id,
+                name: 'Negroni',
+                tags: const ['Bitter'],
+                notes: 'Stir.',
+                ingredients: [
+                  Ingredient(name: 'gin', quantity: '30', unit: 'ml'),
+                  Ingredient(name: 'CAMPARI'),
+                  Ingredient(name: 'Vermouth'),
+                  Ingredient(name: 'Old Tom', catalogId: 'gone'),
+                ],
+              ),
+              Recipe(
+                id: 'r2',
+                libraryId: coffee.id,
+                name: 'Cortado',
+                ingredients: [Ingredient(name: 'Sugar', catalogId: gin.id)],
+              ),
+            ],
+          ),
         );
         api = buildApi();
         await api.initialWrite;
-        store.writtenKeys.clear();
-        final emitted = <RecipesSnapshot>[];
-        final subscription = api.watch().skip(1).listen(emitted.add);
-        addTearDown(subscription.cancel);
 
-        await api.saveIngredients([campari, sugar]);
-        await pumpEventQueue();
+        await api.importIngredients([campari]);
 
+        final recipes = (await api.watch().first).recipes;
         expect(
-          store.writtenKeys,
-          equals([LocalStorageRecipesApi.kIngredientsKey]),
+          recipes.first,
+          Recipe(
+            id: 'r1',
+            libraryId: cocktails.id,
+            name: 'Negroni',
+            tags: const ['Bitter'],
+            notes: 'Stir.',
+            ingredients: [
+              Ingredient(
+                name: 'gin',
+                quantity: '30',
+                unit: 'ml',
+                catalogId: gin.id,
+              ),
+              Ingredient(name: 'CAMPARI', catalogId: campari.id),
+              Ingredient(name: 'Vermouth'),
+              Ingredient(name: 'Old Tom', catalogId: 'gone'),
+            ],
+          ),
         );
-        expect(emitted, hasLength(1));
-        expect(emitted.single.ingredients, equals([gin, campari, sugar]));
-        expect(emitted.single.recipes, isEmpty);
+        // A link that resolves is kept even when the row's name no longer
+        // matches its entry: that is what a rename looks like.
+        expect(recipes.last.ingredients.single.catalogId, equals(gin.id));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+          equals(jsonEncode([for (final recipe in recipes) recipe.toJson()])),
+        );
       });
 
       test('replaces entries that already carry their ids', () async {
@@ -795,7 +888,7 @@ void main() {
           libraryIds: gin.libraryIds,
         );
 
-        await api.saveIngredients([renamed]);
+        await api.importIngredients([renamed]);
 
         expect(
           (await api.watch().first).ingredients,
@@ -803,27 +896,26 @@ void main() {
         );
       });
 
-      test(
-        'stores nothing when an entry folds onto a stored one',
-        () async {
-          await setUpPrefs(seededPrefs(ingredients: [gin]));
-          api = buildApi();
-          await api.initialWrite;
+      test('stores nothing when an entry folds onto a stored one', () async {
+        final store = await setUpRecordingPrefs(
+          seededPrefs(ingredients: [gin]),
+        );
+        api = buildApi();
+        await api.initialWrite;
+        store.writtenKeys.clear();
 
-          await expectLater(
-            () => api.saveIngredients([
-              campari,
-              CatalogIngredient(name: 'GIN', libraryIds: {coffee.id}),
-            ]),
-            throwsA(isA<IngredientNameTakenException>()),
-          );
-          expect((await api.watch().first).ingredients, equals([gin]));
-          expect(
-            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
-            equals(jsonEncode([gin.toJson()])),
-          );
-        },
-      );
+        await expectLater(
+          () => api.importIngredients([
+            campari,
+            CatalogIngredient(name: 'GIN', libraryIds: {coffee.id}),
+          ]),
+          throwsA(isA<IngredientNameTakenException>()),
+        );
+        final snapshot = await api.watch().first;
+        expect(snapshot.ingredients, equals([gin]));
+        expect(snapshot.ingredientsImported, isFalse);
+        expect(store.writtenKeys, isEmpty);
+      });
 
       test('throws when two entries in the batch fold together', () async {
         await setUpPrefs(seededPrefs());
@@ -831,7 +923,7 @@ void main() {
         await api.initialWrite;
 
         await expectLater(
-          () => api.saveIngredients([
+          () => api.importIngredients([
             campari,
             CatalogIngredient(name: 'campari', libraryIds: {coffee.id}),
           ]),
@@ -840,16 +932,17 @@ void main() {
         expect((await api.watch().first).ingredients, isEmpty);
       });
 
-      test('throws when the write fails', () async {
+      test('leaves the import on offer when a write fails', () async {
         await setUpPrefs(seededPrefs());
         api = buildApi();
         await api.initialWrite;
         SharedPreferencesStorePlatform.instance = _FailingStore();
 
         await expectLater(
-          () => api.saveIngredients([gin]),
+          () => api.importIngredients([gin]),
           throwsA(isA<RecipesPersistenceException>()),
         );
+        expect((await api.watch().first).ingredientsImported, isFalse);
       });
     });
 

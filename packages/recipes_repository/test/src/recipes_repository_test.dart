@@ -35,6 +35,7 @@ void main() {
           recipes: [],
           ingredients: [],
           activeLibraryId: 'l1',
+          ingredientsImported: false,
         );
         when(() => api.watch()).thenAnswer(
           (_) => Stream.value(snapshot),
@@ -104,17 +105,17 @@ void main() {
       });
     });
 
-    group('saveIngredients', () {
+    group('importIngredients', () {
       test('delegates to the api', () async {
         final ingredients = [
           CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
           CatalogIngredient(name: 'Campari', libraryIds: const {'l1'}),
         ];
-        when(() => api.saveIngredients(any())).thenAnswer((_) async {});
+        when(() => api.importIngredients(any())).thenAnswer((_) async {});
 
-        await repository.saveIngredients(ingredients);
+        await repository.importIngredients(ingredients);
 
-        verify(() => api.saveIngredients(ingredients)).called(1);
+        verify(() => api.importIngredients(ingredients)).called(1);
       });
     });
 

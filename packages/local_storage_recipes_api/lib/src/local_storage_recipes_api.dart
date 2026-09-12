@@ -59,6 +59,12 @@ class LocalStorageRecipesApi extends RecipesApi {
   @visibleForTesting
   static const kIngredientsKey = '__ingredients_key__';
 
+  /// The key the version of the completed ingredient import is stored under.
+  /// Absent until the import has run.
+  @visibleForTesting
+  static const kIngredientsImportVersionKey =
+      '__ingredients_import_version_key__';
+
   /// The key the id of the library being browsed is stored under.
   @visibleForTesting
   static const kActiveLibraryIdKey = '__active_library_id_key__';
@@ -70,6 +76,11 @@ class LocalStorageRecipesApi extends RecipesApi {
   /// catalog and leaves recipes and libraries untouched.
   @visibleForTesting
   static const kSchemaVersion = 2;
+
+  /// The version [importIngredients] records. An install whose stored version
+  /// is lower has not run this import, so it is offered again.
+  @visibleForTesting
+  static const kIngredientsImportVersion = 1;
 
   final SharedPreferences _plugin;
   final LibraryTemplates _templates;
@@ -118,34 +129,31 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   @override
   Future<void> saveIngredient(CatalogIngredient ingredient) =>
-      saveIngredients([ingredient]);
-
-  @override
-  Future<void> saveIngredients(List<CatalogIngredient> ingredients) =>
       _serialized(() async {
-        final catalog = [..._subject.value.ingredients];
-        // Each entry is checked against the ones merged before it, so two
-        // entries in one batch cannot fold onto each other either.
-        for (final ingredient in ingredients) {
-          final taken = catalog.any(
-            (stored) =>
-                stored.id != ingredient.id &&
-                compareCaseInsensitive(stored.name, ingredient.name) == 0,
-          );
-          if (taken) throw IngredientNameTakenException(ingredient.name);
-
-          final index = catalog.indexWhere(
-            (stored) => stored.id == ingredient.id,
-          );
-          if (index == -1) {
-            catalog.add(ingredient);
-          } else {
-            catalog[index] = ingredient;
-          }
-        }
+        final catalog = _merged(_subject.value.ingredients, [ingredient]);
 
         await _write(kIngredientsKey, _encodeIngredients(catalog));
         _emit(ingredients: catalog);
+      });
+
+  @override
+  Future<void> importIngredients(List<CatalogIngredient> ingredients) =>
+      _serialized(() async {
+        final current = _subject.value;
+        final catalog = _merged(current.ingredients, ingredients);
+        final recipes = _linked(current.recipes, catalog);
+
+        // Catalog first, so no write can link a row to an entry that was never
+        // stored; the version last, so a failure part-way leaves the import on
+        // offer rather than recorded as done.
+        await _write(kIngredientsKey, _encodeIngredients(catalog));
+        await _write(kRecipesKey, _encodeRecipes(recipes));
+        await _write(kIngredientsImportVersionKey, kIngredientsImportVersion);
+        _emit(
+          recipes: recipes,
+          ingredients: catalog,
+          ingredientsImported: true,
+        );
       });
 
   @override
@@ -178,6 +186,74 @@ class LocalStorageRecipesApi extends RecipesApi {
   @override
   Future<void> close() => _subject.close();
 
+  /// [catalog] with [ingredients] merged in, each replacing any entry that
+  /// carries its id.
+  ///
+  /// Each entry is checked against the ones merged before it, so two entries
+  /// in one batch cannot fold onto each other either.
+  static List<CatalogIngredient> _merged(
+    List<CatalogIngredient> catalog,
+    List<CatalogIngredient> ingredients,
+  ) {
+    final merged = [...catalog];
+    for (final ingredient in ingredients) {
+      final taken = merged.any(
+        (stored) =>
+            stored.id != ingredient.id &&
+            compareCaseInsensitive(stored.name, ingredient.name) == 0,
+      );
+      if (taken) throw IngredientNameTakenException(ingredient.name);
+
+      final index = merged.indexWhere((stored) => stored.id == ingredient.id);
+      if (index == -1) {
+        merged.add(ingredient);
+      } else {
+        merged[index] = ingredient;
+      }
+    }
+    return merged;
+  }
+
+  /// [recipes] with every row whose link does not resolve pointed at the
+  /// [catalog] entry its name matches.
+  ///
+  /// A row whose link already resolves keeps it, and a row matching nothing
+  /// keeps whatever it stored — a dangling link is reported, never rewritten.
+  static List<Recipe> _linked(
+    List<Recipe> recipes,
+    List<CatalogIngredient> catalog,
+  ) {
+    final ids = {for (final entry in catalog) entry.id};
+    final idsByName = {
+      for (final entry in catalog) entry.name.toLowerCase(): entry.id,
+    };
+
+    return [
+      for (final recipe in recipes)
+        Recipe(
+          id: recipe.id,
+          libraryId: recipe.libraryId,
+          name: recipe.name,
+          ingredients: [
+            for (final row in recipe.ingredients)
+              ids.contains(row.catalogId)
+                  ? row
+                  : Ingredient(
+                      name: row.name,
+                      quantity: row.quantity,
+                      unit: row.unit,
+                      catalogId:
+                          idsByName[row.name.toLowerCase()] ?? row.catalogId,
+                    ),
+          ],
+          steps: recipe.steps,
+          tags: recipe.tags,
+          notes: recipe.notes,
+          fieldValues: recipe.fieldValues,
+        ),
+    ];
+  }
+
   /// Runs [mutation] after every mutation already queued.
   ///
   /// Two overlapping callers would otherwise each compute a list from the same
@@ -189,7 +265,7 @@ class LocalStorageRecipesApi extends RecipesApi {
     return result;
   }
 
-  /// Emits [recipes], [ingredients] and [activeLibraryId] over whatever the
+  /// Emits whichever values are given over whatever the
   /// subject holds *now*.
   ///
   /// Reading the subject after the write rather than before it is what stops
@@ -200,6 +276,7 @@ class LocalStorageRecipesApi extends RecipesApi {
     List<Recipe>? recipes,
     List<CatalogIngredient>? ingredients,
     String? activeLibraryId,
+    bool? ingredientsImported,
   }) {
     final current = _subject.value;
     _subject.add(
@@ -208,6 +285,7 @@ class LocalStorageRecipesApi extends RecipesApi {
         recipes: recipes ?? current.recipes,
         ingredients: ingredients ?? current.ingredients,
         activeLibraryId: activeLibraryId ?? current.activeLibraryId,
+        ingredientsImported: ingredientsImported ?? current.ingredientsImported,
       ),
     );
   }
@@ -267,6 +345,9 @@ class LocalStorageRecipesApi extends RecipesApi {
         recipes: recipes,
         ingredients: ingredients,
         activeLibraryId: activeLibraryId,
+        ingredientsImported:
+            (_plugin.getInt(kIngredientsImportVersionKey) ?? 0) >=
+            kIngredientsImportVersion,
       ),
       writes: writes,
     );
