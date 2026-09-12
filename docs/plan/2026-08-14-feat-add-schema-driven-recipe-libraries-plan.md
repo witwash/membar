@@ -10,6 +10,10 @@ date: 2026-08-14
 > plan. Decision record: `docs/brainstorm/2026-08-11-recipe-libraries-brainstorm-doc.md`.
 > This is **PR1 of two**; the library manager and schema editor ship in PR2.
 
+> **Outdated in one respect (2026-09-12):** the `.github/dependabot.yaml` work described below
+> no longer applies — Dependabot has been removed from the repo, since at this stage of the
+> project its update PRs are noise. Dependency bumps are done by hand.
+
 ## Overview
 
 Membar becomes a **multi-library recipe app** rather than a cocktail app. A library is a named
