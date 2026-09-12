@@ -64,6 +64,10 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
       ),
     );
 
+    final catalog = context.select<RecipesBloc, List<CatalogIngredient>>(
+      (bloc) => bloc.state.ingredients,
+    );
+
     final schemaFields = <(FieldDefinition, String)>[
       for (final field in widget.library.fields)
         if (schemaFieldText(context, field, recipe) case final value?)
@@ -117,7 +121,7 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
                 title: l10n.recipeIngredientsSectionTitle,
                 children: [
                   for (final ingredient in recipe.ingredients)
-                    Text(_ingredientLine(ingredient)),
+                    Text(_ingredientLine(ingredient, catalog)),
                 ],
               ),
             if (recipe.steps.isNotEmpty)
@@ -167,10 +171,19 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
     context.read<RecipesBloc>().add(RecipesRecipeDeleted(recipe.id));
   }
 
-  String _ingredientLine(Ingredient ingredient) => [
+  /// A referenced row reads as its entry's current name, which is what makes a
+  /// rename show; a row whose entry is gone falls back to the name it stored.
+  String _ingredientLine(
+    Ingredient ingredient,
+    List<CatalogIngredient> catalog,
+  ) => [
     ingredient.quantity,
     ingredient.unit,
-    ingredient.name,
+    catalog
+            .where((entry) => entry.id == ingredient.catalogId)
+            .firstOrNull
+            ?.name ??
+        ingredient.name,
   ].where((part) => part.isNotEmpty).join(' ');
 }
 

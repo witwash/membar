@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/l10n/l10n.dart';
+import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The controllers behind one editable ingredient row, kept together so a row
@@ -11,16 +12,25 @@ class IngredientRowControllers {
   ///
   /// [id] identifies the row for as long as it exists, so removing a row does
   /// not renumber the keys of the rows below it.
-  IngredientRowControllers(this.id, {Ingredient? ingredient})
-    : name = TextEditingController(text: ingredient?.name ?? ''),
-      quantity = TextEditingController(text: ingredient?.quantity ?? ''),
-      unit = TextEditingController(text: ingredient?.unit ?? '');
+  ///
+  /// [entry] is the catalog entry [ingredient] references, when it still
+  /// exists. Its current name is shown in place of the stored one, so a
+  /// renamed entry keeps its link when the recipe is saved again.
+  IngredientRowControllers(
+    this.id, {
+    Ingredient? ingredient,
+    CatalogIngredient? entry,
+  }) : name = FAutocompleteController(
+         text: entry?.name ?? ingredient?.name ?? '',
+       ),
+       quantity = TextEditingController(text: ingredient?.quantity ?? ''),
+       unit = TextEditingController(text: ingredient?.unit ?? '');
 
   /// Identifies this row among the editor's rows.
   final int id;
 
   /// What the ingredient is. The only part a saved ingredient needs.
-  final TextEditingController name;
+  final FAutocompleteController name;
 
   /// How much of it the recipe calls for. Free text.
   final TextEditingController quantity;
@@ -31,12 +41,17 @@ class IngredientRowControllers {
   /// The ingredient this row describes, or null when it is blank.
   ///
   /// A row with no name is not an ingredient, whatever else was typed into it.
-  Ingredient? get ingredient => name.text.trim().isEmpty
+  /// It links to the entry in [catalog] its name matches, and to nothing
+  /// otherwise — so picking an entry, typing its name, and editing a picked
+  /// name back into free text all resolve without the row tracking a link.
+  Ingredient? ingredientIn(Iterable<CatalogIngredient> catalog) =>
+      name.text.trim().isEmpty
       ? null
       : Ingredient(
           name: name.text,
           quantity: quantity.text,
           unit: unit.text,
+          catalogId: catalogEntryNamed(catalog, name.text)?.id,
         );
 
   /// What the row holds, for telling a touched editor from an untouched one.
@@ -87,11 +102,9 @@ class IngredientRowField extends StatelessWidget {
           spacing: 8,
           children: [
             Expanded(
-              child: FTextFormField(
-                label: Text(l10n.recipeEditorIngredientLabel),
-                control: FTextFieldControl.managed(
-                  controller: controllers.name,
-                ),
+              child: IngredientPicker(
+                name: controllers.name,
+                unit: controllers.unit,
               ),
             ),
             FButton.icon(

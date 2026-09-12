@@ -46,4 +46,7 @@ abstract final class AppSpacing {
 abstract final class AppInsets {
   /// The padding between a dialog's border and its content.
   static const dialogContent = EdgeInsets.all(AppSpacing.spacing300);
+
+  /// The padding between a modal sheet's edge and its content.
+  static const sheetContent = EdgeInsets.all(AppSpacing.spacing300);
 }

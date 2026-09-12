@@ -221,5 +221,63 @@
     "recipeEditorKeepEditingLabel": "Keep editing",
     "@recipeEditorKeepEditingLabel": {
         "description": "Button that dismisses the discard dialog and stays on the editor"
+    },
+    "ingredientPickerCreateLabel": "New ingredient",
+    "@ingredientPickerCreateLabel": {
+        "description": "Picker item, always last, that opens the sheet creating a catalog ingredient from what was typed"
+    },
+    "ingredientPickerOtherLibrariesLabel": "From other libraries",
+    "@ingredientPickerOtherLibrariesLabel": {
+        "description": "Heading above the picker's catalog ingredients that are not yet used in the library being edited"
+    },
+    "ingredientCreateTitle": "New ingredient",
+    "@ingredientCreateTitle": {
+        "description": "Title of the sheet that adds an ingredient to the catalog"
+    },
+    "ingredientCreateNameLabel": "Name",
+    "@ingredientCreateNameLabel": {
+        "description": "Label of the create sheet's ingredient name field"
+    },
+    "ingredientCreateNameRequiredError": "Enter a name.",
+    "@ingredientCreateNameRequiredError": {
+        "description": "Validation error shown when the create sheet's ingredient name is blank"
+    },
+    "ingredientCreateUnitLabel": "Default unit",
+    "@ingredientCreateUnitLabel": {
+        "description": "Label of the unit an ingredient row is prefilled with when this ingredient is picked"
+    },
+    "ingredientCreateUnitCustomLabel": "Custom…",
+    "@ingredientCreateUnitCustomLabel": {
+        "description": "Action that swaps the list of standard units for a field accepting any unit"
+    },
+    "ingredientCreateUnitStandardLabel": "Standard units",
+    "@ingredientCreateUnitStandardLabel": {
+        "description": "Action that swaps the custom unit field back for the list of standard units"
+    },
+    "ingredientCreateCustomUnitLabel": "Custom unit",
+    "@ingredientCreateCustomUnitLabel": {
+        "description": "Label of the field accepting a unit outside the standard list, such as pinch"
+    },
+    "ingredientCreateReuseNote": "{ingredient} is already in your catalog, so it will be reused.",
+    "@ingredientCreateReuseNote": {
+        "description": "Shown in the create sheet when the typed name matches an existing catalog ingredient",
+        "placeholders": {
+            "ingredient": {
+                "type": "String",
+                "example": "Gin"
+            }
+        }
+    },
+    "ingredientCreateSaveLabel": "Save ingredient",
+    "@ingredientCreateSaveLabel": {
+        "description": "Button that saves the ingredient described by the create sheet"
+    },
+    "ingredientCreateCancelLabel": "Cancel",
+    "@ingredientCreateCancelLabel": {
+        "description": "Button that closes the create sheet without saving"
+    },
+    "ingredientCreateSaveFailure": "Your ingredient could not be saved.",
+    "@ingredientCreateSaveFailure": {
+        "description": "Shown in the create sheet when saving the ingredient fails, keeping the sheet open"
     }
 }

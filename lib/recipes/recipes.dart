@@ -5,6 +5,8 @@ export 'view/recipes_page.dart';
 export 'view/recipes_view.dart';
 export 'widgets/confirm_dialog.dart';
 export 'widgets/failure_banner.dart';
+export 'widgets/ingredient_create_sheet.dart';
+export 'widgets/ingredient_picker.dart';
 export 'widgets/ingredient_row_field.dart';
 export 'widgets/library_switcher.dart';
 export 'widgets/recipe_placeholder_image.dart';

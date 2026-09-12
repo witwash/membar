@@ -646,7 +646,7 @@ shell-executable, and coverage has its own criterion.
 
 ### Phase 2 (PR2): picker and create sheet
 
-- **Status:** Not started
+- **Status:** Done
 - **This is the PR that answers the original complaint.**
 - **Scope:** `IngredientRowField`'s name field becomes the catalog picker; the editor resolves
   each row's link from its name at save and primes referenced rows with the entry's current name
