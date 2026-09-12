@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
-import 'package:membar/recipes/recipes.dart';
+import 'package:membar/ui/ui.dart';
 
-import '../../helpers/helpers.dart';
+import '../helpers/helpers.dart';
 
 void main() {
-  group('showRecipeConfirmDialog', () {
+  group('showConfirmDialog', () {
     late Future<bool> result;
 
     Future<void> open(WidgetTester tester) async {
       await tester.pumpApp(
         Builder(
           builder: (context) => TextButton(
-            onPressed: () => result = showRecipeConfirmDialog(
+            onPressed: () => result = showConfirmDialog(
               context: context,
               title: 'Delete Negroni?',
               description: 'This cannot be undone.',

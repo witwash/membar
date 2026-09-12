@@ -1,9 +1,14 @@
+import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 import '../../helpers/helpers.dart';
+
+class _MockRecipesBloc extends MockBloc<RecipesEvent, RecipesState>
+    implements RecipesBloc {}
 
 void main() {
   group('IngredientRowControllers', () {
@@ -20,11 +25,26 @@ void main() {
       expect(controllers.state, ['Gin', '2', 'oz']);
     });
 
+    test('shows the current name of the entry the ingredient references', () {
+      final controllers = IngredientRowControllers(
+        0,
+        ingredient: Ingredient(name: 'Gin', catalogId: ginIngredient.id),
+        entry: CatalogIngredient(
+          id: ginIngredient.id,
+          name: 'London Dry Gin',
+          libraryIds: ginIngredient.libraryIds,
+        ),
+      );
+      addTearDown(controllers.dispose);
+
+      expect(controllers.name.text, 'London Dry Gin');
+    });
+
     test('starts blank when there is no ingredient yet', () {
       final controllers = IngredientRowControllers(0);
       addTearDown(controllers.dispose);
 
-      expect(controllers.ingredient, isNull);
+      expect(controllers.ingredientIn(const RecipesState()), isNull);
       expect(controllers.state, ['', '', '']);
     });
 
@@ -35,7 +55,10 @@ void main() {
         addTearDown(controllers.dispose);
         controllers.quantity.text = '2';
 
-        expect(controllers.ingredient, isNull);
+        expect(
+          controllers.ingredientIn(RecipesState(ingredients: [ginIngredient])),
+          isNull,
+        );
       },
     );
 
@@ -46,8 +69,34 @@ void main() {
       controllers.quantity.text = '2';
 
       expect(
-        controllers.ingredient,
+        controllers.ingredientIn(const RecipesState()),
         Ingredient(name: 'Gin', quantity: '2'),
+      );
+    });
+
+    test('links to the entry its name matches, ignoring case', () {
+      final controllers = IngredientRowControllers(0);
+      addTearDown(controllers.dispose);
+      controllers.name.text = ' gIN ';
+
+      expect(
+        controllers.ingredientIn(
+          RecipesState(ingredients: [sugarIngredient, ginIngredient]),
+        ),
+        Ingredient(name: 'gIN', catalogId: ginIngredient.id),
+      );
+    });
+
+    test('links to nothing when its name matches no entry', () {
+      final controllers = IngredientRowControllers(0);
+      addTearDown(controllers.dispose);
+      controllers.name.text = 'Gin and tonic';
+
+      expect(
+        controllers
+            .ingredientIn(RecipesState(ingredients: [ginIngredient]))
+            ?.catalogId,
+        isNull,
       );
     });
   });
@@ -55,7 +104,13 @@ void main() {
   group('IngredientRowField', () {
     late IngredientRowControllers controllers;
 
+    late RecipesBloc recipesBloc;
+
     setUp(() {
+      recipesBloc = _MockRecipesBloc();
+      when(() => recipesBloc.state).thenReturn(
+        RecipesState(activeLibraryId: cocktailsLibrary.id),
+      );
       controllers = IngredientRowControllers(
         0,
         ingredient: Ingredient(name: 'Gin', quantity: '2', unit: 'oz'),
@@ -68,11 +123,13 @@ void main() {
       VoidCallback onRemove = _noop,
     }) => tester.pumpApp(
       IngredientRowField(controllers: controllers, onRemove: onRemove),
+      recipesBloc: recipesBloc,
     );
 
     testWidgets('renders each controller behind its own label', (tester) async {
       await pumpRow(tester);
 
+      expect(find.byType(IngredientPicker), findsOneWidget);
       expect(find.text('Ingredient'), findsOneWidget);
       expect(find.text('Quantity'), findsOneWidget);
       expect(find.text('Unit'), findsOneWidget);

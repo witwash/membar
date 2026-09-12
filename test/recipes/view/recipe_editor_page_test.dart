@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -334,6 +335,213 @@ void main() {
         },
         experimentalLeakTesting: LeakTesting.settings.withTrackedAll(),
       );
+    });
+
+    group('catalog links', () {
+      final catalogState = RecipesState(
+        status: RecipesStatus.success,
+        libraries: [cocktailsLibrary],
+        ingredients: [ginIngredient, sugarIngredient],
+        activeLibraryId: cocktailsLibrary.id,
+      );
+
+      setUp(() {
+        whenListen(recipesBloc, states.stream, initialState: catalogState);
+      });
+
+      Future<void> addRow(WidgetTester tester) async {
+        await tapVisible(tester, find.text('Add ingredient'));
+      }
+
+      /// The editable behind the ingredient row at [index].
+      Finder ingredientField(int index) => fieldNamed('Ingredient').at(index);
+
+      Future<void> fillName(WidgetTester tester) async {
+        await tester.enterText(fieldNamed('Name'), 'Martini');
+      }
+
+      testWidgets('links a row to the entry picked for it', (tester) async {
+        await pumpEditor(tester);
+
+        await fillName(tester);
+        await addRow(tester);
+        await tester.tap(ingredientField(0));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Gin'));
+        await tester.pumpAndSettle();
+        await tapSave(tester);
+
+        expect(savedRecipe().ingredients, [
+          Ingredient(name: 'Gin', unit: 'ml', catalogId: ginIngredient.id),
+        ]);
+      });
+
+      testWidgets('links a row whose name was typed exactly', (tester) async {
+        await pumpEditor(tester);
+
+        await fillName(tester);
+        await addRow(tester);
+        await tester.enterText(ingredientField(0), 'gin');
+        await tapSave(tester);
+
+        expect(savedRecipe().ingredients.single.catalogId, ginIngredient.id);
+      });
+
+      testWidgets('links a row whose name the typeahead completed', (
+        tester,
+      ) async {
+        await pumpEditor(tester);
+
+        await fillName(tester);
+        await addRow(tester);
+        await tester.enterText(ingredientField(0), 'Gi');
+        await tester.pumpAndSettle();
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pumpAndSettle();
+        await tapSave(tester);
+
+        expect(
+          savedRecipe().ingredients.single,
+          Ingredient(name: 'Gin', catalogId: ginIngredient.id),
+        );
+      });
+
+      testWidgets('drops the link when a picked name is edited', (
+        tester,
+      ) async {
+        await pumpEditor(
+          tester,
+          recipe: Recipe(
+            id: negroni.id,
+            libraryId: cocktailsLibrary.id,
+            name: 'Negroni',
+            ingredients: [Ingredient(name: 'Gin', catalogId: ginIngredient.id)],
+          ),
+        );
+
+        await tester.enterText(ingredientField(0), 'Gin fizz');
+        await tapSave(tester);
+
+        expect(savedRecipe().ingredients.single.catalogId, isNull);
+      });
+
+      testWidgets('links the same entry from two rows', (tester) async {
+        await pumpEditor(tester);
+
+        await fillName(tester);
+        await addRow(tester);
+        await addRow(tester);
+        await tester.enterText(ingredientField(0), 'Gin');
+        await tester.enterText(ingredientField(1), 'GIN');
+        await tapSave(tester);
+
+        expect(
+          savedRecipe().ingredients.map((row) => row.catalogId),
+          [ginIngredient.id, ginIngredient.id],
+        );
+      });
+
+      testWidgets('saves a pick as free text once its entry is deleted', (
+        tester,
+      ) async {
+        await pushEditor(tester);
+
+        await fillName(tester);
+        await addRow(tester);
+        await tester.enterText(ingredientField(0), 'Gin');
+        states.add(catalogState.copyWith(ingredients: [sugarIngredient]));
+        await tester.pumpAndSettle();
+        await tapSave(tester);
+
+        expect(savedRecipe().ingredients, [Ingredient(name: 'Gin')]);
+      });
+
+      group('a renamed entry', () {
+        final renamedGin = CatalogIngredient(
+          id: ginIngredient.id,
+          name: 'London Dry Gin',
+          libraryIds: ginIngredient.libraryIds,
+        );
+        final martini = Recipe(
+          id: 'recipe-martini',
+          libraryId: cocktailsLibrary.id,
+          name: 'Martini',
+          ingredients: [
+            Ingredient(name: 'Gin', quantity: '2', catalogId: ginIngredient.id),
+          ],
+        );
+
+        setUp(() {
+          whenListen(
+            recipesBloc,
+            states.stream,
+            initialState: catalogState.copyWith(ingredients: [renamedGin]),
+          );
+        });
+
+        testWidgets('opens showing its new name, and keeps its link', (
+          tester,
+        ) async {
+          await pumpEditor(tester, recipe: martini);
+
+          expect(find.text('London Dry Gin'), findsOneWidget);
+          await tapSave(tester);
+
+          expect(
+            savedRecipe().ingredients.single,
+            Ingredient(
+              name: 'London Dry Gin',
+              quantity: '2',
+              catalogId: ginIngredient.id,
+            ),
+          );
+        });
+
+        testWidgets('does not open the editor dirty', (tester) async {
+          await pushEditor(tester, recipe: martini);
+
+          await tester.tap(find.byType(FHeaderAction).first);
+          await tester.pumpAndSettle();
+
+          expect(find.text('Discard changes?'), findsNothing);
+          expect(find.byType(RecipeEditorPage), findsNothing);
+        });
+      });
+
+      testWidgets('keeps a created entry when the recipe is abandoned', (
+        tester,
+      ) async {
+        await pushEditor(tester);
+
+        await addRow(tester);
+        await tester.enterText(ingredientField(0), 'Bourbon');
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('New ingredient'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Save ingredient'));
+        await tester.pumpAndSettle();
+        states.add(
+          catalogState.copyWith(
+            mutation: RecipesMutation.ingredientSaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(IngredientCreateSheet), findsNothing);
+        await tester.tap(find.byType(FHeaderAction).first);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Discard'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(RecipeEditorPage), findsNothing);
+        verify(
+          () => recipesBloc.add(any(that: isA<RecipesIngredientSaved>())),
+        ).called(1);
+        verifyNever(
+          () => recipesBloc.add(any(that: isA<RecipesIngredientDeleted>())),
+        );
+      });
     });
 
     group('tags', () {

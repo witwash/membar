@@ -7,6 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The recipe form: the core fields every recipe has, plus one control per
@@ -93,6 +94,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     _initialized = true;
 
     final recipe = widget.recipe;
+    final state = context.read<RecipesBloc>().state;
     final numberFormat = NumberFormat.decimalPattern(
       Localizations.localeOf(context).toLanguageTag(),
     );
@@ -101,7 +103,17 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     _notesController.text = recipe?.notes ?? '';
     for (final ingredient in recipe?.ingredients ?? const <Ingredient>[]) {
       _ingredientRows.add(
-        IngredientRowControllers(_nextRowId++, ingredient: ingredient),
+        IngredientRowControllers(
+          _nextRowId++,
+          ingredient: ingredient,
+          // Primed with the entry's current name before the snapshot below is
+          // taken, so a renamed entry neither loses its link on save nor opens
+          // the editor already dirty.
+          entry: switch (ingredient.catalogId) {
+            final id? => state.ingredientById(id),
+            null => null,
+          },
+        ),
       );
     }
     for (final step in recipe?.steps ?? const <String>[]) {
@@ -120,7 +132,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     // whatever this recipe carries.
     _tagOptions = foldCaseInsensitive([
       ..._tagsController.value,
-      ...context.read<RecipesBloc>().state.libraryTags,
+      ...state.libraryTags,
     ])..sort(compareCaseInsensitive);
     _initialSnapshot = _snapshot();
   }
@@ -307,7 +319,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
 
   Future<bool> _confirmDiscard() {
     final l10n = context.l10n;
-    return showRecipeConfirmDialog(
+    return showConfirmDialog(
       context: context,
       title: l10n.recipeEditorDiscardTitle,
       description: widget.recipe == null
@@ -349,6 +361,9 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
 
   Recipe _buildRecipe() {
     final existing = widget.recipe;
+    // Read at save rather than at open: an entry created or deleted while the
+    // form was open decides what each row links to.
+    final state = context.read<RecipesBloc>().state;
     // Edits are laid *over* what is stored, never composed fresh from the
     // rendered controls: a value whose field the schema no longer declares
     // must survive a round trip rather than be silently dropped.
@@ -369,7 +384,9 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       id: existing?.id,
       libraryId: widget.library.id,
       name: _nameController.text,
-      ingredients: [for (final row in _ingredientRows) ?row.ingredient],
+      ingredients: [
+        for (final row in _ingredientRows) ?row.ingredientIn(state),
+      ],
       steps: [for (final row in _stepRows) ?row.step],
       tags: _tagsController.value.toList(),
       notes: _notesController.text.trim(),

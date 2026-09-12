@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
+import 'package:membar/ingredients/ingredients.dart';
 import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The recipe list of the active library, with the library switcher in the
@@ -26,12 +28,20 @@ class RecipesView extends StatelessWidget {
                 activeLibrary: library,
               ),
         suffixes: [
-          if (library != null)
+          if (library != null) ...[
+            FHeaderAction(
+              icon: const Icon(FLucideIcons.carrot),
+              semanticsLabel: l10n.ingredientsOpenLabel,
+              onPress: () => Navigator.of(context).push(
+                IngredientsPage.route(bloc: context.read<RecipesBloc>()),
+              ),
+            ),
             FHeaderAction(
               icon: const Icon(FLucideIcons.plus),
               semanticsLabel: l10n.recipeAddLabel,
               onPress: () => RecipeEditorPage.open(context, library),
             ),
+          ],
         ],
       ),
       child: switch ((state.status, library)) {

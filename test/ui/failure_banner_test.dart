@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:membar/recipes/recipes.dart';
+import 'package:membar/ui/ui.dart';
 
-import '../../helpers/helpers.dart';
+import '../helpers/helpers.dart';
 
 void main() {
   group('FailureBanner', () {
