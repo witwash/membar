@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:forui/forui.dart';
-import 'package:membar/ui/ui.dart';
+import 'package:membar/ui/app_spacing.dart';
 
 /// Asks the user to confirm something destructive, resolving to true when they
 /// confirm and false when they cancel or dismiss the dialog.
 ///
-/// Both places that ask — leaving a dirty editor and deleting a recipe — get
-/// the same layout and the same button order from here, so the two cannot
-/// drift into looking like different kinds of question.
-Future<bool> showRecipeConfirmDialog({
+/// Every place that asks — leaving a dirty editor, deleting a recipe or an
+/// ingredient — gets the same layout and the same button order from here, so
+/// none of them can drift into looking like a different kind of question.
+Future<bool> showConfirmDialog({
   required BuildContext context,
   required String title,
   required String description,

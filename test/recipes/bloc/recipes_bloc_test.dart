@@ -365,6 +365,92 @@ void main() {
       }
     });
 
+    group('RecipesIngredientsImported', () {
+      final withRows = RecipesState(
+        status: RecipesStatus.success,
+        libraries: [cocktails, coffee],
+        recipes: [
+          Recipe(
+            id: 'r1',
+            libraryId: 'l1',
+            name: 'Negroni',
+            ingredients: [
+              Ingredient(name: 'Gin', unit: 'ml', catalogId: 'i1'),
+              Ingredient(name: 'Campari', unit: 'ml'),
+            ],
+          ),
+        ],
+        ingredients: [gin],
+        activeLibraryId: 'l1',
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'saves the importable entries in one call, with ids minted',
+        setUp: () => when(
+          () => repository.saveIngredients(any()),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        seed: () => withRows,
+        act: (bloc) => bloc.add(const RecipesIngredientsImported()),
+        expect: () => [
+          withRows.copyWith(
+            mutation: RecipesMutation.ingredientsImported,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          withRows.copyWith(
+            mutation: RecipesMutation.ingredientsImported,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        ],
+        verify: (_) {
+          final saved =
+              verify(
+                    () => repository.saveIngredients(captureAny()),
+                  ).captured.single
+                  as List<CatalogIngredient>;
+          final campari = saved.single;
+          expect(campari.id, isNotEmpty);
+          expect(campari.name, 'Campari');
+          expect(campari.defaultUnit, const KnownUnit(StandardUnit.ml));
+          expect(campari.libraryIds, {'l1'});
+        },
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'does nothing when there is nothing to import',
+        build: buildBloc,
+        seed: () => withRows.copyWith(recipes: const []),
+        act: (bloc) => bloc.add(const RecipesIngredientsImported()),
+        expect: () => const <RecipesState>[],
+        verify: (_) => verifyNever(() => repository.saveIngredients(any())),
+      );
+
+      for (final (reason, exception) in <(String, Exception)>[
+        ('a name is taken', const IngredientNameTakenException('Campari')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure when $reason',
+          setUp: () => when(
+            () => repository.saveIngredients(any()),
+          ).thenThrow(exception),
+          build: buildBloc,
+          seed: () => withRows,
+          act: (bloc) => bloc.add(const RecipesIngredientsImported()),
+          expect: () => [
+            withRows.copyWith(
+              mutation: RecipesMutation.ingredientsImported,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            withRows.copyWith(
+              mutation: RecipesMutation.ingredientsImported,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
+    });
+
     group('RecipesIngredientScopeWidened', () {
       final loaded = RecipesState(
         status: RecipesStatus.success,

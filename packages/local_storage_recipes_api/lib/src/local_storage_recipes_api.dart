@@ -118,26 +118,34 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   @override
   Future<void> saveIngredient(CatalogIngredient ingredient) =>
-      _serialized(() async {
-        final ingredients = [..._subject.value.ingredients];
-        final taken = ingredients.any(
-          (stored) =>
-              stored.id != ingredient.id &&
-              compareCaseInsensitive(stored.name, ingredient.name) == 0,
-        );
-        if (taken) throw IngredientNameTakenException(ingredient.name);
+      saveIngredients([ingredient]);
 
-        final index = ingredients.indexWhere(
-          (stored) => stored.id == ingredient.id,
-        );
-        if (index == -1) {
-          ingredients.add(ingredient);
-        } else {
-          ingredients[index] = ingredient;
+  @override
+  Future<void> saveIngredients(List<CatalogIngredient> ingredients) =>
+      _serialized(() async {
+        final catalog = [..._subject.value.ingredients];
+        // Each entry is checked against the ones merged before it, so two
+        // entries in one batch cannot fold onto each other either.
+        for (final ingredient in ingredients) {
+          final taken = catalog.any(
+            (stored) =>
+                stored.id != ingredient.id &&
+                compareCaseInsensitive(stored.name, ingredient.name) == 0,
+          );
+          if (taken) throw IngredientNameTakenException(ingredient.name);
+
+          final index = catalog.indexWhere(
+            (stored) => stored.id == ingredient.id,
+          );
+          if (index == -1) {
+            catalog.add(ingredient);
+          } else {
+            catalog[index] = ingredient;
+          }
         }
 
-        await _write(kIngredientsKey, _encodeIngredients(ingredients));
-        _emit(ingredients: ingredients);
+        await _write(kIngredientsKey, _encodeIngredients(catalog));
+        _emit(ingredients: catalog);
       });
 
   @override

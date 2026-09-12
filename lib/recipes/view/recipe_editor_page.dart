@@ -7,6 +7,7 @@ import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The recipe form: the core fields every recipe has, plus one control per
@@ -318,7 +319,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
 
   Future<bool> _confirmDiscard() {
     final l10n = context.l10n;
-    return showRecipeConfirmDialog(
+    return showConfirmDialog(
       context: context,
       title: l10n.recipeEditorDiscardTitle,
       description: widget.recipe == null

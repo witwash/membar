@@ -279,5 +279,153 @@
     "ingredientCreateSaveFailure": "Your ingredient could not be saved.",
     "@ingredientCreateSaveFailure": {
         "description": "Shown in the create sheet when saving the ingredient fails, keeping the sheet open"
+    },
+    "ingredientsTitle": "Ingredients",
+    "@ingredientsTitle": {
+        "description": "Header title of the screen managing the ingredients catalog"
+    },
+    "ingredientsOpenLabel": "Manage ingredients",
+    "@ingredientsOpenLabel": {
+        "description": "Label of the recipe list's header action that opens the ingredients catalog"
+    },
+    "ingredientsUsageCount": "{count, plural, =0{Not used} =1{1 recipe} other{{count} recipes}}",
+    "@ingredientsUsageCount": {
+        "description": "How many recipes, across every library, use a catalog ingredient",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "4"
+            }
+        }
+    },
+    "ingredientsEmptyTitle": "No ingredients yet",
+    "@ingredientsEmptyTitle": {
+        "description": "Title of the empty state shown when the catalog holds no ingredients"
+    },
+    "ingredientsEmptyDescription": "Ingredients you add while writing a recipe will show up here.",
+    "@ingredientsEmptyDescription": {
+        "description": "Body of the empty state shown when the catalog holds no ingredients"
+    },
+    "ingredientsImportLabel": "{count, plural, =1{Import 1 ingredient from your recipes} other{Import {count} ingredients from your recipes}}",
+    "@ingredientsImportLabel": {
+        "description": "Button that adds the ingredient names used in saved recipes to the catalog",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "4"
+            }
+        }
+    },
+    "ingredientsImportFailure": "Your ingredients could not be imported.",
+    "@ingredientsImportFailure": {
+        "description": "Shown on the ingredients screen when the import fails to save"
+    },
+    "ingredientsDeleteLabel": "Delete {ingredient}",
+    "@ingredientsDeleteLabel": {
+        "description": "Accessibility label of the action that deletes a catalog ingredient",
+        "placeholders": {
+            "ingredient": {
+                "type": "String",
+                "example": "Gin"
+            }
+        }
+    },
+    "ingredientsDeleteRefusal": "{ingredient} is used in {count, plural, =1{1 recipe} other{{count} recipes}}, so it cannot be deleted.",
+    "@ingredientsDeleteRefusal": {
+        "description": "Shown instead of deleting a catalog ingredient that recipes still use",
+        "placeholders": {
+            "ingredient": {
+                "type": "String",
+                "example": "Gin"
+            },
+            "count": {
+                "type": "int",
+                "example": "4"
+            }
+        }
+    },
+    "ingredientsDeleteDialogTitle": "Delete {ingredient}?",
+    "@ingredientsDeleteDialogTitle": {
+        "description": "Title of the dialog confirming a catalog ingredient deletion",
+        "placeholders": {
+            "ingredient": {
+                "type": "String",
+                "example": "Gin"
+            }
+        }
+    },
+    "ingredientsDeleteDialogDescription": "This ingredient will be removed from your catalog. There is no undo.",
+    "@ingredientsDeleteDialogDescription": {
+        "description": "Body of the dialog confirming a catalog ingredient deletion"
+    },
+    "ingredientsDeleteDialogConfirm": "Delete",
+    "@ingredientsDeleteDialogConfirm": {
+        "description": "Button that confirms a catalog ingredient deletion"
+    },
+    "ingredientsDeleteDialogCancel": "Cancel",
+    "@ingredientsDeleteDialogCancel": {
+        "description": "Button that dismisses the delete confirmation and keeps the ingredient"
+    },
+    "ingredientsDeleteFailure": "Your ingredient could not be deleted.",
+    "@ingredientsDeleteFailure": {
+        "description": "Shown on the ingredients screen when a deletion fails"
+    },
+    "ingredientEditTitle": "Edit ingredient",
+    "@ingredientEditTitle": {
+        "description": "Title of the sheet that changes a catalog ingredient"
+    },
+    "ingredientEditNameLabel": "Name",
+    "@ingredientEditNameLabel": {
+        "description": "Label of the edit sheet's ingredient name field"
+    },
+    "ingredientEditNameRequiredError": "Enter a name.",
+    "@ingredientEditNameRequiredError": {
+        "description": "Validation error shown when the edit sheet's ingredient name is blank"
+    },
+    "ingredientEditNameTakenError": "Another ingredient is already called {ingredient}.",
+    "@ingredientEditNameTakenError": {
+        "description": "Validation error shown when renaming onto a name another catalog ingredient carries, ignoring case",
+        "placeholders": {
+            "ingredient": {
+                "type": "String",
+                "example": "Gin"
+            }
+        }
+    },
+    "ingredientEditUnitLabel": "Default unit",
+    "@ingredientEditUnitLabel": {
+        "description": "Label of the edit sheet's list of standard units"
+    },
+    "ingredientEditUnitCustomLabel": "Custom…",
+    "@ingredientEditUnitCustomLabel": {
+        "description": "Action that swaps the edit sheet's list of standard units for a field accepting any unit"
+    },
+    "ingredientEditUnitStandardLabel": "Standard units",
+    "@ingredientEditUnitStandardLabel": {
+        "description": "Action that swaps the edit sheet's custom unit field back for the list of standard units"
+    },
+    "ingredientEditCustomUnitLabel": "Custom unit",
+    "@ingredientEditCustomUnitLabel": {
+        "description": "Label of the edit sheet's field accepting a unit outside the standard list"
+    },
+    "ingredientEditLibrariesLabel": "Libraries",
+    "@ingredientEditLibrariesLabel": {
+        "description": "Label above the libraries whose picker offers the ingredient first"
+    },
+    "ingredientEditLibrariesRequiredError": "Choose at least one library.",
+    "@ingredientEditLibrariesRequiredError": {
+        "description": "Validation error shown when every library is unticked in the edit sheet"
+    },
+    "ingredientEditSaveLabel": "Save changes",
+    "@ingredientEditSaveLabel": {
+        "description": "Button that saves the edit sheet"
+    },
+    "ingredientEditCancelLabel": "Cancel",
+    "@ingredientEditCancelLabel": {
+        "description": "Button that closes the edit sheet without saving"
+    },
+    "ingredientEditSaveFailure": "Your changes could not be saved.",
+    "@ingredientEditSaveFailure": {
+        "description": "Shown in the edit sheet when saving fails, keeping the sheet open"
     }
 }

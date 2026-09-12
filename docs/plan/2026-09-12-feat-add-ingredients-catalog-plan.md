@@ -689,7 +689,7 @@ shell-executable, and coverage has its own criterion.
 
 ### Phase 3 (PR3): management screen
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** the catalog list and its navigation entry, the edit sheet (name, default unit,
   library set), delete with the usage guard, the import, and `saveIngredients`. Moves the two
   feature-agnostic widgets `lib/ingredients/` needs — `confirm_dialog.dart` (renamed

@@ -104,6 +104,20 @@ void main() {
       });
     });
 
+    group('saveIngredients', () {
+      test('delegates to the api', () async {
+        final ingredients = [
+          CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
+          CatalogIngredient(name: 'Campari', libraryIds: const {'l1'}),
+        ];
+        when(() => api.saveIngredients(any())).thenAnswer((_) async {});
+
+        await repository.saveIngredients(ingredients);
+
+        verify(() => api.saveIngredients(ingredients)).called(1);
+      });
+    });
+
     group('deleteIngredient', () {
       test('delegates to the api', () async {
         when(() => api.deleteIngredient(any())).thenAnswer((_) async {});

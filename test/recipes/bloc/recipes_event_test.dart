@@ -58,6 +58,12 @@ void main() {
       expect(RecipesIngredientSaved(gin), isNot(RecipesIngredientSaved(rum)));
     });
 
+    test('RecipesIngredientsImported supports value equality', () {
+      // Not const, for the reason given on RecipesSubscriptionRequested.
+      // ignore: prefer_const_constructors
+      expect(RecipesIngredientsImported(), RecipesIngredientsImported());
+    });
+
     test('RecipesIngredientDeleted carries the id', () {
       expect(
         const RecipesIngredientDeleted('i1'),

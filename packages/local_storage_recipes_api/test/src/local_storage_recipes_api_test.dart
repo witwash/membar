@@ -745,6 +745,114 @@ void main() {
       });
     });
 
+    group('saveIngredients', () {
+      final gin = CatalogIngredient(
+        id: 'i1',
+        name: 'Gin',
+        libraryIds: {cocktails.id},
+      );
+      final campari = CatalogIngredient(
+        id: 'i2',
+        name: 'Campari',
+        libraryIds: {cocktails.id},
+      );
+      final sugar = CatalogIngredient(
+        id: 'i3',
+        name: 'Sugar',
+        libraryIds: {coffee.id},
+      );
+
+      test('writes every entry once and emits one snapshot', () async {
+        final store = await setUpRecordingPrefs(
+          seededPrefs(ingredients: [gin]),
+        );
+        api = buildApi();
+        await api.initialWrite;
+        store.writtenKeys.clear();
+        final emitted = <RecipesSnapshot>[];
+        final subscription = api.watch().skip(1).listen(emitted.add);
+        addTearDown(subscription.cancel);
+
+        await api.saveIngredients([campari, sugar]);
+        await pumpEventQueue();
+
+        expect(
+          store.writtenKeys,
+          equals([LocalStorageRecipesApi.kIngredientsKey]),
+        );
+        expect(emitted, hasLength(1));
+        expect(emitted.single.ingredients, equals([gin, campari, sugar]));
+        expect(emitted.single.recipes, isEmpty);
+      });
+
+      test('replaces entries that already carry their ids', () async {
+        await setUpPrefs(seededPrefs(ingredients: [gin, campari]));
+        api = buildApi();
+        await api.initialWrite;
+        final renamed = CatalogIngredient(
+          id: gin.id,
+          name: 'London Dry Gin',
+          libraryIds: gin.libraryIds,
+        );
+
+        await api.saveIngredients([renamed]);
+
+        expect(
+          (await api.watch().first).ingredients,
+          equals([renamed, campari]),
+        );
+      });
+
+      test(
+        'stores nothing when an entry folds onto a stored one',
+        () async {
+          await setUpPrefs(seededPrefs(ingredients: [gin]));
+          api = buildApi();
+          await api.initialWrite;
+
+          await expectLater(
+            () => api.saveIngredients([
+              campari,
+              CatalogIngredient(name: 'GIN', libraryIds: {coffee.id}),
+            ]),
+            throwsA(isA<IngredientNameTakenException>()),
+          );
+          expect((await api.watch().first).ingredients, equals([gin]));
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
+            equals(jsonEncode([gin.toJson()])),
+          );
+        },
+      );
+
+      test('throws when two entries in the batch fold together', () async {
+        await setUpPrefs(seededPrefs());
+        api = buildApi();
+        await api.initialWrite;
+
+        await expectLater(
+          () => api.saveIngredients([
+            campari,
+            CatalogIngredient(name: 'campari', libraryIds: {coffee.id}),
+          ]),
+          throwsA(isA<IngredientNameTakenException>()),
+        );
+        expect((await api.watch().first).ingredients, isEmpty);
+      });
+
+      test('throws when the write fails', () async {
+        await setUpPrefs(seededPrefs());
+        api = buildApi();
+        await api.initialWrite;
+        SharedPreferencesStorePlatform.instance = _FailingStore();
+
+        await expectLater(
+          () => api.saveIngredients([gin]),
+          throwsA(isA<RecipesPersistenceException>()),
+        );
+      });
+    });
+
     group('deleteIngredient', () {
       late CatalogIngredient gin;
 

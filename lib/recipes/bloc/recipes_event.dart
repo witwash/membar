@@ -63,6 +63,12 @@ final class RecipesIngredientDeleted extends RecipesEvent {
   List<Object?> get props => [id];
 }
 
+/// Adds every entry in [RecipesState.importableIngredients] to the catalog in
+/// one write.
+final class RecipesIngredientsImported extends RecipesEvent {
+  const RecipesIngredientsImported();
+}
+
 /// Makes the catalog entry carrying [ingredientId] visible in the library
 /// carrying [libraryId], because it was picked from there.
 final class RecipesIngredientScopeWidened extends RecipesEvent {

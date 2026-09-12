@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// A single recipe, rendered read-only: its core fields plus one row per schema
@@ -158,7 +159,7 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
 
   Future<void> _delete(Recipe recipe) async {
     final l10n = context.l10n;
-    final confirmed = await showRecipeConfirmDialog(
+    final confirmed = await showConfirmDialog(
       context: context,
       title: l10n.recipeDeleteDialogTitle(recipe.name),
       description: l10n.recipeDeleteDialogDescription,

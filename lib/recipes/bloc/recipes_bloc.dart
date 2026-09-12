@@ -31,6 +31,10 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       _onIngredientDeleted,
       transformer: sequential(),
     );
+    on<RecipesIngredientsImported>(
+      _onIngredientsImported,
+      transformer: sequential(),
+    );
     on<RecipesIngredientScopeWidened>(
       _onIngredientScopeWidened,
       transformer: sequential(),
@@ -242,6 +246,52 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       emit(
         state.copyWith(
           mutation: RecipesMutation.ingredientDeleted,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onIngredientsImported(
+    RecipesIngredientsImported event,
+    Emitter<RecipesState> emit,
+  ) async {
+    final importable = state.importableIngredients;
+    if (importable.isEmpty) return;
+
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.ingredientsImported,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
+
+    try {
+      await _recipesRepository.saveIngredients([
+        for (final ingredient in importable)
+          CatalogIngredient(
+            name: ingredient.name,
+            defaultUnit: ingredient.defaultUnit,
+            libraryIds: ingredient.libraryIds,
+          ),
+      ]);
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.ingredientsImported,
+          mutationStatus: RecipesMutationStatus.success,
+        ),
+      );
+    } on IngredientNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.ingredientsImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipesPersistenceException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.ingredientsImported,
           mutationStatus: RecipesMutationStatus.failure,
         ),
       );

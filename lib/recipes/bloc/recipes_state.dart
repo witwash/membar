@@ -21,6 +21,32 @@ enum RecipesMutation {
   librarySelected,
   ingredientSaved,
   ingredientDeleted,
+  ingredientsImported,
+}
+
+/// A catalog entry the import would create from the ingredient rows of saved
+/// recipes.
+///
+/// It carries no id: the entry's id is minted when the import is written, so
+/// reading [RecipesState.importableIngredients] twice yields equal values.
+final class ImportableIngredient extends Equatable {
+  const ImportableIngredient({
+    required this.name,
+    required this.libraryIds,
+    this.defaultUnit,
+  });
+
+  /// The first spelling of the name seen across the recipes using it.
+  final String name;
+
+  /// The unit spelled most often on those rows, or null when none carries one.
+  final Unit? defaultUnit;
+
+  /// Every library holding a recipe that uses the name.
+  final Set<String> libraryIds;
+
+  @override
+  List<Object?> get props => [name, defaultUnit, libraryIds];
 }
 
 final class RecipesState extends Equatable {
@@ -139,12 +165,73 @@ final class RecipesState extends Equatable {
     return usage;
   }
 
+  /// The entries the import would create: one per ingredient name used in a
+  /// saved recipe that no catalog entry claims, ordered case-insensitively.
+  ///
+  /// Names fold case-insensitively, keeping the first spelling seen. A row
+  /// whose link resolves is already claimed, whatever name it stored, and a
+  /// recipe whose library no longer exists contributes nothing, since an entry
+  /// scoped only to it could never be picked. Each entry is scoped to every
+  /// library using its name, and its default unit is the spelling used most
+  /// often, with the first seen winning a tie.
+  List<ImportableIngredient> get importableIngredients {
+    final libraryIds = {for (final library in libraries) library.id};
+    final claimed = {
+      for (final entry in ingredients) entry.name.toLowerCase(),
+    };
+    final names = <String, String>{};
+    final scopes = <String, Set<String>>{};
+    final unitCounts = <String, Map<String, int>>{};
+
+    for (final recipe in recipes) {
+      if (!libraryIds.contains(recipe.libraryId)) continue;
+      for (final row in recipe.ingredients) {
+        final key = row.name.toLowerCase();
+        if (claimed.contains(key)) continue;
+        if (row.catalogId case final id? when ingredientById(id) != null) {
+          continue;
+        }
+
+        names.putIfAbsent(key, () => row.name);
+        (scopes[key] ??= {}).add(recipe.libraryId);
+        final counts = unitCounts[key] ??= {};
+        if (row.unit.isNotEmpty) counts[row.unit] = (counts[row.unit] ?? 0) + 1;
+      }
+    }
+
+    return [
+      for (final MapEntry(:key, value: name) in names.entries)
+        ImportableIngredient(
+          name: name,
+          defaultUnit: _unitFromSpelling(_mostFrequent(unitCounts[key]!)),
+          libraryIds: scopes[key]!,
+        ),
+    ]..sort((a, b) => compareCaseInsensitive(a.name, b.name));
+  }
+
   /// The entry carrying [id], or null when it resolves to nothing.
   CatalogIngredient? ingredientById(String id) {
     for (final entry in ingredients) {
       if (entry.id == id) return entry;
     }
     return null;
+  }
+
+  /// The key counted most often. A map iterates in insertion order and only a
+  /// strictly greater count replaces the leader, so the first seen wins a tie.
+  static String? _mostFrequent(Map<String, int> counts) {
+    String? leader;
+    var most = 0;
+    for (final MapEntry(:key, value: count) in counts.entries) {
+      if (count > most) (leader, most) = (key, count);
+    }
+    return leader;
+  }
+
+  static Unit? _unitFromSpelling(String? spelling) {
+    if (spelling == null) return null;
+    final known = StandardUnit.values.asNameMap()[spelling.toLowerCase()];
+    return known == null ? CustomUnit(spelling) : KnownUnit(known);
   }
 
   List<CatalogIngredient> _sortedIngredients(
