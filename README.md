@@ -55,6 +55,34 @@ $ open coverage/index.html
 
 ---
 
+## Logging 📝
+
+Every layer logs through one [talker](https://pub.dev/packages/talker) instance,
+created in `bootstrap()` and handed to whatever needs it. Console output is
+grouped by category, each with its own title and colour:
+
+| Category | What it covers |
+| --- | --- |
+| `event` / `transition` | Every bloc event and state transition, by type. States are not printed in full — a `RecipesState` carries the whole active library. |
+| `bloc-create` / `bloc-close` | Bloc lifecycle. |
+| `route` | Every push, pop, replace and remove, by route name. |
+| `storage` | A problem local storage recovered from: a corrupt blob, a stale active library id, a seed write that failed. The app keeps running, which is why these are worth seeing. |
+| `error` | Anything uncaught, from the framework, the platform, a bloc, or an async gap. |
+
+Each flavor sets one log level, and that alone decides how much is printed:
+
+| Flavor | Level | Effect |
+| --- | --- | --- |
+| development | `verbose` | Everything. |
+| staging | `debug` | Everything but verbose tracing. |
+| production | `warning` | Warnings and errors only. Bloc, route and lifecycle logs sit at `debug`, so they drop out here. |
+
+To log from new code, take the `Talker` that `bootstrap()` hands to the builder
+rather than creating one — a second instance would have its own history and its
+own settings.
+
+---
+
 ## Bloc Lints 🔍
 
 This project uses the [bloc_lint](https://pub.dev/packages/bloc_lint) package to enforce best practices using [bloc](https://pub.dev/packages/bloc).

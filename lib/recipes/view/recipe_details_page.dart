@@ -31,6 +31,7 @@ class RecipeDetailsPage extends StatefulWidget {
     required Library library,
   }) {
     return MaterialPageRoute<void>(
+      settings: const RouteSettings(name: 'recipe-details'),
       builder: (_) => BlocProvider.value(
         value: bloc,
         child: RecipeDetailsPage(recipe: recipe, library: library),

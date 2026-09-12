@@ -26,7 +26,8 @@ dependencies:
   recipes_repository:
     path: packages/recipes_repository
   shared_preferences: ^2.5.3
-
+  talker: ^5.1.20
+  talker_bloc_logger: ^5.1.20
 dev_dependencies:
   bloc_lint: ^0.4.1
   bloc_test: ^10.0.0

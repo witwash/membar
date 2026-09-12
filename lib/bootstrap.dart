@@ -1,37 +1,52 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:bloc/bloc.dart';
 import 'package:flutter/widgets.dart';
+import 'package:membar/logging/logging.dart';
+import 'package:talker/talker.dart';
+import 'package:talker_bloc_logger/talker_bloc_logger.dart';
 
-class AppBlocObserver extends BlocObserver {
-  const AppBlocObserver();
+/// Starts the app with logging and error handling installed.
+///
+/// [builder] is handed the [Talker] every layer logs through, so the objects
+/// it constructs report through the same logger rather than making their own.
+Future<void> bootstrap(
+  FutureOr<Widget> Function(Talker talker) builder, {
+  required LogLevel logLevel,
+}) async {
+  final talker = createTalker(level: logLevel);
 
-  @override
-  void onChange(BlocBase<dynamic> bloc, Change<dynamic> change) {
-    super.onChange(bloc, change);
-    log('onChange(${bloc.runtimeType}, $change)');
-  }
+  await runZonedGuarded(
+    () async {
+      // The binding must exist before the builder touches a plugin channel —
+      // shared_preferences, in every flavor — and must be created inside this
+      // zone, or the errors it forwards escape the guard.
+      final binding = WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  void onError(BlocBase<dynamic> bloc, Object error, StackTrace stackTrace) {
-    log('onError(${bloc.runtimeType}, $error, $stackTrace)');
-    super.onError(bloc, error, stackTrace);
-  }
-}
+      FlutterError.onError = (details) {
+        talker.handle(
+          details.exception,
+          details.stack,
+          'Unhandled error in the ${details.library ?? 'Flutter framework'}',
+        );
+      };
 
-Future<void> bootstrap(FutureOr<Widget> Function() builder) async {
-  // The binding must exist before the builder touches a plugin channel —
-  // shared_preferences, in every flavor.
-  WidgetsFlutterBinding.ensureInitialized();
+      binding.platformDispatcher.onError = (error, stackTrace) {
+        talker.handle(error, stackTrace, 'Unhandled platform error');
+        return true;
+      };
 
-  FlutterError.onError = (details) {
-    log(details.exceptionAsString(), stackTrace: details.stack);
-  };
+      Bloc.observer = TalkerBlocObserver(
+        talker: talker,
+        settings: appBlocLoggerSettings,
+      );
 
-  Bloc.observer = const AppBlocObserver();
+      talker.info('Starting membar at log level ${logLevel.name}');
 
-  // Add cross-flavor configuration here
-
-  runApp(await builder());
+      runApp(await builder(talker));
+    },
+    (error, stackTrace) {
+      talker.handle(error, stackTrace, 'Unhandled error outside the framework');
+    },
+  );
 }
