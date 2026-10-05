@@ -153,6 +153,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.7"
+  cupertino_ui:
+    dependency: transitive
+    description:
+      name: cupertino_ui
+      sha256: c23816577a1280cff409e989541767887011f8f1d8c1863a794ed308af46f2a9
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   dart_style:
     dependency: transitive
     description:
@@ -241,18 +249,18 @@ packages:
     dependency: "direct main"
     description:
       name: forui
-      sha256: cdecccadcc54fa786e691cd7debca2e2d422106d0e35d0aaa8b74262bf2af5c5
+      sha256: d0429007bf340ba4f8912c48e9bf27abe1122dd8eeb3601f77040940e63354b4
       url: "https://pub.dev"
     source: hosted
-    version: "0.24.1"
-  forui_assets:
+    version: "0.27.4"
+  forui_lucide:
     dependency: transitive
     description:
-      name: forui_assets
-      sha256: "95f11ad6f0d560a91971388f13ebf7beb77a631f9bb6ba5ab7b3454ac3acda96"
+      name: forui_lucide
+      sha256: "63c660e4213309d9558cfc1c10ec52c13dab88cc2794dc41b8be769a7c86206c"
       url: "https://pub.dev"
     source: hosted
-    version: "0.24.0"
+    version: "0.27.0"
   frontend_server_client:
     dependency: transitive
     description:
@@ -404,6 +412,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
+  material_ui:
+    dependency: "direct main"
+    description:
+      name: material_ui
+      sha256: "32d98f11cf5942a095a8c3e01b03e4de3b17941437713dcf36b1088fb62e23d2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.0"
   meta:
     dependency: transitive
     description:
