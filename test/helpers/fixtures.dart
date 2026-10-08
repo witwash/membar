@@ -44,3 +44,27 @@ final coffeeLibrary = Library(
   name: 'Coffee',
   fields: [doseField, tastingNotesField],
 );
+
+/// A catalog entry visible only in [cocktailsLibrary], with a standard unit.
+final ginIngredient = CatalogIngredient(
+  id: 'ingredient-gin',
+  name: 'Gin',
+  defaultUnit: const KnownUnit(StandardUnit.ml),
+  libraryIds: {cocktailsLibrary.id},
+);
+
+/// A catalog entry visible in both [cocktailsLibrary] and [coffeeLibrary].
+final sugarIngredient = CatalogIngredient(
+  id: 'ingredient-sugar',
+  name: 'sugar',
+  defaultUnit: const KnownUnit(StandardUnit.gram),
+  libraryIds: {cocktailsLibrary.id, coffeeLibrary.id},
+);
+
+/// A catalog entry visible only in [coffeeLibrary], with a custom unit.
+final cinnamonIngredient = CatalogIngredient(
+  id: 'ingredient-cinnamon',
+  name: 'Cinnamon',
+  defaultUnit: CustomUnit('pinch'),
+  libraryIds: {coffeeLibrary.id},
+);

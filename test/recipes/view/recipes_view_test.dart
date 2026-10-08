@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:membar/ingredients/ingredients.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
@@ -255,6 +256,24 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(RecipeEditorPage), findsOneWidget);
+    });
+
+    testWidgets('opens the ingredients screen from the header action', (
+      tester,
+    ) async {
+      mockState(
+        RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+      await pumpView(tester);
+
+      await tester.tap(find.bySemanticsLabel('Manage ingredients'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IngredientsPage), findsOneWidget);
     });
 
     testWidgets('offers an Add button on an empty library', (tester) async {

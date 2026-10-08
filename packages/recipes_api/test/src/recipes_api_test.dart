@@ -14,6 +14,15 @@ class _FakeRecipesApi extends RecipesApi {
   Future<void> deleteRecipe(String id) async {}
 
   @override
+  Future<void> saveIngredient(CatalogIngredient ingredient) async {}
+
+  @override
+  Future<void> importIngredients(List<CatalogIngredient> ingredients) async {}
+
+  @override
+  Future<void> deleteIngredient(String id) async {}
+
+  @override
   Future<void> setActiveLibraryId(String id) async {}
 
   @override
@@ -28,6 +37,11 @@ void main() {
       expect(api.watch(), emitsDone);
       await api.saveRecipe(Recipe(libraryId: 'l1', name: 'Negroni'));
       await api.deleteRecipe('r1');
+      await api.saveIngredient(
+        CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
+      );
+      await api.importIngredients(const []);
+      await api.deleteIngredient('i1');
       await api.setActiveLibraryId('l1');
       await api.close();
     });
@@ -39,6 +53,34 @@ void main() {
 
       expect(exception.id, equals('r1'));
       expect(exception.toString(), contains('r1'));
+    });
+  });
+
+  group('IngredientNotFoundException', () {
+    test('names the id it was thrown for', () {
+      const exception = IngredientNotFoundException('i1');
+
+      expect(exception.id, equals('i1'));
+      expect(exception.toString(), contains('i1'));
+    });
+  });
+
+  group('IngredientNameTakenException', () {
+    test('names the name that is taken', () {
+      const exception = IngredientNameTakenException('Gin');
+
+      expect(exception.name, equals('Gin'));
+      expect(exception.toString(), contains('Gin'));
+    });
+  });
+
+  group('IngredientInUseException', () {
+    test('names the id and how many recipes use it', () {
+      const exception = IngredientInUseException('i1', 4);
+
+      expect(exception.id, equals('i1'));
+      expect(exception.recipeCount, equals(4));
+      expect(exception.toString(), allOf(contains('i1'), contains('4')));
     });
   });
 

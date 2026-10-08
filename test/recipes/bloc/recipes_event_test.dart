@@ -42,6 +42,54 @@ void main() {
       );
     });
 
+    test('RecipesIngredientSaved carries the ingredient', () {
+      final gin = CatalogIngredient(
+        id: 'i1',
+        name: 'Gin',
+        libraryIds: const {'l1'},
+      );
+      final rum = CatalogIngredient(
+        id: 'i2',
+        name: 'Rum',
+        libraryIds: const {'l1'},
+      );
+
+      expect(RecipesIngredientSaved(gin), RecipesIngredientSaved(gin));
+      expect(RecipesIngredientSaved(gin), isNot(RecipesIngredientSaved(rum)));
+    });
+
+    test('RecipesIngredientsImported supports value equality', () {
+      // Not const, for the reason given on RecipesSubscriptionRequested.
+      // ignore: prefer_const_constructors
+      expect(RecipesIngredientsImported(), RecipesIngredientsImported());
+    });
+
+    test('RecipesIngredientDeleted carries the id', () {
+      expect(
+        const RecipesIngredientDeleted('i1'),
+        const RecipesIngredientDeleted('i1'),
+      );
+      expect(
+        const RecipesIngredientDeleted('i1'),
+        isNot(const RecipesIngredientDeleted('i2')),
+      );
+    });
+
+    test('RecipesIngredientScopeWidened carries the entry and library', () {
+      expect(
+        const RecipesIngredientScopeWidened('i1', 'l1'),
+        const RecipesIngredientScopeWidened('i1', 'l1'),
+      );
+      expect(
+        const RecipesIngredientScopeWidened('i1', 'l1'),
+        isNot(const RecipesIngredientScopeWidened('i1', 'l2')),
+      );
+      expect(
+        const RecipesIngredientScopeWidened('i1', 'l1'),
+        isNot(const RecipesIngredientScopeWidened('i2', 'l1')),
+      );
+    });
+
     test('RecipesSearchTermChanged carries the term', () {
       expect(
         const RecipesSearchTermChanged('neg'),

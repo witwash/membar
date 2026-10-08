@@ -14,8 +14,8 @@ class RecipesRepository {
 
   final RecipesApi _recipesApi;
 
-  /// Emits a [RecipesSnapshot] whenever libraries, recipes, or the active
-  /// library change.
+  /// Emits a [RecipesSnapshot] whenever libraries, recipes, catalog entries,
+  /// or the active library change.
   Stream<RecipesSnapshot> watch() => _recipesApi.watch();
 
   /// Stores [recipe], replacing any recipe that already carries its id.
@@ -28,6 +28,33 @@ class RecipesRepository {
   /// Throws a [RecipeNotFoundException] when no such recipe exists, and a
   /// [RecipesPersistenceException] when the write fails.
   Future<void> deleteRecipe(String id) => _recipesApi.deleteRecipe(id);
+
+  /// Stores [ingredient] in the catalog, replacing any entry that already
+  /// carries its id.
+  ///
+  /// Throws an [IngredientNameTakenException] when a different entry already
+  /// carries the same name without regard to case, and a
+  /// [RecipesPersistenceException] when the write fails.
+  Future<void> saveIngredient(CatalogIngredient ingredient) =>
+      _recipesApi.saveIngredient(ingredient);
+
+  /// Runs the one-time import of ingredient names from saved recipes: stores
+  /// [ingredients] in the catalog, links every recipe row whose name matches a
+  /// catalog entry without regard to case, and records the import as done.
+  ///
+  /// Nothing is stored when any entry is refused. Throws an
+  /// [IngredientNameTakenException] when an entry's name, without regard to
+  /// case, belongs to a different entry — stored or earlier in [ingredients] —
+  /// and a [RecipesPersistenceException] when a write fails.
+  Future<void> importIngredients(List<CatalogIngredient> ingredients) =>
+      _recipesApi.importIngredients(ingredients);
+
+  /// Removes the catalog entry carrying [id].
+  ///
+  /// Throws an [IngredientNotFoundException] when no such entry exists, an
+  /// [IngredientInUseException] when any recipe in any library still
+  /// references it, and a [RecipesPersistenceException] when the write fails.
+  Future<void> deleteIngredient(String id) => _recipesApi.deleteIngredient(id);
 
   /// Marks the library carrying [id] as the one being browsed.
   ///

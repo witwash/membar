@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:forui/forui.dart';
+import 'package:membar/ui/app_spacing.dart';
 
 /// An inline message reporting that a save or a delete did not go through.
 ///
@@ -17,7 +18,7 @@ class FailureBanner extends StatelessWidget {
     final theme = context.theme;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: AppSpacing.spacing150),
       child: Text(
         message,
         style: theme.typography.body.sm.copyWith(color: theme.colors.error),

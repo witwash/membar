@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
@@ -150,6 +150,57 @@ void main() {
       expect(find.text('Tags'), findsOneWidget);
       expect(find.text('Notes'), findsOneWidget);
       expect(find.text('Equal parts.'), findsOneWidget);
+    });
+
+    group('ingredient names', () {
+      final sour = Recipe(
+        id: 'recipe-sour',
+        libraryId: cocktailsLibrary.id,
+        name: 'Sour',
+        ingredients: [
+          Ingredient(
+            name: 'Gin',
+            quantity: '2',
+            unit: 'oz',
+            catalogId: ginIngredient.id,
+          ),
+          Ingredient(name: 'Sugar', catalogId: 'ingredient-deleted'),
+          Ingredient(name: 'Lemon'),
+        ],
+      );
+
+      setUp(() {
+        whenListen(
+          recipesBloc,
+          states.stream,
+          initialState: RecipesState(
+            ingredients: [
+              CatalogIngredient(
+                id: ginIngredient.id,
+                name: 'London Dry Gin',
+                libraryIds: ginIngredient.libraryIds,
+              ),
+            ],
+          ),
+        );
+      });
+
+      testWidgets("renders a referenced row under its entry's current name", (
+        tester,
+      ) async {
+        await pumpDetails(tester, recipe: sour, library: coffeeLibrary);
+
+        expect(find.text('2 oz London Dry Gin'), findsOneWidget);
+      });
+
+      testWidgets('renders the stored name when there is no entry to read', (
+        tester,
+      ) async {
+        await pumpDetails(tester, recipe: sour, library: coffeeLibrary);
+
+        expect(find.text('Sugar'), findsOneWidget);
+        expect(find.text('Lemon'), findsOneWidget);
+      });
     });
 
     testWidgets('omits sections the recipe has nothing for', (tester) async {

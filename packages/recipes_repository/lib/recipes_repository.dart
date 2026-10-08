@@ -10,14 +10,22 @@ library;
 // reach to every widget and bloc above it.
 export 'package:recipes_api/recipes_api.dart'
     show
+        CatalogIngredient,
+        CustomUnit,
         FieldDefinition,
         FieldType,
         Ingredient,
+        IngredientInUseException,
+        IngredientNameTakenException,
+        IngredientNotFoundException,
+        KnownUnit,
         Library,
         Recipe,
         RecipeNotFoundException,
         RecipesPersistenceException,
         RecipesSnapshot,
+        StandardUnit,
+        Unit,
         compareCaseInsensitive,
         foldCaseInsensitive;
 export 'src/recipes_repository.dart';

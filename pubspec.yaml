@@ -4,8 +4,8 @@ version: 1.0.0+1
 publish_to: none
 
 environment:
-  sdk: ^3.12.0
-  flutter: ^3.44.0
+  sdk: ^3.13.4
+  flutter: ^3.47.5
 
 dependencies:
   bloc: ^9.2.1
@@ -17,12 +17,15 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   # Pinned exactly: forui is pre-1.0 and every widget this app uses was
-  # verified against 0.24.1's source. A caret would admit 0.24.2/0.24.3, which
+  # checked against 0.27.4. A caret would admit later 0.27.x releases, which
   # is the drift this pin exists to prevent. Treat a bump as its own PR.
-  forui: 0.24.1
+  forui: 0.27.4
   intl: ^0.20.2
   local_storage_recipes_api:
     path: packages/local_storage_recipes_api
+  # forui 0.26+ is built on material_ui, so Material widgets must come from it:
+  # flutter/material.dart's types and Theme are a separate, incompatible set.
+  material_ui: ^1.5.0
   recipes_repository:
     path: packages/recipes_repository
   shared_preferences: ^2.5.3
