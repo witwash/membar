@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/logging/logging.dart';
@@ -81,8 +79,8 @@ void main() {
         ),
       );
 
-      final navigator = tester.state<NavigatorState>(find.byType(Navigator));
-      unawaited(navigator.pushNamed('recipe-editor'));
+      final navigator = tester.state<NavigatorState>(find.byType(Navigator))
+        ..pushNamed('recipe-editor');
       await tester.pumpAndSettle();
       navigator.pop();
       await tester.pumpAndSettle();

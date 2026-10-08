@@ -236,15 +236,15 @@ class LocalStorageRecipesApi extends RecipesApi {
           name: recipe.name,
           ingredients: [
             for (final row in recipe.ingredients)
-              ids.contains(row.catalogId)
-                  ? row
-                  : Ingredient(
-                      name: row.name,
-                      quantity: row.quantity,
-                      unit: row.unit,
-                      catalogId:
-                          idsByName[row.name.toLowerCase()] ?? row.catalogId,
-                    ),
+              if (ids.contains(row.catalogId))
+                row
+              else
+                Ingredient(
+                  name: row.name,
+                  quantity: row.quantity,
+                  unit: row.unit,
+                  catalogId: idsByName[row.name.toLowerCase()] ?? row.catalogId,
+                ),
           ],
           steps: recipe.steps,
           tags: recipe.tags,

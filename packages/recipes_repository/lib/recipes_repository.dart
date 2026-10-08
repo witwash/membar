@@ -28,4 +28,5 @@ export 'package:recipes_api/recipes_api.dart'
         Unit,
         compareCaseInsensitive,
         foldCaseInsensitive;
+
 export 'src/recipes_repository.dart';

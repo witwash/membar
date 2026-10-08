@@ -160,11 +160,9 @@ void main() {
           equals(cocktails.id),
         );
 
-        final stored =
-            jsonDecode(
-                  plugin.getString(LocalStorageRecipesApi.kLibrariesKey)!,
-                )
-                as List<dynamic>;
+        final stored = jsonDecode(
+          plugin.getString(LocalStorageRecipesApi.kLibrariesKey)!,
+        ) as List<dynamic>;
         expect(
           [
             for (final library in stored)

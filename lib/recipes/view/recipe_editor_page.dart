@@ -45,13 +45,11 @@ class RecipeEditorPage extends StatefulWidget {
   /// Every entry point — the list's `+`, its empty state, and details' edit
   /// action — goes through here, so they all push the same route.
   static void open(BuildContext context, Library library, {Recipe? recipe}) {
-    unawaited(
-      Navigator.of(context).push(
-        route(
-          bloc: context.read<RecipesBloc>(),
-          library: library,
-          recipe: recipe,
-        ),
+    Navigator.of(context).push(
+      route(
+        bloc: context.read<RecipesBloc>(),
+        library: library,
+        recipe: recipe,
       ),
     );
   }
@@ -183,7 +181,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
             ),
             prefixes: [
               FHeaderAction.back(
-                onPress: () => unawaited(Navigator.of(context).maybePop()),
+                onPress: () => Navigator.of(context).maybePop(),
               ),
             ],
             suffixes: [
@@ -348,12 +346,10 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     for (final (key, error) in fields) {
       if (error == null) continue;
       if (key.currentContext case final target?) {
-        unawaited(
-          Scrollable.ensureVisible(
-            target,
-            alignment: 0.1,
-            duration: const Duration(milliseconds: 200),
-          ),
+        Scrollable.ensureVisible(
+          target,
+          alignment: 0.1,
+          duration: const Duration(milliseconds: 200),
         );
       }
       return;
