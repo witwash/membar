@@ -583,5 +583,201 @@
     "libraryDeleteFailure": "Your library could not be deleted.",
     "@libraryDeleteFailure": {
         "description": "Shown in the delete sheet when the deletion fails, keeping the sheet open"
+    },
+    "libraryFieldsAddLabel": "Add field",
+    "@libraryFieldsAddLabel": {
+        "description": "Label of the header action and of the empty-state button that open the sheet adding a field"
+    },
+    "libraryFieldsEmptyTitle": "No fields yet",
+    "@libraryFieldsEmptyTitle": {
+        "description": "Title shown when a library declares no fields"
+    },
+    "libraryFieldsEmptyDescription": "Fields are what every recipe in this library records, such as a glass or a brew time.",
+    "@libraryFieldsEmptyDescription": {
+        "description": "Explanation shown under the empty-state title of a library's fields"
+    },
+    "libraryFieldsOptionCount": "{count, plural, =1{1 option} other{{count} options}}",
+    "@libraryFieldsOptionCount": {
+        "description": "How many options a choice field offers, shown under its label",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "3"
+            }
+        }
+    },
+    "libraryFieldsRequired": "Required",
+    "@libraryFieldsRequired": {
+        "description": "Shown under the label of a field every recipe must fill in"
+    },
+    "libraryFieldsDeleteLabel": "Delete {field}",
+    "@libraryFieldsDeleteLabel": {
+        "description": "Accessibility label of the action that deletes a field",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "libraryFieldsDeleteDialogTitle": "Delete {field}?",
+    "@libraryFieldsDeleteDialogTitle": {
+        "description": "Title of the dialog confirming a field deletion",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "libraryFieldsDeleteDialogDescription": "{count, plural, =0{No recipe has a value for this field.} =1{1 recipe has a value for this field. It will be cleared, and this cannot be undone.} other{{count} recipes have a value for this field. They will be cleared, and this cannot be undone.}}",
+    "@libraryFieldsDeleteDialogDescription": {
+        "description": "States how many recipes lose a value when the field is deleted",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "4"
+            }
+        }
+    },
+    "libraryFieldsDeleteDialogConfirm": "Delete",
+    "@libraryFieldsDeleteDialogConfirm": {
+        "description": "Button that confirms a field deletion"
+    },
+    "libraryFieldsDeleteDialogCancel": "Cancel",
+    "@libraryFieldsDeleteDialogCancel": {
+        "description": "Button that dismisses the dialog and keeps the field"
+    },
+    "libraryFieldsDeleteFailure": "Your field could not be deleted.",
+    "@libraryFieldsDeleteFailure": {
+        "description": "Shown on a library's fields screen when deleting a field fails"
+    },
+    "fieldTypeText": "Text",
+    "@fieldTypeText": {
+        "description": "Name of the field type holding a single line of text"
+    },
+    "fieldTypeLongText": "Long text",
+    "@fieldTypeLongText": {
+        "description": "Name of the field type holding several lines of text"
+    },
+    "fieldTypeNumber": "Number",
+    "@fieldTypeNumber": {
+        "description": "Name of the field type holding a number, optionally with a unit"
+    },
+    "fieldTypeSelect": "Choice",
+    "@fieldTypeSelect": {
+        "description": "Name of the field type holding one choice out of a list of options"
+    },
+    "fieldEditorAddTitle": "New field",
+    "@fieldEditorAddTitle": {
+        "description": "Title of the sheet that adds a field to a library"
+    },
+    "fieldEditorEditTitle": "Edit field",
+    "@fieldEditorEditTitle": {
+        "description": "Title of the sheet that edits a field"
+    },
+    "fieldEditorLabelLabel": "Label",
+    "@fieldEditorLabelLabel": {
+        "description": "Label of the field sheet's field holding the name shown above the field's control"
+    },
+    "fieldEditorLabelRequiredError": "Enter a label.",
+    "@fieldEditorLabelRequiredError": {
+        "description": "Validation error shown when the field label is blank"
+    },
+    "fieldEditorLabelTakenError": "Another field is already called {field}.",
+    "@fieldEditorLabelTakenError": {
+        "description": "Validation error shown when the typed label is one another field of the library carries, ignoring case",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "fieldEditorTypeLabel": "Type",
+    "@fieldEditorTypeLabel": {
+        "description": "Label of the list of field types"
+    },
+    "fieldEditorTypeLockedNote": "A field's type cannot be changed once the field exists.",
+    "@fieldEditorTypeLockedNote": {
+        "description": "Shown under the disabled type list when editing a field"
+    },
+    "fieldEditorUnitLabel": "Unit",
+    "@fieldEditorUnitLabel": {
+        "description": "Label of the optional unit shown beside a number field, such as g or °C"
+    },
+    "fieldEditorOptionsLabel": "Options",
+    "@fieldEditorOptionsLabel": {
+        "description": "Label above the options a choice field offers"
+    },
+    "fieldEditorOptionLabel": "Option {number}",
+    "@fieldEditorOptionLabel": {
+        "description": "Label of one editable option, counted from one",
+        "placeholders": {
+            "number": {
+                "type": "int",
+                "example": "3"
+            }
+        }
+    },
+    "fieldEditorRemoveOptionLabel": "Remove option {number}",
+    "@fieldEditorRemoveOptionLabel": {
+        "description": "Accessibility label of the action that removes an option, counted from one",
+        "placeholders": {
+            "number": {
+                "type": "int",
+                "example": "3"
+            }
+        }
+    },
+    "fieldEditorAddOptionLabel": "Add option",
+    "@fieldEditorAddOptionLabel": {
+        "description": "Button that adds an empty option row"
+    },
+    "fieldEditorOptionsRequiredError": "Add at least one option.",
+    "@fieldEditorOptionsRequiredError": {
+        "description": "Validation error shown when a choice field has no option with text in it"
+    },
+    "fieldEditorOptionsDuplicateError": "Two options are the same.",
+    "@fieldEditorOptionsDuplicateError": {
+        "description": "Validation error shown when two options match, ignoring case"
+    },
+    "fieldEditorRequiredLabel": "Required",
+    "@fieldEditorRequiredLabel": {
+        "description": "Label of the checkbox that makes every recipe fill the field in"
+    },
+    "fieldEditorRemoveOptionsDialogTitle": "Remove options in use?",
+    "@fieldEditorRemoveOptionsDialogTitle": {
+        "description": "Title of the dialog confirming the removal of options recipes use"
+    },
+    "fieldEditorRemoveOptionsDialogDescription": "{count, plural, =1{1 recipe uses an option you removed. Its value will be cleared, and this cannot be undone.} other{{count} recipes use an option you removed. Their values will be cleared, and this cannot be undone.}}",
+    "@fieldEditorRemoveOptionsDialogDescription": {
+        "description": "States how many recipes lose their value when the removed options are saved",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "4"
+            }
+        }
+    },
+    "fieldEditorRemoveOptionsDialogConfirm": "Remove",
+    "@fieldEditorRemoveOptionsDialogConfirm": {
+        "description": "Button that confirms removing options in use"
+    },
+    "fieldEditorRemoveOptionsDialogCancel": "Cancel",
+    "@fieldEditorRemoveOptionsDialogCancel": {
+        "description": "Button that dismisses the dialog and returns to the field sheet"
+    },
+    "fieldEditorSaveLabel": "Save field",
+    "@fieldEditorSaveLabel": {
+        "description": "Button that saves the field described by the sheet"
+    },
+    "fieldEditorCancelLabel": "Cancel",
+    "@fieldEditorCancelLabel": {
+        "description": "Button that closes the field sheet without saving"
+    },
+    "fieldEditorSaveFailure": "Your field could not be saved.",
+    "@fieldEditorSaveFailure": {
+        "description": "Shown in the field sheet when saving fails, keeping the sheet open"
     }
 }

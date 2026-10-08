@@ -50,6 +50,21 @@ has to decide what happens to the values the destination has no field for.
 field or drops it, stating the count of values dropped before it runs — the
 rule schema edits already follow.
 
+## Fields cannot be reordered
+
+A new field is appended to its library's schema, and the schema's list order
+is the order the recipe editor and the details screen render. Moving a field
+means deleting it and adding it again, which clears every value recipes held
+for it.
+
+**Why it was left:** reordering was deferred from the slice that introduced
+the field editor, to keep the sheet and its option rows in a review of their
+own.
+
+**Closing it:** add a reorder control to the fields screen that saves the
+library with its fields in the new order. A field's id does not change when it
+moves, so no recipe value is touched.
+
 ## Unit labels are not localized
 
 `Unit.label` is the canonical spelling (`ml`, `barspoon`) and is rendered as-is

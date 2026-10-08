@@ -80,11 +80,22 @@ class _LibrariesViewState extends State<LibrariesView> {
                       ),
                     ],
                   ),
+                  onPress: () => _openFields(library),
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openFields(Library library) {
+    setState(() => _refusal = null);
+    Navigator.of(context).push(
+      LibraryFieldsPage.route(
+        bloc: context.read<RecipesBloc>(),
+        libraryId: library.id,
       ),
     );
   }

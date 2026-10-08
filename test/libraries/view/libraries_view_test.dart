@@ -203,6 +203,38 @@ void main() {
       );
     });
 
+    group('fields', () {
+      testWidgets('opens the fields of a tapped library with the bloc '
+          're-provided', (tester) async {
+        await pumpView(tester, loaded);
+
+        await tester.tap(find.text('Coffee'));
+        await tester.pumpAndSettle();
+
+        final fields = find.byType(LibraryFieldsView);
+        expect(
+          tester.widget<LibraryFieldsView>(fields).libraryId,
+          coffeeLibrary.id,
+        );
+        expect(tester.element(fields).read<RecipesBloc>(), same(recipesBloc));
+      });
+
+      testWidgets('clears the refusal once a library is opened', (
+        tester,
+      ) async {
+        await pumpView(tester, onlyCocktails);
+        await tapAction(tester, 'Delete Cocktails');
+
+        await tester.tap(find.text('Cocktails'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byType(FHeaderAction).first);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(LibrariesView), findsOneWidget);
+        expect(find.byType(FailureBanner), findsNothing);
+      });
+    });
+
     group('delete', () {
       testWidgets('opens the delete sheet on the library', (tester) async {
         await pumpView(tester, loaded);
