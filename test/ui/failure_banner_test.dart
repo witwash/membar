@@ -10,5 +10,14 @@ void main() {
 
       expect(find.text('Nope.'), findsOneWidget);
     });
+
+    testWidgets('announces the message as a live region', (tester) async {
+      await tester.pumpApp(const FailureBanner('Nope.'));
+
+      expect(
+        tester.getSemantics(find.text('Nope.')),
+        isSemantics(label: 'Nope.', isLiveRegion: true),
+      );
+    });
   });
 }

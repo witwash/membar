@@ -411,5 +411,177 @@
     "ingredientEditSaveFailure": "Your changes could not be saved.",
     "@ingredientEditSaveFailure": {
         "description": "Shown in the edit sheet when saving fails, keeping the sheet open"
+    },
+    "recipesManageLibrariesLabel": "Manage libraries…",
+    "@recipesManageLibrariesLabel": {
+        "description": "Last item of the library switcher, opening the screen that creates, renames and deletes libraries"
+    },
+    "librariesTitle": "Libraries",
+    "@librariesTitle": {
+        "description": "Header title of the screen managing libraries"
+    },
+    "librariesAddLabel": "Add library",
+    "@librariesAddLabel": {
+        "description": "Label of the header action that opens the sheet creating a library"
+    },
+    "librariesFieldCount": "{count, plural, =0{No fields} =1{1 field} other{{count} fields}}",
+    "@librariesFieldCount": {
+        "description": "How many fields a library declares, shown under its name",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "2"
+            }
+        }
+    },
+    "librariesRecipeCount": "{count, plural, =0{No recipes} =1{1 recipe} other{{count} recipes}}",
+    "@librariesRecipeCount": {
+        "description": "How many recipes a library holds, shown under its name",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "24"
+            }
+        }
+    },
+    "librariesRenameLabel": "Rename {library}",
+    "@librariesRenameLabel": {
+        "description": "Accessibility label of the action that renames a library",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
+    "librariesDeleteLabel": "Delete {library}",
+    "@librariesDeleteLabel": {
+        "description": "Accessibility label of the action that deletes a library",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
+    "librariesLastLibraryRefusal": "{library} is your only library, so it cannot be deleted. Create another library first.",
+    "@librariesLastLibraryRefusal": {
+        "description": "Shown instead of deleting the only library that exists",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
+    "libraryEditorCreateTitle": "New library",
+    "@libraryEditorCreateTitle": {
+        "description": "Title of the sheet that creates a library"
+    },
+    "libraryEditorRenameTitle": "Rename library",
+    "@libraryEditorRenameTitle": {
+        "description": "Title of the sheet that renames a library"
+    },
+    "libraryEditorNameLabel": "Name",
+    "@libraryEditorNameLabel": {
+        "description": "Label of the library sheet's name field"
+    },
+    "libraryEditorNameRequiredError": "Enter a name.",
+    "@libraryEditorNameRequiredError": {
+        "description": "Validation error shown when the library name is blank"
+    },
+    "libraryEditorNameTakenError": "Another library is already called {library}.",
+    "@libraryEditorNameTakenError": {
+        "description": "Validation error shown when the typed name is one another library carries, ignoring case",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Coffee"
+            }
+        }
+    },
+    "libraryEditorStartFromLabel": "Start from",
+    "@libraryEditorStartFromLabel": {
+        "description": "Label of the list of templates a new library can take its fields from"
+    },
+    "libraryEditorTemplateBlank": "Blank",
+    "@libraryEditorTemplateBlank": {
+        "description": "Template choice that creates a library with no fields"
+    },
+    "libraryEditorTemplateCocktails": "Cocktails",
+    "@libraryEditorTemplateCocktails": {
+        "description": "Template choice that creates a library with the fields of a cocktail recipe"
+    },
+    "libraryEditorTemplateCoffee": "Coffee",
+    "@libraryEditorTemplateCoffee": {
+        "description": "Template choice that creates a library with the fields of a coffee recipe"
+    },
+    "libraryEditorCreateLabel": "Create library",
+    "@libraryEditorCreateLabel": {
+        "description": "Button that creates the library described by the sheet"
+    },
+    "libraryEditorSaveLabel": "Save changes",
+    "@libraryEditorSaveLabel": {
+        "description": "Button that saves a renamed library"
+    },
+    "libraryEditorCancelLabel": "Cancel",
+    "@libraryEditorCancelLabel": {
+        "description": "Button that closes the library sheet without saving"
+    },
+    "libraryEditorSaveFailure": "Your library could not be saved.",
+    "@libraryEditorSaveFailure": {
+        "description": "Shown in the library sheet when saving fails, keeping the sheet open"
+    },
+    "libraryDeleteTitle": "Delete {library}?",
+    "@libraryDeleteTitle": {
+        "description": "Title of the sheet confirming a library deletion",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
+    "libraryDeleteRecipeCount": "{count, plural, =0{This library has no recipes. Deleting it cannot be undone.} =1{Its 1 recipe will be deleted with it. This cannot be undone.} other{Its {count} recipes will be deleted with it. This cannot be undone.}}",
+    "@libraryDeleteRecipeCount": {
+        "description": "States how many recipes are deleted together with the library",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "24"
+            }
+        }
+    },
+    "libraryDeleteIngredientCount": "{count, plural, =1{1 ingredient belongs only to this library. It will be kept.} other{{count} ingredients belong only to this library. They will be kept.}}",
+    "@libraryDeleteIngredientCount": {
+        "description": "States how many catalog ingredients are visible in no other library and so have to move",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "3"
+            }
+        }
+    },
+    "libraryDeleteSuccessorLabel": "{count, plural, =1{Move it to} other{Move them to}}",
+    "@libraryDeleteSuccessorLabel": {
+        "description": "Label of the list of libraries the deleted library's own ingredients can move to",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "3"
+            }
+        }
+    },
+    "libraryDeleteConfirmLabel": "Delete",
+    "@libraryDeleteConfirmLabel": {
+        "description": "Button that confirms a library deletion"
+    },
+    "libraryDeleteCancelLabel": "Cancel",
+    "@libraryDeleteCancelLabel": {
+        "description": "Button that closes the delete sheet and keeps the library"
+    },
+    "libraryDeleteFailure": "Your library could not be deleted.",
+    "@libraryDeleteFailure": {
+        "description": "Shown in the delete sheet when the deletion fails, keeping the sheet open"
     }
 }

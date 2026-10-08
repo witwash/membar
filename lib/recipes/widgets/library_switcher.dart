@@ -4,11 +4,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/l10n/l10n.dart';
+import 'package:membar/libraries/libraries.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The recipe list's header title: the active library's name, tappable to
-/// switch to another library.
+/// switch to another library or to open the screen that manages them.
 ///
 /// It renders only on the list screen. The details and editor screens use a
 /// nested header with a back action, so a schema can never change out from
@@ -54,6 +55,19 @@ class LibrarySwitcher extends StatelessWidget {
                   );
                 },
               ),
+          ],
+        ),
+        FItemGroup(
+          children: [
+            FItem(
+              title: Text(l10n.recipesManageLibrariesLabel),
+              onPress: () {
+                unawaited(controller.hide());
+                Navigator.of(context).push(
+                  LibrariesPage.route(bloc: context.read<RecipesBloc>()),
+                );
+              },
+            ),
           ],
         ),
       ],

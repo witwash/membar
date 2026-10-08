@@ -4,7 +4,9 @@ import 'package:uuid/uuid.dart';
 String _uuidV4() => const Uuid().v4();
 
 /// {@template library_templates}
-/// The libraries a fresh install is seeded with.
+/// The libraries a fresh install is seeded with, and the schemas a new
+/// library can start from — creating one takes a template's fields and
+/// leaves its name behind.
 ///
 /// Each call builds a [Library] with freshly generated ids, so a seeded
 /// library is indistinguishable from a hand-built one once it exists.

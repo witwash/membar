@@ -5,7 +5,8 @@ import 'package:membar/ui/app_spacing.dart';
 /// An inline message reporting that a save or a delete did not go through.
 ///
 /// It is rendered in place rather than as a toast so the user stays on the
-/// screen that failed, with the form they were working on untouched.
+/// screen that failed, with the form they were working on untouched. Being a
+/// live region, it is announced when it appears rather than only painted.
 class FailureBanner extends StatelessWidget {
   /// Creates a [FailureBanner] reporting [message].
   const FailureBanner(this.message, {super.key});
@@ -19,9 +20,12 @@ class FailureBanner extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.spacing150),
-      child: Text(
-        message,
-        style: theme.typography.body.sm.copyWith(color: theme.colors.error),
+      child: Semantics(
+        liveRegion: true,
+        child: Text(
+          message,
+          style: theme.typography.body.sm.copyWith(color: theme.colors.error),
+        ),
       ),
     );
   }

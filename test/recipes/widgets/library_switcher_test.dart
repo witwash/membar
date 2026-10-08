@@ -1,6 +1,8 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:membar/libraries/libraries.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -70,6 +72,27 @@ void main() {
       verify(
         () => recipesBloc.add(RecipesLibrarySelected(coffeeLibrary.id)),
       ).called(1);
+    });
+
+    testWidgets('closes the popover and pushes the libraries screen with the '
+        'bloc re-provided from the manage item', (tester) async {
+      await pumpSwitcher(tester);
+
+      await tester.tap(find.text('Cocktails'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Manage libraries…'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LibrariesPage), findsOneWidget);
+      final context = tester.element(find.byType(LibrariesPage));
+      expect(context.read<RecipesBloc>(), same(recipesBloc));
+
+      await tester.tap(find.byType(FHeaderAction).first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(LibrariesPage), findsNothing);
+      expect(find.text('Manage libraries…'), findsNothing);
     });
   });
 }

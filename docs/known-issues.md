@@ -23,18 +23,32 @@ the sweep should be verifiable by the existing suite. Consider promoting
 `lib/ui/` to a `packages/app_ui` package at the same time if a second app or
 package needs the tokens.
 
-## Deleting a library cannot simply drop it from the ingredients catalog
+## A deleted library cannot be restored
 
-A `CatalogIngredient` asserts that its `libraryIds` is non-empty, because an
-entry visible in no library could never be picked. Library deletion does not
-exist yet, but when it is built it cannot remove the library's id from every
-entry: an entry scoped only to that library would be left with an empty set.
+Deleting a library removes it and every recipe in it at once, and nothing
+keeps a copy. The delete sheet states the recipe count first, but confirming
+is final. Catalog ingredients are the exception: they are never deleted, and
+the ones that belonged only to that library move to one the user picks.
 
-**Why it was left:** there is no library deletion to design against yet.
+**Why it was left:** a "recently deleted" area was asked for and is the next
+slice. It was kept out of the one that introduced deletion so the cascade and
+the ingredient handover could be reviewed on their own.
 
-**Closing it:** whoever builds library deletion decides between refusing to
-delete a library that is an entry's only scope and reassigning those entries to
-another library.
+**Closing it:** keep a deleted library and its recipes in a separate store
+until the user restores or purges them, and decide what a restore does to the
+ingredients that moved away in the meantime.
+
+## Two libraries cannot be merged
+
+A recipe belongs to the library it was created in and cannot move to another,
+so folding one library into another means re-entering its recipes.
+
+**Why it was left:** two libraries rarely declare the same fields, so a move
+has to decide what happens to the values the destination has no field for.
+
+**Closing it:** add a move that maps each source field onto a destination
+field or drops it, stating the count of values dropped before it runs — the
+rule schema edits already follow.
 
 ## Unit labels are not localized
 
