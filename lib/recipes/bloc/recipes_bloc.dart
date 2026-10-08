@@ -10,8 +10,8 @@ part 'recipes_state.dart';
 /// Holds everything the recipe screens render: the libraries, the recipes, the
 /// ingredients catalog, and the search term and tag filter narrowing them.
 ///
-/// One instance backs the list, details and editor screens, which is how the
-/// editor observes the result of a save it dispatched.
+/// One instance backs every screen, which is how an editor observes the
+/// result of a save it dispatched.
 /// {@endtemplate}
 class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
   /// {@macro recipes_bloc}
@@ -21,8 +21,10 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       _onSubscriptionRequested,
       transformer: restartable(),
     );
-    // Mutations run one at a time, so a rapid delete-then-save cannot
-    // interleave into a snapshot neither of them intended.
+    // Each kind of mutation runs one at a time. Two kinds can still overlap:
+    // the storage layer queues their writes, but _onFieldDeleted builds its
+    // write from the state, so it relies on no other library edit being in
+    // flight — which holds while the sheets that edit a library are modal.
     on<RecipesRecipeSaved>(_onRecipeSaved, transformer: sequential());
     on<RecipesRecipeDeleted>(_onRecipeDeleted, transformer: sequential());
     on<RecipesLibrarySelected>(_onLibrarySelected, transformer: sequential());

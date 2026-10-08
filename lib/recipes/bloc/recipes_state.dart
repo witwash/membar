@@ -11,7 +11,7 @@ enum RecipesMutationStatus { initial, loading, success, failure }
 
 /// Which mutation [RecipesState.mutationStatus] is reporting on.
 ///
-/// Three screens share one bloc, and each cares about exactly one kind of
+/// Every screen shares one bloc, and each cares about exactly one kind of
 /// mutation. Naming the kind here is what lets each of them ignore the others
 /// without keeping its own copy of "was that mine?" in widget state.
 enum RecipesMutation {
@@ -105,12 +105,7 @@ final class RecipesState extends Equatable {
   /// A stored id that matches no library is the storage layer's problem — it
   /// falls back to the first library and rewrites the preference — so this is
   /// a plain lookup rather than a second fallback rule that could drift.
-  Library? get activeLibrary {
-    for (final library in libraries) {
-      if (library.id == activeLibraryId) return library;
-    }
-    return null;
-  }
+  Library? get activeLibrary => libraryById(activeLibraryId);
 
   /// The library carrying [id], or null when it resolves to nothing.
   Library? libraryById(String id) {

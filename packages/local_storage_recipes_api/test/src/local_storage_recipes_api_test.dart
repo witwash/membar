@@ -1180,16 +1180,19 @@ void main() {
             recipes: [
               cocktail('r1', {glassware.id: 'Rocks', garnish.id: 'Orange'}),
               v60,
+              // Not a string: the key being present is all that counts.
+              cocktail('r3', {garnish.id: 3}),
             ],
           );
 
           await api.saveLibrary(cocktailsWith([glassware]));
 
           expect(await valuesOf('r1'), equals({glassware.id: 'Rocks'}));
+          expect(await valuesOf('r3'), isEmpty);
           final stored = jsonDecode(
             plugin.getString(LocalStorageRecipesApi.kRecipesKey)!,
           ) as List<dynamic>;
-          expect(jsonEncode(stored.last), equals(jsonEncode(v60.toJson())));
+          expect(jsonEncode(stored[1]), equals(jsonEncode(v60.toJson())));
         },
       );
 
@@ -1270,6 +1273,36 @@ void main() {
         expect(await valuesOf('r1'), isEmpty);
         expect(await valuesOf('r2'), equals({glassware.id: 'Rocks'}));
       });
+
+      test(
+        'clears a removed option only where the stored value equals it '
+        "exactly, and only in that library's recipes",
+        () async {
+          await open(
+            recipes: [
+              // Padded: the confirmation does not count it, so the save must
+              // not clear it.
+              cocktail('r1', {glassware.id: 'Flute '}),
+              Recipe(
+                id: 'r2',
+                libraryId: coffee.id,
+                name: 'V60',
+                fieldValues: {glassware.id: 'Flute'},
+              ),
+            ],
+          );
+
+          await api.saveLibrary(
+            cocktailsWith([
+              glasswareWith(const ['Coupe', 'Rocks']),
+              garnish,
+            ]),
+          );
+
+          expect(await valuesOf('r1'), equals({glassware.id: 'Flute '}));
+          expect(await valuesOf('r2'), equals({glassware.id: 'Flute'}));
+        },
+      );
 
       test(
         'merges an option renamed onto one that was deleted, clearing '
@@ -1383,6 +1416,7 @@ void main() {
             ],
           );
           final withoutGarnish = cocktailsWith([glassware]);
+          final before = await api.watch().first;
           final emitted = <RecipesSnapshot>[];
           final subscription = api.watch().skip(1).listen(emitted.add);
           addTearDown(subscription.cancel);
@@ -1395,6 +1429,7 @@ void main() {
           await pumpEventQueue();
 
           expect(emitted, isEmpty);
+          expect(await api.watch().first, equals(before));
           expect(
             store.writtenKeys,
             equals([LocalStorageRecipesApi.kRecipesKey]),
@@ -1436,12 +1471,15 @@ void main() {
       );
       final v60 = Recipe(id: 'r2', libraryId: coffee.id, name: 'V60');
 
-      Future<_RecordingStore> open({List<Library>? libraries}) async {
+      Future<_RecordingStore> open({
+        List<Library>? libraries,
+        List<CatalogIngredient>? ingredients,
+      }) async {
         final store = await setUpRecordingPrefs(
           seededPrefs(
             libraries: libraries,
             recipes: [negroni, v60],
-            ingredients: [gin, sugar, cinnamon],
+            ingredients: ingredients ?? [gin, sugar, cinnamon],
           ),
         );
         api = buildApi();
@@ -1493,6 +1531,38 @@ void main() {
           expect(
             plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
             equals(jsonEncode([for (final entry in moved) entry.toJson()])),
+          );
+        },
+      );
+
+      test(
+        'leaves a shared entry in its other libraries rather than moving it '
+        'to the successor',
+        () async {
+          final lime = CatalogIngredient(
+            id: 'i4',
+            name: 'Lime',
+            libraryIds: {cocktails.id, tea.id},
+          );
+          await open(
+            libraries: [cocktails, coffee, tea],
+            ingredients: [gin, sugar, cinnamon, lime],
+          );
+
+          await api.deleteLibrary(cocktails.id, successorId: tea.id);
+
+          final scopes = {
+            for (final entry in (await api.watch().first).ingredients)
+              entry.name: entry.libraryIds,
+          };
+          expect(
+            scopes,
+            equals({
+              'Gin': {tea.id},
+              'Sugar': {coffee.id},
+              'Cinnamon': {coffee.id},
+              'Lime': {tea.id},
+            }),
           );
         },
       );
@@ -1624,6 +1694,7 @@ void main() {
         'completes the delete',
         () async {
           final store = await open();
+          final before = await api.watch().first;
           final emitted = <RecipesSnapshot>[];
           final subscription = api.watch().skip(1).listen(emitted.add);
           addTearDown(subscription.cancel);
@@ -1636,6 +1707,7 @@ void main() {
           await pumpEventQueue();
 
           expect(emitted, isEmpty);
+          expect(await api.watch().first, equals(before));
           expect(
             store.writtenKeys,
             equals([

@@ -306,7 +306,9 @@ void main() {
         expect(sheet(tester).field, isNull);
       });
 
-      testWidgets('returns once the last field is deleted', (tester) async {
+      testWidgets('shows the empty state once the last field is gone', (
+        tester,
+      ) async {
         final single = Library(
           id: 'library-single',
           name: 'Single',

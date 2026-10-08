@@ -235,6 +235,47 @@ void main() {
       });
     });
 
+    group('a failure in a sheet above it', () {
+      Future<void> fail(WidgetTester tester, RecipesMutation mutation) => emit(
+        tester,
+        loaded.copyWith(
+          mutation: mutation,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+
+      testWidgets('raises no banner beneath the editor sheet', (tester) async {
+        await pumpView(tester, loaded);
+        await tapAction(tester, 'Rename Coffee');
+
+        await fail(tester, RecipesMutation.librarySaved);
+
+        expect(find.text('Your library could not be saved.'), findsOneWidget);
+        expect(
+          find.byType(FailureBanner),
+          findsOneWidget,
+          reason: 'only the sheet reports its own save',
+        );
+      });
+
+      testWidgets('raises no banner beneath the delete sheet', (tester) async {
+        await pumpView(tester, loaded);
+        await tapAction(tester, 'Delete Coffee');
+
+        await fail(tester, RecipesMutation.libraryDeleted);
+
+        expect(
+          find.text('Your library could not be deleted.'),
+          findsOneWidget,
+        );
+        expect(
+          find.byType(FailureBanner),
+          findsOneWidget,
+          reason: 'only the sheet reports its own delete',
+        );
+      });
+    });
+
     group('delete', () {
       testWidgets('opens the delete sheet on the library', (tester) async {
         await pumpView(tester, loaded);

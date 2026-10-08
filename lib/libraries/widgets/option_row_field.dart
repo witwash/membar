@@ -13,7 +13,6 @@ class OptionRowControllers {
   OptionRowControllers(this.id, {this.original})
     : text = TextEditingController(text: original);
 
-  /// Identifies this row among the sheet's rows.
   final int id;
 
   /// The option's stored text, or null for a row added in this session.
@@ -22,11 +21,10 @@ class OptionRowControllers {
   /// addition: the row is the same row, whatever its text became.
   final String? original;
 
-  /// What the option says.
   final TextEditingController text;
 
-  /// Releases the controller. Called when the row is removed, and again for
-  /// the surviving rows when the sheet closes.
+  /// Called when the row is removed, and for the rows that remain when the
+  /// sheet closes.
   void dispose() => text.dispose();
 }
 

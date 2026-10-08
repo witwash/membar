@@ -4,7 +4,7 @@ import 'package:membar/recipes/recipes.dart';
 
 /// Reports the outcome of one kind of mutation to the screen that started it.
 ///
-/// Three screens share a single bloc, so each of them would otherwise have to
+/// Every screen shares a single bloc, so each of them would otherwise have to
 /// keep its own "was that mine?" flag in widget state and run its own switch
 /// over the status. [mutation] answers the question from the state itself, and
 /// this widget owns the switch.

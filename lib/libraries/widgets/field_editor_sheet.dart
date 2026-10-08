@@ -171,40 +171,11 @@ class _FieldEditorSheetState extends State<FieldEditorSheet> {
                     ),
                   ),
                 if (_type == FieldType.select)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: AppSpacing.spacing100,
-                    children: [
-                      Text(
-                        l10n.fieldEditorOptionsLabel,
-                        style: theme.typography.body.sm.copyWith(
-                          color: theme.colors.mutedForeground,
-                        ),
-                      ),
-                      for (final (index, row) in _optionRows.indexed)
-                        OptionRowField(
-                          key: ValueKey(row.id),
-                          number: index + 1,
-                          controllers: row,
-                          onRemove: () => _removeOption(index),
-                        ),
-                      if (optionsError != null)
-                        Semantics(
-                          liveRegion: true,
-                          child: Text(
-                            optionsError,
-                            style: theme.typography.body.sm.copyWith(
-                              color: theme.colors.error,
-                            ),
-                          ),
-                        ),
-                      FButton(
-                        variant: FButtonVariant.outline,
-                        prefix: const Icon(FLucideIcons.plus),
-                        onPress: _addOption,
-                        child: Text(l10n.fieldEditorAddOptionLabel),
-                      ),
-                    ],
+                  _OptionList(
+                    rows: _optionRows,
+                    error: optionsError,
+                    onAdd: _addOption,
+                    onRemove: _removeOption,
                   ),
                 FCheckbox(
                   label: Text(l10n.fieldEditorRequiredLabel),
@@ -343,6 +314,67 @@ class _FieldEditorSheetState extends State<FieldEditorSheet> {
         ),
         optionRenames: {if (renames.isNotEmpty) edited.id: renames},
       ),
+    );
+  }
+}
+
+/// The options of a choice field: one row each, what is wrong with them as a
+/// whole, and the action that adds a row.
+class _OptionList extends StatelessWidget {
+  const _OptionList({
+    required this.rows,
+    required this.error,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<OptionRowControllers> rows;
+
+  final String? error;
+
+  final VoidCallback onAdd;
+
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = context.theme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: AppSpacing.spacing100,
+      children: [
+        Text(
+          l10n.fieldEditorOptionsLabel,
+          style: theme.typography.body.sm.copyWith(
+            color: theme.colors.mutedForeground,
+          ),
+        ),
+        for (final (index, row) in rows.indexed)
+          OptionRowField(
+            key: ValueKey(row.id),
+            number: index + 1,
+            controllers: row,
+            onRemove: () => onRemove(index),
+          ),
+        if (error case final error?)
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              error,
+              style: theme.typography.body.sm.copyWith(
+                color: theme.colors.error,
+              ),
+            ),
+          ),
+        FButton(
+          variant: FButtonVariant.outline,
+          prefix: const Icon(FLucideIcons.plus),
+          onPress: onAdd,
+          child: Text(l10n.fieldEditorAddOptionLabel),
+        ),
+      ],
     );
   }
 }
