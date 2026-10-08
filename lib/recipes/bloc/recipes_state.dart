@@ -19,6 +19,9 @@ enum RecipesMutation {
   recipeSaved,
   recipeDeleted,
   librarySelected,
+  librarySaved,
+  libraryDeleted,
+  fieldDeleted,
   ingredientSaved,
   ingredientDeleted,
   ingredientsImported,
@@ -108,6 +111,70 @@ final class RecipesState extends Equatable {
     }
     return null;
   }
+
+  /// The library carrying [id], or null when it resolves to nothing.
+  Library? libraryById(String id) {
+    for (final library in libraries) {
+      if (library.id == id) return library;
+    }
+    return null;
+  }
+
+  /// The library whose name matches [name] without regard to case or
+  /// surrounding whitespace, or null when none does or [name] is blank.
+  ///
+  /// Library names are unique on that same folding, so at most one can match.
+  Library? libraryNamed(String name) {
+    final folded = _fold(name);
+    if (folded.isEmpty) return null;
+    for (final library in libraries) {
+      if (_fold(library.name) == folded) return library;
+    }
+    return null;
+  }
+
+  /// How many recipes the library carrying [libraryId] holds — the ones
+  /// deleting it takes with it.
+  int recipeCountIn(String libraryId) =>
+      recipes.where((recipe) => recipe.libraryId == libraryId).length;
+
+  /// How many catalog entries are visible in the library carrying [libraryId]
+  /// and nowhere else — the ones deleting it has to move.
+  int ingredientCountOnlyIn(String libraryId) => ingredients
+      .where(
+        (entry) =>
+            entry.libraryIds.length == 1 &&
+            entry.libraryIds.contains(libraryId),
+      )
+      .length;
+
+  /// How many recipes in the library carrying [libraryId] hold a value for
+  /// the field carrying [fieldId] — the ones deleting the field clears.
+  int fieldValueCount(String libraryId, String fieldId) => recipes
+      .where(
+        (recipe) =>
+            recipe.libraryId == libraryId &&
+            recipe.fieldValues.containsKey(fieldId),
+      )
+      .length;
+
+  /// How many recipes in the library carrying [libraryId] hold one of
+  /// [options] for the field carrying [fieldId] — the ones removing those
+  /// options clears.
+  ///
+  /// The stored value is compared as it is, untrimmed: that is the comparison
+  /// the storage layer makes when it clears them.
+  int recipeCountUsingOptions(
+    String libraryId,
+    String fieldId,
+    Set<String> options,
+  ) => recipes
+      .where(
+        (recipe) =>
+            recipe.libraryId == libraryId &&
+            options.contains(recipe.fieldValues[fieldId]),
+      )
+      .length;
 
   /// The recipes the list screen shows: those in the active library, narrowed
   /// by [searchTerm] and [activeTags], sorted alphabetically.

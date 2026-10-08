@@ -62,6 +62,33 @@ class RecipesRepository {
   Future<void> setActiveLibraryId(String id) =>
       _recipesApi.setActiveLibraryId(id);
 
+  /// Stores [library], replacing any library that already carries its id.
+  ///
+  /// Replacing a library rewrites its recipes to match: a value whose field
+  /// [library] no longer declares is dropped, a Select value equal to a key of
+  /// `optionRenames[fieldId]` becomes that key's value, and a Select value
+  /// naming an option the field no longer offers is dropped.
+  ///
+  /// Throws a [LibraryNameTakenException] when a different library already
+  /// carries the same name without regard to case, and a
+  /// [RecipesPersistenceException] when a write fails.
+  Future<void> saveLibrary(
+    Library library, {
+    Map<String, Map<String, String>> optionRenames = const {},
+  }) => _recipesApi.saveLibrary(library, optionRenames: optionRenames);
+
+  /// Removes the library carrying [id] along with every recipe in it.
+  ///
+  /// [successorId] names the library that inherits what cannot go with it:
+  /// catalog entries visible only in [id] move there, and it becomes the
+  /// active library when [id] was.
+  ///
+  /// Throws a [LibraryNotFoundException] when [id] matches no library or
+  /// [successorId] matches no *other* library, and a
+  /// [RecipesPersistenceException] when a write fails.
+  Future<void> deleteLibrary(String id, {required String successorId}) =>
+      _recipesApi.deleteLibrary(id, successorId: successorId);
+
   /// Releases everything the underlying api holds. It cannot be used
   /// afterwards.
   ///

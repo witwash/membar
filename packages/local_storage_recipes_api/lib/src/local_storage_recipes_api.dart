@@ -184,6 +184,87 @@ class LocalStorageRecipesApi extends RecipesApi {
   });
 
   @override
+  Future<void> saveLibrary(
+    Library library, {
+    Map<String, Map<String, String>> optionRenames = const {},
+  }) => _serialized(() async {
+    final current = _subject.value;
+    final taken = current.libraries.any(
+      (stored) =>
+          stored.id != library.id &&
+          compareCaseInsensitive(stored.name, library.name) == 0,
+    );
+    if (taken) throw LibraryNameTakenException(library.name);
+
+    final libraries = [...current.libraries];
+    final index = libraries.indexWhere((stored) => stored.id == library.id);
+    var recipes = current.recipes;
+    if (index == -1) {
+      libraries.add(library);
+    } else {
+      recipes = _conformed(recipes, libraries[index], library, optionRenames);
+      libraries[index] = library;
+    }
+
+    // Recipes first: a failure after it leaves values cleared under a schema
+    // that still declares them, which renders. The reverse would leave values
+    // keyed to a field nothing declares, which is invisible.
+    if (!listEquals(recipes, current.recipes)) {
+      await _write(kRecipesKey, _encodeRecipes(recipes));
+    }
+    await _write(kLibrariesKey, _encodeLibraries(libraries));
+    _emit(libraries: libraries, recipes: recipes);
+  });
+
+  @override
+  Future<void> deleteLibrary(String id, {required String successorId}) =>
+      _serialized(() async {
+        final current = _subject.value;
+        final libraries = [...current.libraries];
+        final index = libraries.indexWhere((stored) => stored.id == id);
+        if (index == -1) throw LibraryNotFoundException(id);
+        libraries.removeAt(index);
+        // Looked up among the libraries that remain, so a successor equal to
+        // [id] and deleting the only library both fail here.
+        if (!libraries.any((stored) => stored.id == successorId)) {
+          throw LibraryNotFoundException(successorId);
+        }
+
+        final ingredients = [
+          for (final entry in current.ingredients)
+            if (entry.libraryIds.contains(id))
+              _withoutLibrary(entry, id, successorId: successorId)
+            else
+              entry,
+        ];
+        final recipes = [
+          for (final recipe in current.recipes)
+            if (recipe.libraryId != id) recipe,
+        ];
+        final wasActive = current.activeLibraryId == id;
+
+        // Children before parents: every prefix of this sequence is a state
+        // the app renders, ending with an emptied library that still exists.
+        // The reverse would leave recipes pointing at a library that is gone.
+        if (!listEquals(ingredients, current.ingredients)) {
+          await _write(kIngredientsKey, _encodeIngredients(ingredients));
+        }
+        if (wasActive) await _write(kActiveLibraryIdKey, successorId);
+        if (recipes.length != current.recipes.length) {
+          await _write(kRecipesKey, _encodeRecipes(recipes));
+        }
+        await _write(kLibrariesKey, _encodeLibraries(libraries));
+        // One emission, after the last write: emitting piecemeal would pass
+        // through a snapshot whose active id matches no library.
+        _emit(
+          libraries: libraries,
+          recipes: recipes,
+          ingredients: ingredients,
+          activeLibraryId: wasActive ? successorId : null,
+        );
+      });
+
+  @override
   Future<void> close() => _subject.close();
 
   /// [catalog] with [ingredients] merged in, each replacing any entry that
@@ -254,6 +335,81 @@ class LocalStorageRecipesApi extends RecipesApi {
     ];
   }
 
+  /// [recipes] with the field values of those in the [stored] library brought
+  /// in line with its [replacement].
+  ///
+  /// A value is dropped only when [replacement] removed its field or its
+  /// Select option. A key that matched no field of [stored], and a Select
+  /// value that was already outside the stored options, survive: tidying up
+  /// what this edit did not touch is not worth destroying data over.
+  ///
+  /// Each value is looked up in [optionRenames] once rather than the renames
+  /// being applied in turn, which is what lets two options swap.
+  static List<Recipe> _conformed(
+    List<Recipe> recipes,
+    Library stored,
+    Library replacement,
+    Map<String, Map<String, String>> optionRenames,
+  ) {
+    final storedFields = {for (final field in stored.fields) field.id: field};
+    final replacements = {
+      for (final field in replacement.fields) field.id: field,
+    };
+
+    Object? conformed(FieldDefinition before, Object? value) {
+      final after = replacements[before.id];
+      if (after == null) return null;
+      if (before.type != FieldType.select || after.type != FieldType.select) {
+        return value;
+      }
+
+      final renames = optionRenames[before.id] ?? const <String, String>{};
+      final renamed = renames[value];
+      if (renamed != null) return renamed;
+      final removed = before.optionsRemovedBy(after, renames: renames);
+      return removed.contains(value) ? null : value;
+    }
+
+    return [
+      for (final recipe in recipes)
+        if (recipe.libraryId != stored.id)
+          recipe
+        else
+          Recipe(
+            id: recipe.id,
+            libraryId: recipe.libraryId,
+            name: recipe.name,
+            ingredients: recipe.ingredients,
+            steps: recipe.steps,
+            tags: recipe.tags,
+            notes: recipe.notes,
+            fieldValues: {
+              for (final MapEntry(:key, :value) in recipe.fieldValues.entries)
+                key: ?switch (storedFields[key]) {
+                  null => value,
+                  final field => conformed(field, value),
+                },
+            },
+          ),
+    ];
+  }
+
+  /// [entry] without [libraryId], or scoped to [successorId] alone when that
+  /// would leave it visible in no library.
+  static CatalogIngredient _withoutLibrary(
+    CatalogIngredient entry,
+    String libraryId, {
+    required String successorId,
+  }) {
+    final remaining = {...entry.libraryIds}..remove(libraryId);
+    return CatalogIngredient(
+      id: entry.id,
+      name: entry.name,
+      defaultUnit: entry.defaultUnit,
+      libraryIds: remaining.isEmpty ? {successorId} : remaining,
+    );
+  }
+
   /// Runs [mutation] after every mutation already queued.
   ///
   /// Two overlapping callers would otherwise each compute a list from the same
@@ -273,6 +429,7 @@ class LocalStorageRecipesApi extends RecipesApi {
   /// callers a consistent snapshot on its own, not one that depends on a
   /// caller two layers up serializing them.
   void _emit({
+    List<Library>? libraries,
     List<Recipe>? recipes,
     List<CatalogIngredient>? ingredients,
     String? activeLibraryId,
@@ -281,7 +438,7 @@ class LocalStorageRecipesApi extends RecipesApi {
     final current = _subject.value;
     _subject.add(
       RecipesSnapshot(
-        libraries: current.libraries,
+        libraries: libraries ?? current.libraries,
         recipes: recipes ?? current.recipes,
         ingredients: ingredients ?? current.ingredients,
         activeLibraryId: activeLibraryId ?? current.activeLibraryId,
@@ -299,9 +456,9 @@ class LocalStorageRecipesApi extends RecipesApi {
     final storedVersion = _plugin.getInt(kSchemaVersionKey);
     var libraries = storedVersion == null ? null : _readLibraries();
     if (libraries == null) {
-      // Either a fresh install, or a libraries blob that cannot be read. PR1
-      // has no way to create a library, so an empty switcher would be an
-      // unrecoverable app: re-seed rather than start from nothing.
+      // Either a fresh install, or a libraries blob that cannot be read. The
+      // app always has at least one library — deleting one needs a successor —
+      // so re-seed rather than start from a state nothing else can produce.
       libraries = _templates.all();
       writes[kLibrariesKey] = _encodeLibraries(libraries);
     }

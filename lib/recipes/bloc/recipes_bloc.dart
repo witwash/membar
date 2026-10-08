@@ -26,6 +26,9 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     on<RecipesRecipeSaved>(_onRecipeSaved, transformer: sequential());
     on<RecipesRecipeDeleted>(_onRecipeDeleted, transformer: sequential());
     on<RecipesLibrarySelected>(_onLibrarySelected, transformer: sequential());
+    on<RecipesLibrarySaved>(_onLibrarySaved, transformer: sequential());
+    on<RecipesLibraryDeleted>(_onLibraryDeleted, transformer: sequential());
+    on<RecipesFieldDeleted>(_onFieldDeleted, transformer: sequential());
     on<RecipesIngredientSaved>(_onIngredientSaved, transformer: sequential());
     on<RecipesIngredientDeleted>(
       _onIngredientDeleted,
@@ -168,6 +171,154 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       emit(
         state.copyWith(
           mutation: RecipesMutation.librarySelected,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onLibrarySaved(
+    RecipesLibrarySaved event,
+    Emitter<RecipesState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.librarySaved,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
+
+    try {
+      await _recipesRepository.saveLibrary(
+        event.library,
+        optionRenames: event.optionRenames,
+      );
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.librarySaved,
+          mutationStatus: RecipesMutationStatus.success,
+        ),
+      );
+    } on LibraryNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.librarySaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipesPersistenceException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.librarySaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    }
+  }
+
+  Future<void> _onLibraryDeleted(
+    RecipesLibraryDeleted event,
+    Emitter<RecipesState> emit,
+  ) async {
+    // Read before the write: by the time it returns, the snapshot has already
+    // made the successor the active library.
+    final wasActive = event.id == state.activeLibraryId;
+
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.libraryDeleted,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
+
+    try {
+      await _recipesRepository.deleteLibrary(
+        event.id,
+        successorId: event.successorId,
+      );
+      // Deleting the active library switches to its successor, so the filters
+      // clear for the reason they do on a manual switch.
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.libraryDeleted,
+          mutationStatus: RecipesMutationStatus.success,
+          searchTerm: wasActive ? '' : null,
+          activeTags: wasActive ? const {} : null,
+        ),
+      );
+    } on LibraryNotFoundException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.libraryDeleted,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipesPersistenceException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.libraryDeleted,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    }
+  }
+
+  /// Saves the event's library without the event's field.
+  ///
+  /// Reported as its own kind rather than as a library save: the Fields
+  /// screen deletes a field while the sheet above it saves one, and sharing a
+  /// kind would raise one's failure on the other.
+  Future<void> _onFieldDeleted(
+    RecipesFieldDeleted event,
+    Emitter<RecipesState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.fieldDeleted,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
+
+    final library = state.libraryById(event.libraryId);
+    if (library == null ||
+        library.fields.every((field) => field.id != event.fieldId)) {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldDeleted,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _recipesRepository.saveLibrary(
+        Library(
+          id: library.id,
+          name: library.name,
+          fields: [
+            for (final field in library.fields)
+              if (field.id != event.fieldId) field,
+          ],
+        ),
+      );
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldDeleted,
+          mutationStatus: RecipesMutationStatus.success,
+        ),
+      );
+    } on LibraryNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldDeleted,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipesPersistenceException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldDeleted,
           mutationStatus: RecipesMutationStatus.failure,
         ),
       );

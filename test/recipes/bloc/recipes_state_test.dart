@@ -57,6 +57,137 @@ void main() {
       });
     });
 
+    group('schema', () {
+      Recipe recipe(String id, Library library, Map<String, Object?> values) =>
+          Recipe(
+            id: id,
+            libraryId: library.id,
+            name: 'Recipe $id',
+            fieldValues: values,
+          );
+
+      final schema = RecipesState(
+        libraries: [cocktailsLibrary, coffeeLibrary],
+        recipes: [
+          recipe('r1', cocktailsLibrary, {
+            glasswareField.id: 'Rocks',
+            garnishField.id: 'Orange',
+          }),
+          recipe('r2', cocktailsLibrary, {glasswareField.id: 'Coupe'}),
+          recipe('r3', cocktailsLibrary, {glasswareField.id: ' Coupe '}),
+          recipe('r4', cocktailsLibrary, {glasswareField.id: 7}),
+          // The same key in another library, which no count may reach.
+          recipe('r5', coffeeLibrary, {glasswareField.id: 'Coupe'}),
+        ],
+        ingredients: [ginIngredient, cinnamonIngredient, sugarIngredient],
+        activeLibraryId: cocktailsLibrary.id,
+      );
+
+      group('libraryById', () {
+        test('is the library carrying the id', () {
+          expect(schema.libraryById(coffeeLibrary.id), coffeeLibrary);
+        });
+
+        test('is null for an unknown id', () {
+          expect(schema.libraryById('gone'), isNull);
+        });
+      });
+
+      group('libraryNamed', () {
+        test('is the library whose name matches, ignoring case and '
+            'padding', () {
+          expect(schema.libraryNamed('  cOFFEE '), coffeeLibrary);
+        });
+
+        test('is null for a name no library carries', () {
+          expect(schema.libraryNamed('Tea'), isNull);
+        });
+
+        test('is null for a blank name', () {
+          expect(schema.libraryNamed('   '), isNull);
+        });
+      });
+
+      group('recipeCountIn', () {
+        test('counts the recipes of that library alone', () {
+          expect(schema.recipeCountIn(cocktailsLibrary.id), 4);
+          expect(schema.recipeCountIn(coffeeLibrary.id), 1);
+        });
+
+        test('is zero for an unknown id', () {
+          expect(schema.recipeCountIn('gone'), 0);
+        });
+      });
+
+      group('ingredientCountOnlyIn', () {
+        test('counts the entries visible in that library and nowhere '
+            'else', () {
+          // Sugar is visible in both libraries, so neither count has it.
+          expect(schema.ingredientCountOnlyIn(cocktailsLibrary.id), 1);
+          expect(schema.ingredientCountOnlyIn(coffeeLibrary.id), 1);
+        });
+
+        test('is zero for an unknown id', () {
+          expect(schema.ingredientCountOnlyIn('gone'), 0);
+        });
+      });
+
+      group('fieldValueCount', () {
+        test('counts the recipes of that library carrying the key, whatever '
+            'the value', () {
+          expect(
+            schema.fieldValueCount(cocktailsLibrary.id, glasswareField.id),
+            4,
+          );
+          expect(
+            schema.fieldValueCount(cocktailsLibrary.id, garnishField.id),
+            1,
+          );
+        });
+
+        test('is zero for an unknown library or field', () {
+          expect(schema.fieldValueCount('gone', glasswareField.id), 0);
+          expect(schema.fieldValueCount(cocktailsLibrary.id, 'gone'), 0);
+        });
+      });
+
+      group('recipeCountUsingOptions', () {
+        int using(Set<String> options) => schema.recipeCountUsingOptions(
+          cocktailsLibrary.id,
+          glasswareField.id,
+          options,
+        );
+
+        test('counts the recipes of that library holding one of the '
+            'options', () {
+          expect(using({'Coupe', 'Rocks'}), 2);
+        });
+
+        test('compares the stored value as it is, so padding and a number '
+            'do not match', () {
+          expect(using({'Coupe'}), 1);
+          expect(using({'7'}), 0);
+        });
+
+        test('is zero for no options, and for an unknown library or '
+            'field', () {
+          expect(using(const {}), 0);
+          expect(
+            schema.recipeCountUsingOptions('gone', glasswareField.id, {
+              'Coupe',
+            }),
+            0,
+          );
+          expect(
+            schema.recipeCountUsingOptions(cocktailsLibrary.id, 'gone', {
+              'Coupe',
+            }),
+            0,
+          );
+        });
+      });
+    });
+
     group('visibleRecipes', () {
       test("holds only the active library's recipes, sorted by name", () {
         expect(loaded.visibleRecipes, [americano, daiquiri, negroni]);

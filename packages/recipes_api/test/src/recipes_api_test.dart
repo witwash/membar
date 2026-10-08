@@ -26,6 +26,15 @@ class _FakeRecipesApi extends RecipesApi {
   Future<void> setActiveLibraryId(String id) async {}
 
   @override
+  Future<void> saveLibrary(
+    Library library, {
+    Map<String, Map<String, String>> optionRenames = const {},
+  }) async {}
+
+  @override
+  Future<void> deleteLibrary(String id, {required String successorId}) async {}
+
+  @override
   Future<void> close() async {}
 }
 
@@ -43,6 +52,8 @@ void main() {
       await api.importIngredients(const []);
       await api.deleteIngredient('i1');
       await api.setActiveLibraryId('l1');
+      await api.saveLibrary(Library(name: 'Tea'));
+      await api.deleteLibrary('l1', successorId: 'l2');
       await api.close();
     });
   });
@@ -81,6 +92,24 @@ void main() {
       expect(exception.id, equals('i1'));
       expect(exception.recipeCount, equals(4));
       expect(exception.toString(), allOf(contains('i1'), contains('4')));
+    });
+  });
+
+  group('LibraryNameTakenException', () {
+    test('names the name that is taken', () {
+      const exception = LibraryNameTakenException('Tea');
+
+      expect(exception.name, equals('Tea'));
+      expect(exception.toString(), contains('Tea'));
+    });
+  });
+
+  group('LibraryNotFoundException', () {
+    test('names the id it was thrown for', () {
+      const exception = LibraryNotFoundException('l1');
+
+      expect(exception.id, equals('l1'));
+      expect(exception.toString(), contains('l1'));
     });
   });
 

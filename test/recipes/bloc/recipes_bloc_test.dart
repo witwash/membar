@@ -12,10 +12,13 @@ class _FakeRecipe extends Fake implements Recipe {}
 
 class _FakeCatalogIngredient extends Fake implements CatalogIngredient {}
 
+class _FakeLibrary extends Fake implements Library {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_FakeRecipe());
     registerFallbackValue(_FakeCatalogIngredient());
+    registerFallbackValue(_FakeLibrary());
   });
 
   group('RecipesBloc', () {
@@ -272,6 +275,326 @@ void main() {
           ),
         ],
       );
+    });
+
+    group('RecipesLibrarySaved', () {
+      final tea = Library(id: 'l3', name: 'Tea');
+      const renames = {
+        'f1': {'Coupe': 'Coupe glass'},
+      };
+
+      blocTest<RecipesBloc, RecipesState>(
+        'emits loading then success and delegates, renames included',
+        setUp: () => when(
+          () => repository.saveLibrary(
+            any(),
+            optionRenames: any(named: 'optionRenames'),
+          ),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        act: (bloc) =>
+            bloc.add(RecipesLibrarySaved(tea, optionRenames: renames)),
+        expect: () => const [
+          RecipesState(
+            mutation: RecipesMutation.librarySaved,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          RecipesState(
+            mutation: RecipesMutation.librarySaved,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        ],
+        verify: (_) => verify(
+          () => repository.saveLibrary(tea, optionRenames: renames),
+        ).called(1),
+      );
+
+      for (final (reason, exception) in [
+        ('the name is taken', const LibraryNameTakenException('Tea')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure when $reason',
+          setUp: () => when(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ).thenThrow(exception),
+          build: buildBloc,
+          act: (bloc) => bloc.add(RecipesLibrarySaved(tea)),
+          expect: () => const [
+            RecipesState(
+              mutation: RecipesMutation.librarySaved,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            RecipesState(
+              mutation: RecipesMutation.librarySaved,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
+    });
+
+    group('RecipesLibraryDeleted', () {
+      const filtered = RecipesState(
+        activeLibraryId: 'l1',
+        searchTerm: 'neg',
+        activeTags: {'Classic'},
+      );
+      late StreamController<RecipesSnapshot> snapshots;
+
+      blocTest<RecipesBloc, RecipesState>(
+        'clears the search term and tag filter when the active library is '
+        'deleted, and delegates',
+        setUp: () => when(
+          () => repository.deleteLibrary(
+            any(),
+            successorId: any(named: 'successorId'),
+          ),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        seed: () => filtered,
+        act: (bloc) =>
+            bloc.add(const RecipesLibraryDeleted('l1', successorId: 'l2')),
+        expect: () => const [
+          RecipesState(
+            mutation: RecipesMutation.libraryDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+            activeLibraryId: 'l1',
+            searchTerm: 'neg',
+            activeTags: {'Classic'},
+          ),
+          RecipesState(
+            mutation: RecipesMutation.libraryDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+            activeLibraryId: 'l1',
+          ),
+        ],
+        verify: (_) => verify(
+          () => repository.deleteLibrary('l1', successorId: 'l2'),
+        ).called(1),
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'clears the filters even though the snapshot has already made the '
+        'successor active',
+        setUp: () {
+          snapshots = StreamController<RecipesSnapshot>();
+          when(() => repository.watch()).thenAnswer((_) => snapshots.stream);
+          when(
+            () => repository.deleteLibrary(
+              any(),
+              successorId: any(named: 'successorId'),
+            ),
+          ).thenAnswer((_) async {
+            // The storage layer emits before its future completes.
+            snapshots.add(
+              RecipesSnapshot(
+                libraries: [coffee],
+                recipes: [v60],
+                ingredients: const [],
+                activeLibraryId: 'l2',
+                ingredientsImported: true,
+              ),
+            );
+            await Future<void>.delayed(Duration.zero);
+          });
+        },
+        build: buildBloc,
+        seed: () => filtered,
+        act: (bloc) => bloc
+          ..add(const RecipesSubscriptionRequested())
+          ..add(const RecipesLibraryDeleted('l1', successorId: 'l2')),
+        wait: const Duration(milliseconds: 10),
+        verify: (bloc) {
+          expect(bloc.state.activeLibraryId, equals('l2'));
+          expect(bloc.state.searchTerm, isEmpty);
+          expect(bloc.state.activeTags, isEmpty);
+        },
+        tearDown: () => snapshots.close(),
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'keeps the search term and tag filter when another library is deleted',
+        setUp: () => when(
+          () => repository.deleteLibrary(
+            any(),
+            successorId: any(named: 'successorId'),
+          ),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        seed: () => filtered,
+        act: (bloc) =>
+            bloc.add(const RecipesLibraryDeleted('l2', successorId: 'l1')),
+        expect: () => const [
+          RecipesState(
+            mutation: RecipesMutation.libraryDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+            activeLibraryId: 'l1',
+            searchTerm: 'neg',
+            activeTags: {'Classic'},
+          ),
+          RecipesState(
+            mutation: RecipesMutation.libraryDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+            activeLibraryId: 'l1',
+            searchTerm: 'neg',
+            activeTags: {'Classic'},
+          ),
+        ],
+      );
+
+      for (final (reason, exception) in <(String, Exception)>[
+        ('a library is not there', const LibraryNotFoundException('l1')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure and keeps the filters when $reason',
+          setUp: () => when(
+            () => repository.deleteLibrary(
+              any(),
+              successorId: any(named: 'successorId'),
+            ),
+          ).thenThrow(exception),
+          build: buildBloc,
+          seed: () => filtered,
+          act: (bloc) =>
+              bloc.add(const RecipesLibraryDeleted('l1', successorId: 'l2')),
+          expect: () => const [
+            RecipesState(
+              mutation: RecipesMutation.libraryDeleted,
+              mutationStatus: RecipesMutationStatus.loading,
+              activeLibraryId: 'l1',
+              searchTerm: 'neg',
+              activeTags: {'Classic'},
+            ),
+            RecipesState(
+              mutation: RecipesMutation.libraryDeleted,
+              mutationStatus: RecipesMutationStatus.failure,
+              activeLibraryId: 'l1',
+              searchTerm: 'neg',
+              activeTags: {'Classic'},
+            ),
+          ],
+        );
+      }
+    });
+
+    group('RecipesFieldDeleted', () {
+      final glassware = FieldDefinition(
+        id: 'f1',
+        label: 'Glassware',
+        type: FieldType.select,
+        options: const ['Coupe'],
+      );
+      final garnish = FieldDefinition(
+        id: 'f2',
+        label: 'Garnish',
+        type: FieldType.text,
+      );
+      final loaded = RecipesState(
+        libraries: [
+          Library(id: 'l1', name: 'Cocktails', fields: [glassware, garnish]),
+          coffee,
+        ],
+        activeLibraryId: 'l1',
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'emits loading then success and saves the library without the field',
+        setUp: () => when(
+          () => repository.saveLibrary(
+            any(),
+            optionRenames: any(named: 'optionRenames'),
+          ),
+        ).thenAnswer((_) async {}),
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) => bloc.add(
+          const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f2'),
+        ),
+        expect: () => [
+          loaded.copyWith(
+            mutation: RecipesMutation.fieldDeleted,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          loaded.copyWith(
+            mutation: RecipesMutation.fieldDeleted,
+            mutationStatus: RecipesMutationStatus.success,
+          ),
+        ],
+        verify: (_) => verify(
+          () => repository.saveLibrary(
+            Library(id: 'l1', name: 'Cocktails', fields: [glassware]),
+          ),
+        ).called(1),
+      );
+
+      for (final (reason, event) in [
+        (
+          'the library is not there',
+          const RecipesFieldDeleted(libraryId: 'gone', fieldId: 'f2'),
+        ),
+        (
+          'the field is not there',
+          const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'gone'),
+        ),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure without calling the repository when $reason',
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(event),
+          expect: () => [
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldDeleted,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldDeleted,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+          verify: (_) => verifyNever(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ),
+        );
+      }
+
+      for (final (reason, exception) in [
+        ('the name is taken', const LibraryNameTakenException('Cocktails')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure when $reason',
+          setUp: () => when(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ).thenThrow(exception),
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(
+            const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f2'),
+          ),
+          expect: () => [
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldDeleted,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldDeleted,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
     });
 
     group('RecipesIngredientSaved', () {

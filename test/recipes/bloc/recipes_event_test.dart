@@ -42,6 +42,54 @@ void main() {
       );
     });
 
+    test('RecipesLibrarySaved carries the library and the option renames', () {
+      final tea = Library(id: 'l3', name: 'Tea');
+      final chai = Library(id: 'l4', name: 'Chai');
+      const renames = {
+        'f1': {'Coupe': 'Coupe glass'},
+      };
+
+      expect(
+        RecipesLibrarySaved(tea, optionRenames: renames),
+        RecipesLibrarySaved(tea, optionRenames: renames),
+      );
+      expect(RecipesLibrarySaved(tea), isNot(RecipesLibrarySaved(chai)));
+      expect(
+        RecipesLibrarySaved(tea),
+        isNot(RecipesLibrarySaved(tea, optionRenames: renames)),
+      );
+    });
+
+    test('RecipesLibraryDeleted carries the id and the successor', () {
+      expect(
+        const RecipesLibraryDeleted('l1', successorId: 'l2'),
+        const RecipesLibraryDeleted('l1', successorId: 'l2'),
+      );
+      expect(
+        const RecipesLibraryDeleted('l1', successorId: 'l2'),
+        isNot(const RecipesLibraryDeleted('l3', successorId: 'l2')),
+      );
+      expect(
+        const RecipesLibraryDeleted('l1', successorId: 'l2'),
+        isNot(const RecipesLibraryDeleted('l1', successorId: 'l3')),
+      );
+    });
+
+    test('RecipesFieldDeleted carries the library and the field', () {
+      expect(
+        const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f1'),
+        const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f1'),
+      );
+      expect(
+        const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f1'),
+        isNot(const RecipesFieldDeleted(libraryId: 'l2', fieldId: 'f1')),
+      );
+      expect(
+        const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f1'),
+        isNot(const RecipesFieldDeleted(libraryId: 'l1', fieldId: 'f2')),
+      );
+    });
+
     test('RecipesIngredientSaved carries the ingredient', () {
       final gin = CatalogIngredient(
         id: 'i1',

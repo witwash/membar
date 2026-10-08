@@ -85,6 +85,15 @@ class FieldDefinition extends Equatable {
   /// a crash.
   List<String> get optionsOrEmpty => options ?? const [];
 
+  /// The options this field offers that [replacement] no longer does, leaving
+  /// out the keys of [renames] — those were retyped, not removed.
+  Set<String> optionsRemovedBy(
+    FieldDefinition replacement, {
+    Map<String, String> renames = const {},
+  }) => {...optionsOrEmpty}
+    ..removeAll(replacement.optionsOrEmpty)
+    ..removeAll(renames.keys);
+
   /// Converts this [FieldDefinition] into a JSON [Map].
   Map<String, dynamic> toJson() => _$FieldDefinitionToJson(this);
 

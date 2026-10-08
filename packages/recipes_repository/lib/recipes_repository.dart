@@ -4,7 +4,8 @@ library;
 
 // The models travel with the repository: for a local-first app with no wire
 // schema to insulate against, a second set of domain models plus a
-// transformation layer would be speculative. `RecipesApi` deliberately does
+// transformation layer would be speculative. So do the template builders:
+// they produce models and reach no storage. `RecipesApi` deliberately does
 // not travel with them — being the only thing that can reach the data layer is
 // the repository's whole job, and re-exporting its contract would hand that
 // reach to every widget and bloc above it.
@@ -20,6 +21,9 @@ export 'package:recipes_api/recipes_api.dart'
         IngredientNotFoundException,
         KnownUnit,
         Library,
+        LibraryNameTakenException,
+        LibraryNotFoundException,
+        LibraryTemplates,
         Recipe,
         RecipeNotFoundException,
         RecipesPersistenceException,

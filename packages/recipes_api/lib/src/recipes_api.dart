@@ -62,6 +62,32 @@ abstract class RecipesApi {
   /// Throws a [RecipesPersistenceException] when the write fails.
   Future<void> setActiveLibraryId(String id);
 
+  /// Stores [library], replacing any library that already carries its id.
+  ///
+  /// Replacing a library rewrites its recipes to match: a value whose field
+  /// [library] no longer declares is dropped, a Select value equal to a key of
+  /// `optionRenames[fieldId]` becomes that key's value, and a Select value
+  /// naming an option the field no longer offers is dropped.
+  ///
+  /// Throws a [LibraryNameTakenException] when a different library already
+  /// carries the same name without regard to case, and a
+  /// [RecipesPersistenceException] when a write fails.
+  Future<void> saveLibrary(
+    Library library, {
+    Map<String, Map<String, String>> optionRenames = const {},
+  });
+
+  /// Removes the library carrying [id] along with every recipe in it.
+  ///
+  /// [successorId] names the library that inherits what cannot go with it:
+  /// catalog entries visible only in [id] move there, and it becomes the
+  /// active library when [id] was.
+  ///
+  /// Throws a [LibraryNotFoundException] when [id] matches no library or
+  /// [successorId] matches no *other* library, and a
+  /// [RecipesPersistenceException] when a write fails.
+  Future<void> deleteLibrary(String id, {required String successorId});
+
   /// Releases everything this api holds. It cannot be used afterwards.
   Future<void> close();
 }
@@ -128,6 +154,36 @@ class IngredientInUseException implements Exception {
   String toString() =>
       'IngredientInUseException: catalog entry "$id" is used in '
       '$recipeCount recipe(s).';
+}
+
+/// {@template library_name_taken_exception}
+/// Thrown when saving a library whose name, without regard to case, already
+/// belongs to a different library.
+/// {@endtemplate}
+class LibraryNameTakenException implements Exception {
+  /// {@macro library_name_taken_exception}
+  const LibraryNameTakenException(this.name);
+
+  /// The name another library already carries.
+  final String name;
+
+  @override
+  String toString() =>
+      'LibraryNameTakenException: a library named "$name" already exists.';
+}
+
+/// {@template library_not_found_exception}
+/// Thrown when a library the caller asked for does not exist.
+/// {@endtemplate}
+class LibraryNotFoundException implements Exception {
+  /// {@macro library_not_found_exception}
+  const LibraryNotFoundException(this.id);
+
+  /// The id no library was found for.
+  final String id;
+
+  @override
+  String toString() => 'LibraryNotFoundException: no library with id "$id".';
 }
 
 /// {@template recipes_persistence_exception}

@@ -189,6 +189,60 @@ void main() {
     });
   });
 
+  group('optionsRemovedBy', () {
+    FieldDefinition glassware(List<String> options) => FieldDefinition(
+      id: 'f1',
+      label: 'Glassware',
+      type: FieldType.select,
+      options: options,
+    );
+
+    test('is the options the replacement no longer offers', () {
+      final field = glassware(const ['Coupe', 'Rocks', 'Flute']);
+
+      expect(
+        field.optionsRemovedBy(glassware(const ['Rocks', 'Mug'])),
+        equals({'Coupe', 'Flute'}),
+      );
+    });
+
+    test('is empty when the replacement keeps every option', () {
+      final field = glassware(const ['Coupe', 'Rocks']);
+
+      expect(
+        field.optionsRemovedBy(glassware(const ['Rocks', 'Coupe', 'Mug'])),
+        isEmpty,
+      );
+    });
+
+    test('leaves out an option that was retyped', () {
+      final field = glassware(const ['Coupe', 'Rocks']);
+
+      expect(
+        field.optionsRemovedBy(
+          glassware(const ['Coupe glass']),
+          renames: const {'Coupe': 'Coupe glass'},
+        ),
+        equals({'Rocks'}),
+      );
+    });
+
+    test('is empty for a field that is not a select', () {
+      final field = FieldDefinition(
+        id: 'f1',
+        label: 'Garnish',
+        type: FieldType.text,
+      );
+
+      expect(
+        field.optionsRemovedBy(
+          FieldDefinition(id: 'f1', label: 'Peel', type: FieldType.text),
+        ),
+        isEmpty,
+      );
+    });
+  });
+
   group('fromJson repairs a field that breaks its own contract', () {
     // The constructor's asserts are stripped in release, so a hand-edited blob
     // has to be brought back inside the contract on the way in rather than

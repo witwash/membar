@@ -38,9 +38,15 @@ class _RecordingStore extends InMemorySharedPreferencesStore {
   /// Every key written, without the platform prefix, in write order.
   final writtenKeys = <String>[];
 
+  /// A key whose writes report failure, so a sequence of writes can be made
+  /// to fail part-way.
+  String? failingKey;
+
   @override
-  Future<bool> setValue(String valueType, String key, Object value) {
-    writtenKeys.add(key.replaceFirst('flutter.', ''));
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    final written = key.replaceFirst('flutter.', '');
+    if (written == failingKey) return false;
+    writtenKeys.add(written);
     return super.setValue(valueType, key, value);
   }
 }
@@ -1032,7 +1038,677 @@ void main() {
       );
     });
 
+    group('saveLibrary', () {
+      final glassware = cocktails.fields.first;
+      final garnish = cocktails.fields.last;
+      final tea = Library(id: 'tea', name: 'Tea');
+
+      FieldDefinition glasswareWith(List<String> options) => FieldDefinition(
+        id: glassware.id,
+        label: glassware.label,
+        type: FieldType.select,
+        options: options,
+      );
+
+      Library cocktailsWith(List<FieldDefinition> fields) =>
+          Library(id: cocktails.id, name: cocktails.name, fields: fields);
+
+      Recipe cocktail(String id, Map<String, Object?> fieldValues) => Recipe(
+        id: id,
+        libraryId: cocktails.id,
+        name: 'Cocktail $id',
+        fieldValues: fieldValues,
+      );
+
+      Future<_RecordingStore> open({List<Recipe> recipes = const []}) async {
+        final store = await setUpRecordingPrefs(seededPrefs(recipes: recipes));
+        api = buildApi();
+        await api.initialWrite;
+        store.writtenKeys.clear();
+        return store;
+      }
+
+      Future<Map<String, Object?>> valuesOf(String recipeId) async {
+        final snapshot = await api.watch().first;
+        return snapshot.recipes
+            .singleWhere((recipe) => recipe.id == recipeId)
+            .fieldValues;
+      }
+
+      test('appends a library whose id is unknown', () async {
+        final store = await open();
+
+        await api.saveLibrary(tea);
+
+        final snapshot = await api.watch().first;
+        expect(snapshot.libraries, equals([cocktails, coffee, tea]));
+        expect(snapshot.activeLibraryId, equals(cocktails.id));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kLibrariesKey),
+          equals(
+            jsonEncode([cocktails.toJson(), coffee.toJson(), tea.toJson()]),
+          ),
+        );
+        expect(
+          store.writtenKeys,
+          equals([LocalStorageRecipesApi.kLibrariesKey]),
+        );
+      });
+
+      test('replaces a library whose id is known at the same index', () async {
+        await open();
+        final renamed = Library(
+          id: cocktails.id,
+          name: 'Drinks',
+          fields: cocktails.fields,
+        );
+
+        await api.saveLibrary(renamed);
+
+        expect(
+          (await api.watch().first).libraries,
+          equals([renamed, coffee]),
+        );
+      });
+
+      test(
+        'throws LibraryNameTakenException for a name another library carries',
+        () async {
+          final store = await open();
+
+          await expectLater(
+            () => api.saveLibrary(Library(name: ' coffee ')),
+            throwsA(
+              isA<LibraryNameTakenException>().having(
+                (exception) => exception.name,
+                'name',
+                equals('coffee'),
+              ),
+            ),
+          );
+          expect(
+            (await api.watch().first).libraries,
+            equals([cocktails, coffee]),
+          );
+          expect(store.writtenKeys, isEmpty);
+        },
+      );
+
+      test('accepts a library saved under its own name', () async {
+        await open();
+        final recased = Library(
+          id: cocktails.id,
+          name: 'COCKTAILS',
+          fields: cocktails.fields,
+        );
+
+        // Folding onto its own name is a rename, not a collision.
+        await api.saveLibrary(recased);
+
+        expect((await api.watch().first).libraries.first, equals(recased));
+      });
+
+      test('writes only the libraries key when no recipe changed', () async {
+        final store = await open(
+          recipes: [
+            cocktail('r1', {glassware.id: 'Coupe', garnish.id: 'Lemon twist'}),
+          ],
+        );
+
+        await api.saveLibrary(
+          Library(id: cocktails.id, name: 'Drinks', fields: cocktails.fields),
+        );
+
+        expect(
+          store.writtenKeys,
+          equals([LocalStorageRecipesApi.kLibrariesKey]),
+        );
+      });
+
+      test(
+        "drops a removed field's values from that library's recipes only",
+        () async {
+          // The coffee recipe carries the same key, so only the library id
+          // can be what spares it.
+          final v60 = Recipe(
+            id: 'r2',
+            libraryId: coffee.id,
+            name: 'V60',
+            fieldValues: {garnish.id: 'None', 'unknown': 1},
+          );
+          await open(
+            recipes: [
+              cocktail('r1', {glassware.id: 'Rocks', garnish.id: 'Orange'}),
+              v60,
+            ],
+          );
+
+          await api.saveLibrary(cocktailsWith([glassware]));
+
+          expect(await valuesOf('r1'), equals({glassware.id: 'Rocks'}));
+          final stored = jsonDecode(
+            plugin.getString(LocalStorageRecipesApi.kRecipesKey)!,
+          ) as List<dynamic>;
+          expect(jsonEncode(stored.last), equals(jsonEncode(v60.toJson())));
+        },
+      );
+
+      test('leaves a key that matched no stored field in place', () async {
+        await open(
+          recipes: [
+            cocktail('r1', {'unknown': 'kept', garnish.id: 'Orange'}),
+          ],
+        );
+
+        await api.saveLibrary(cocktailsWith([glassware]));
+
+        expect(await valuesOf('r1'), equals({'unknown': 'kept'}));
+      });
+
+      test('applies an option rename to the values holding it', () async {
+        await open(
+          recipes: [
+            cocktail('r1', {glassware.id: 'Coupe', garnish.id: 'Lemon twist'}),
+            cocktail('r2', {glassware.id: 'Rocks'}),
+          ],
+        );
+
+        await api.saveLibrary(
+          cocktailsWith([
+            glasswareWith(const ['Coupe glass', 'Rocks']),
+            garnish,
+          ]),
+          optionRenames: {
+            glassware.id: const {'Coupe': 'Coupe glass'},
+          },
+        );
+
+        expect(
+          await valuesOf('r1'),
+          equals({glassware.id: 'Coupe glass', garnish.id: 'Lemon twist'}),
+        );
+        expect(await valuesOf('r2'), equals({glassware.id: 'Rocks'}));
+      });
+
+      test('swaps the values of two options renamed onto each other', () async {
+        await open(
+          recipes: [
+            cocktail('r1', {glassware.id: 'Coupe'}),
+            cocktail('r2', {glassware.id: 'Rocks'}),
+          ],
+        );
+
+        await api.saveLibrary(
+          cocktailsWith([
+            glasswareWith(const ['Rocks', 'Coupe']),
+            garnish,
+          ]),
+          optionRenames: {
+            glassware.id: const {'Coupe': 'Rocks', 'Rocks': 'Coupe'},
+          },
+        );
+
+        expect(await valuesOf('r1'), equals({glassware.id: 'Rocks'}));
+        expect(await valuesOf('r2'), equals({glassware.id: 'Coupe'}));
+      });
+
+      test('clears the values of a removed option', () async {
+        await open(
+          recipes: [
+            cocktail('r1', {glassware.id: 'Flute'}),
+            cocktail('r2', {glassware.id: 'Rocks'}),
+          ],
+        );
+
+        await api.saveLibrary(
+          cocktailsWith([
+            glasswareWith(const ['Coupe', 'Rocks']),
+            garnish,
+          ]),
+        );
+
+        expect(await valuesOf('r1'), isEmpty);
+        expect(await valuesOf('r2'), equals({glassware.id: 'Rocks'}));
+      });
+
+      test(
+        'merges an option renamed onto one that was deleted, clearing '
+        'nothing',
+        () async {
+          await open(
+            recipes: [
+              cocktail('r1', {glassware.id: 'Coupe'}),
+              cocktail('r2', {glassware.id: 'Rocks'}),
+            ],
+          );
+
+          await api.saveLibrary(
+            cocktailsWith([
+              glasswareWith(const ['Rocks']),
+              garnish,
+            ]),
+            optionRenames: {
+              glassware.id: const {'Coupe': 'Rocks'},
+            },
+          );
+
+          expect(await valuesOf('r1'), equals({glassware.id: 'Rocks'}));
+          expect(await valuesOf('r2'), equals({glassware.id: 'Rocks'}));
+        },
+      );
+
+      test(
+        'leaves a value that was already outside the stored options alone',
+        () async {
+          await open(
+            recipes: [
+              cocktail('r1', {glassware.id: 'Tiki mug'}),
+              cocktail('r2', {glassware.id: 7}),
+            ],
+          );
+
+          await api.saveLibrary(
+            cocktailsWith([
+              glasswareWith(const ['Coupe']),
+              garnish,
+            ]),
+          );
+
+          expect(await valuesOf('r1'), equals({glassware.id: 'Tiki mug'}));
+          expect(await valuesOf('r2'), equals({glassware.id: 7}));
+        },
+      );
+
+      test(
+        'leaves a value alone when its field stops being a select',
+        () async {
+          await open(
+            recipes: [
+              cocktail('r1', {glassware.id: 'Coupe'}),
+            ],
+          );
+
+          await api.saveLibrary(
+            cocktailsWith([
+              FieldDefinition(
+                id: glassware.id,
+                label: glassware.label,
+                type: FieldType.text,
+              ),
+              garnish,
+            ]),
+          );
+
+          expect(await valuesOf('r1'), equals({glassware.id: 'Coupe'}));
+        },
+      );
+
+      test(
+        'writes the recipes, then the libraries, and emits one snapshot',
+        () async {
+          final store = await open(
+            recipes: [
+              cocktail('r1', {garnish.id: 'Orange'}),
+            ],
+          );
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+
+          await api.saveLibrary(cocktailsWith([glassware]));
+          await pumpEventQueue();
+
+          expect(
+            store.writtenKeys,
+            equals([
+              LocalStorageRecipesApi.kRecipesKey,
+              LocalStorageRecipesApi.kLibrariesKey,
+            ]),
+          );
+          expect(emitted, hasLength(1));
+          expect(
+            emitted.single.libraries.map((library) => library.id),
+            contains(emitted.single.activeLibraryId),
+          );
+        },
+      );
+
+      test(
+        'a failed libraries write throws and emits nothing, and a retry '
+        'completes the save',
+        () async {
+          final store = await open(
+            recipes: [
+              cocktail('r1', {garnish.id: 'Orange'}),
+            ],
+          );
+          final withoutGarnish = cocktailsWith([glassware]);
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+          store.failingKey = LocalStorageRecipesApi.kLibrariesKey;
+
+          await expectLater(
+            () => api.saveLibrary(withoutGarnish),
+            throwsA(isA<RecipesPersistenceException>()),
+          );
+          await pumpEventQueue();
+
+          expect(emitted, isEmpty);
+          expect(
+            store.writtenKeys,
+            equals([LocalStorageRecipesApi.kRecipesKey]),
+          );
+
+          store.failingKey = null;
+          await api.saveLibrary(withoutGarnish);
+
+          expect(
+            (await api.watch().first).libraries.first,
+            equals(withoutGarnish),
+          );
+          expect(await valuesOf('r1'), isEmpty);
+        },
+      );
+    });
+
+    group('deleteLibrary', () {
+      final tea = Library(id: 'tea', name: 'Tea');
+      final gin = CatalogIngredient(
+        id: 'i1',
+        name: 'Gin',
+        libraryIds: {cocktails.id},
+      );
+      final sugar = CatalogIngredient(
+        id: 'i2',
+        name: 'Sugar',
+        libraryIds: {cocktails.id, coffee.id},
+      );
+      final cinnamon = CatalogIngredient(
+        id: 'i3',
+        name: 'Cinnamon',
+        libraryIds: {coffee.id},
+      );
+      final negroni = Recipe(
+        id: 'r1',
+        libraryId: cocktails.id,
+        name: 'Negroni',
+      );
+      final v60 = Recipe(id: 'r2', libraryId: coffee.id, name: 'V60');
+
+      Future<_RecordingStore> open({List<Library>? libraries}) async {
+        final store = await setUpRecordingPrefs(
+          seededPrefs(
+            libraries: libraries,
+            recipes: [negroni, v60],
+            ingredients: [gin, sugar, cinnamon],
+          ),
+        );
+        api = buildApi();
+        await api.initialWrite;
+        store.writtenKeys.clear();
+        return store;
+      }
+
+      test('removes the library along with its recipes', () async {
+        await open();
+
+        await api.deleteLibrary(cocktails.id, successorId: coffee.id);
+
+        final snapshot = await api.watch().first;
+        expect(snapshot.libraries, equals([coffee]));
+        expect(snapshot.recipes, equals([v60]));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kLibrariesKey),
+          equals(jsonEncode([coffee.toJson()])),
+        );
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+          equals(jsonEncode([v60.toJson()])),
+        );
+      });
+
+      test(
+        'strips the id from a shared entry and moves an entry scoped only '
+        'to it to the successor',
+        () async {
+          await open();
+
+          await api.deleteLibrary(cocktails.id, successorId: coffee.id);
+
+          final moved = [
+            CatalogIngredient(
+              id: gin.id,
+              name: gin.name,
+              libraryIds: {coffee.id},
+            ),
+            CatalogIngredient(
+              id: sugar.id,
+              name: sugar.name,
+              libraryIds: {coffee.id},
+            ),
+            cinnamon,
+          ];
+          expect((await api.watch().first).ingredients, equals(moved));
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
+            equals(jsonEncode([for (final entry in moved) entry.toJson()])),
+          );
+        },
+      );
+
+      test(
+        'makes the successor active when the deleted library was',
+        () async {
+          await open();
+
+          await api.deleteLibrary(cocktails.id, successorId: coffee.id);
+
+          expect(
+            (await api.watch().first).activeLibraryId,
+            equals(coffee.id),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kActiveLibraryIdKey),
+            equals(coffee.id),
+          );
+        },
+      );
+
+      test(
+        'leaves the active library alone when another one is deleted',
+        () async {
+          final store = await open();
+
+          await api.deleteLibrary(coffee.id, successorId: cocktails.id);
+
+          expect(
+            (await api.watch().first).activeLibraryId,
+            equals(cocktails.id),
+          );
+          expect(
+            store.writtenKeys,
+            isNot(contains(LocalStorageRecipesApi.kActiveLibraryIdKey)),
+          );
+        },
+      );
+
+      for (final (reason, id, successorId, missing) in [
+        ('an unknown id', 'nope', coffee.id, 'nope'),
+        ('an unknown successor', cocktails.id, 'nope', 'nope'),
+        (
+          'a successor equal to the id',
+          cocktails.id,
+          cocktails.id,
+          cocktails.id,
+        ),
+      ]) {
+        test('throws LibraryNotFoundException for $reason', () async {
+          final store = await open();
+
+          await expectLater(
+            () => api.deleteLibrary(id, successorId: successorId),
+            throwsA(
+              isA<LibraryNotFoundException>().having(
+                (exception) => exception.id,
+                'id',
+                equals(missing),
+              ),
+            ),
+          );
+          expect(
+            (await api.watch().first).libraries,
+            equals([cocktails, coffee]),
+          );
+          expect(store.writtenKeys, isEmpty);
+        });
+      }
+
+      test('throws LibraryNotFoundException for the only library', () async {
+        final store = await open(libraries: [cocktails]);
+
+        await expectLater(
+          () => api.deleteLibrary(cocktails.id, successorId: cocktails.id),
+          throwsA(isA<LibraryNotFoundException>()),
+        );
+        expect((await api.watch().first).libraries, equals([cocktails]));
+        expect(store.writtenKeys, isEmpty);
+      });
+
+      test(
+        'writes the ingredients, the active id, the recipes, then the '
+        'libraries, and emits one snapshot',
+        () async {
+          final store = await open();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+
+          await api.deleteLibrary(cocktails.id, successorId: coffee.id);
+          await pumpEventQueue();
+
+          expect(
+            store.writtenKeys,
+            equals([
+              LocalStorageRecipesApi.kIngredientsKey,
+              LocalStorageRecipesApi.kActiveLibraryIdKey,
+              LocalStorageRecipesApi.kRecipesKey,
+              LocalStorageRecipesApi.kLibrariesKey,
+            ]),
+          );
+          expect(emitted, hasLength(1));
+          expect(
+            emitted.single.libraries.map((library) => library.id),
+            contains(emitted.single.activeLibraryId),
+          );
+        },
+      );
+
+      test('writes only the libraries key when nothing else changed', () async {
+        final store = await open(libraries: [cocktails, coffee, tea]);
+
+        await api.deleteLibrary(tea.id, successorId: coffee.id);
+
+        expect(
+          store.writtenKeys,
+          equals([LocalStorageRecipesApi.kLibrariesKey]),
+        );
+        expect(
+          (await api.watch().first).ingredients,
+          equals([gin, sugar, cinnamon]),
+        );
+      });
+
+      test(
+        'a write failing part-way throws and emits nothing, and a retry '
+        'completes the delete',
+        () async {
+          final store = await open();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+          store.failingKey = LocalStorageRecipesApi.kRecipesKey;
+
+          await expectLater(
+            () => api.deleteLibrary(cocktails.id, successorId: coffee.id),
+            throwsA(isA<RecipesPersistenceException>()),
+          );
+          await pumpEventQueue();
+
+          expect(emitted, isEmpty);
+          expect(
+            store.writtenKeys,
+            equals([
+              LocalStorageRecipesApi.kIngredientsKey,
+              LocalStorageRecipesApi.kActiveLibraryIdKey,
+            ]),
+          );
+
+          store.failingKey = null;
+          await api.deleteLibrary(cocktails.id, successorId: coffee.id);
+
+          final snapshot = await api.watch().first;
+          expect(snapshot.libraries, equals([coffee]));
+          expect(snapshot.recipes, equals([v60]));
+          expect(snapshot.activeLibraryId, equals(coffee.id));
+        },
+      );
+    });
+
     group('serialization', () {
+      test(
+        'a library save queued behind a recipe save conforms that recipe',
+        () async {
+          await setUpPrefs(seededPrefs());
+          api = buildApi();
+          await api.initialWrite;
+          final garnish = cocktails.fields.last;
+          final negroni = Recipe(
+            id: 'r1',
+            libraryId: cocktails.id,
+            name: 'Negroni',
+            fieldValues: {garnish.id: 'Orange'},
+          );
+
+          await Future.wait([
+            api.saveRecipe(negroni),
+            api.saveLibrary(
+              Library(
+                id: cocktails.id,
+                name: cocktails.name,
+                fields: [cocktails.fields.first],
+              ),
+            ),
+          ]);
+
+          expect(
+            (await api.watch().first).recipes.single.fieldValues,
+            isEmpty,
+          );
+        },
+      );
+
+      test(
+        'a library delete queued behind a recipe save removes that recipe',
+        () async {
+          await setUpPrefs(seededPrefs());
+          api = buildApi();
+          await api.initialWrite;
+          final v60 = Recipe(id: 'r1', libraryId: coffee.id, name: 'V60');
+
+          await Future.wait([
+            api.saveRecipe(v60),
+            api.deleteLibrary(coffee.id, successorId: cocktails.id),
+          ]);
+
+          expect((await api.watch().first).recipes, isEmpty);
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+            equals('[]'),
+          );
+        },
+      );
+
       test('two overlapping mutations both land', () async {
         await setUpPrefs(seededPrefs());
         api = buildApi();

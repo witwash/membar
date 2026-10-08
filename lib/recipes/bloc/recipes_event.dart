@@ -42,6 +42,47 @@ final class RecipesLibrarySelected extends RecipesEvent {
   List<Object?> get props => [libraryId];
 }
 
+/// Stores [library], replacing any library that already carries its id and
+/// rewriting its recipes to match.
+final class RecipesLibrarySaved extends RecipesEvent {
+  const RecipesLibrarySaved(this.library, {this.optionRenames = const {}});
+
+  final Library library;
+
+  /// The Select options retyped by this save, keyed by field id and then by
+  /// the option's stored text.
+  final Map<String, Map<String, String>> optionRenames;
+
+  @override
+  List<Object?> get props => [library, optionRenames];
+}
+
+/// Removes the library carrying [id] and its recipes, handing what cannot go
+/// with it to the library carrying [successorId].
+final class RecipesLibraryDeleted extends RecipesEvent {
+  const RecipesLibraryDeleted(this.id, {required this.successorId});
+
+  final String id;
+
+  final String successorId;
+
+  @override
+  List<Object?> get props => [id, successorId];
+}
+
+/// Removes the field carrying [fieldId] from the library carrying
+/// [libraryId], along with every value recipes hold for it.
+final class RecipesFieldDeleted extends RecipesEvent {
+  const RecipesFieldDeleted({required this.libraryId, required this.fieldId});
+
+  final String libraryId;
+
+  final String fieldId;
+
+  @override
+  List<Object?> get props => [libraryId, fieldId];
+}
+
 /// Stores [ingredient] in the catalog, replacing any entry that already
 /// carries its id.
 final class RecipesIngredientSaved extends RecipesEvent {

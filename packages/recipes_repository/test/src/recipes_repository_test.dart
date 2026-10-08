@@ -9,10 +9,13 @@ class _FakeRecipe extends Fake implements Recipe {}
 
 class _FakeCatalogIngredient extends Fake implements CatalogIngredient {}
 
+class _FakeLibrary extends Fake implements Library {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_FakeRecipe());
     registerFallbackValue(_FakeCatalogIngredient());
+    registerFallbackValue(_FakeLibrary());
   });
 
   group('RecipesRepository', () {
@@ -147,6 +150,69 @@ void main() {
         await repository.setActiveLibraryId('l2');
 
         verify(() => api.setActiveLibraryId('l2')).called(1);
+      });
+    });
+
+    group('saveLibrary', () {
+      final tea = Library(id: 'l3', name: 'Tea');
+
+      test('delegates to the api, renames included', () async {
+        const renames = {
+          'f1': {'Coupe': 'Coupe glass'},
+        };
+        when(
+          () => api.saveLibrary(
+            any(),
+            optionRenames: any(named: 'optionRenames'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await repository.saveLibrary(tea, optionRenames: renames);
+
+        verify(() => api.saveLibrary(tea, optionRenames: renames)).called(1);
+      });
+
+      test('passes a LibraryNameTakenException through untranslated', () {
+        when(
+          () => api.saveLibrary(
+            any(),
+            optionRenames: any(named: 'optionRenames'),
+          ),
+        ).thenThrow(const LibraryNameTakenException('Tea'));
+
+        expect(
+          () => repository.saveLibrary(tea),
+          throwsA(isA<LibraryNameTakenException>()),
+        );
+      });
+    });
+
+    group('deleteLibrary', () {
+      test('delegates to the api', () async {
+        when(
+          () => api.deleteLibrary(
+            any(),
+            successorId: any(named: 'successorId'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await repository.deleteLibrary('l1', successorId: 'l2');
+
+        verify(() => api.deleteLibrary('l1', successorId: 'l2')).called(1);
+      });
+
+      test('passes a LibraryNotFoundException through untranslated', () {
+        when(
+          () => api.deleteLibrary(
+            any(),
+            successorId: any(named: 'successorId'),
+          ),
+        ).thenThrow(const LibraryNotFoundException('l1'));
+
+        expect(
+          () => repository.deleteLibrary('l1', successorId: 'l2'),
+          throwsA(isA<LibraryNotFoundException>()),
+        );
       });
     });
 
