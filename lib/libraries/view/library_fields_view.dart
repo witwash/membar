@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
@@ -10,7 +11,7 @@ import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The fields a library declares, in schema order, with the actions that add,
-/// edit and delete one.
+/// edit, delete and reorder them.
 ///
 /// The library is read from the bloc on every build rather than passed in:
 /// this screen and the sheet above it are what change it, so a field saved
@@ -27,7 +28,12 @@ class LibraryFieldsView extends StatefulWidget {
 }
 
 class _LibraryFieldsViewState extends State<LibraryFieldsView> {
-  var _deleteFailed = false;
+  String? _failure;
+  var _reordering = false;
+
+  /// The field the last move was dispatched for, so that its success can say
+  /// where it went.
+  String? _movedFieldId;
 
   @override
   Widget build(BuildContext context) {
@@ -42,51 +48,85 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
     return RecipesMutationListener(
       mutation: RecipesMutation.fieldDeleted,
       onSuccess: () {},
-      onFailure: () => setState(() => _deleteFailed = true),
-      child: FScaffold(
-        header: FHeader.nested(
-          title: Text(library?.name ?? ''),
-          prefixes: [
-            FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
-          ],
-          suffixes: [
-            if (library != null)
-              FHeaderAction(
-                icon: const Icon(FLucideIcons.plus),
-                semanticsLabel: l10n.libraryFieldsAddLabel,
-                onPress: () => _edit(library),
-              ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_deleteFailed) FailureBanner(l10n.libraryFieldsDeleteFailure),
-            if (library != null)
-              Expanded(
-                child: fields.isEmpty
-                    ? _EmptyState(onAdd: () => _edit(library))
-                    : FTileGroup.builder(
-                        count: fields.length,
-                        tileBuilder: (context, index) {
-                          final field = fields[index];
-                          return FTile(
-                            title: Text(field.label),
-                            subtitle: Text(_describe(field)),
-                            suffix: FButton.icon(
-                              variant: FButtonVariant.ghost,
-                              semanticsLabel: l10n.libraryFieldsDeleteLabel(
-                                field.label,
-                              ),
-                              onPress: () => unawaited(_delete(library, field)),
-                              child: const Icon(FLucideIcons.trash2),
-                            ),
-                            onPress: () => _edit(library, field),
-                          );
-                        },
-                      ),
-              ),
-          ],
+      onFailure: () =>
+          setState(() => _failure = l10n.libraryFieldsDeleteFailure),
+      child: RecipesMutationListener(
+        mutation: RecipesMutation.fieldMoved,
+        onSuccess: _announceMove,
+        onFailure: () =>
+            setState(() => _failure = l10n.libraryFieldsMoveFailure),
+        child: FScaffold(
+          header: FHeader.nested(
+            title: Text(library?.name ?? ''),
+            prefixes: [
+              FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
+            ],
+            suffixes: [
+              if (library != null && _reordering)
+                FHeaderAction(
+                  icon: const Icon(FLucideIcons.check),
+                  semanticsLabel: l10n.libraryFieldsReorderDoneLabel,
+                  onPress: () => setState(() => _reordering = false),
+                )
+              else if (library != null) ...[
+                if (fields.length > 1)
+                  FHeaderAction(
+                    icon: const Icon(FLucideIcons.arrowUpDown),
+                    semanticsLabel: l10n.libraryFieldsReorderLabel,
+                    onPress: () => setState(() => _reordering = true),
+                  ),
+                FHeaderAction(
+                  icon: const Icon(FLucideIcons.plus),
+                  semanticsLabel: l10n.libraryFieldsAddLabel,
+                  onPress: () => _edit(library),
+                ),
+              ],
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_failure case final failure?) FailureBanner(failure),
+              if (library != null)
+                Expanded(
+                  child: fields.isEmpty
+                      ? _EmptyState(onAdd: () => _edit(library))
+                      : FTileGroup.builder(
+                          count: fields.length,
+                          tileBuilder: (context, index) {
+                            final field = fields[index];
+                            return FTile(
+                              title: Text(field.label),
+                              subtitle: Text(_describe(field)),
+                              suffix: _reordering
+                                  ? _MoveButtons(
+                                      field: field,
+                                      onMoveUp: index == 0
+                                          ? null
+                                          : () => _move(library, field, -1),
+                                      onMoveDown: index == fields.length - 1
+                                          ? null
+                                          : () => _move(library, field, 1),
+                                    )
+                                  : FButton.icon(
+                                      variant: FButtonVariant.ghost,
+                                      semanticsLabel: l10n
+                                          .libraryFieldsDeleteLabel(
+                                            field.label,
+                                          ),
+                                      onPress: () =>
+                                          unawaited(_delete(library, field)),
+                                      child: const Icon(FLucideIcons.trash2),
+                                    ),
+                              onPress: _reordering
+                                  ? null
+                                  : () => _edit(library, field),
+                            );
+                          },
+                        ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -125,8 +165,87 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
     );
     if (!confirmed || !mounted) return;
 
-    setState(() => _deleteFailed = false);
+    setState(() => _failure = null);
     bloc.add(RecipesFieldDeleted(libraryId: library.id, fieldId: field.id));
+  }
+
+  void _move(Library library, FieldDefinition field, int delta) {
+    setState(() => _failure = null);
+    _movedFieldId = field.id;
+    context.read<RecipesBloc>().add(
+      RecipesFieldMoved(
+        libraryId: library.id,
+        fieldId: field.id,
+        delta: delta,
+      ),
+    );
+  }
+
+  /// Says where the moved field now sits. Tiles are not keyed, so
+  /// screen-reader focus stays on the slot rather than following the field,
+  /// and this is the only thing that tells where it went.
+  void _announceMove() {
+    final fields =
+        context
+            .read<RecipesBloc>()
+            .state
+            .libraryById(widget.libraryId)
+            ?.fields ??
+        const <FieldDefinition>[];
+    final index = fields.indexWhere((field) => field.id == _movedFieldId);
+    if (index == -1) return;
+
+    unawaited(
+      SemanticsService.sendAnnouncement(
+        View.of(context),
+        context.l10n.libraryFieldsMovedAnnouncement(
+          fields[index].label,
+          index + 1,
+          fields.length,
+        ),
+        Directionality.of(context),
+      ),
+    );
+  }
+}
+
+/// The two actions a tile carries in reorder mode. Both always render, the
+/// inapplicable one disabled, so that a button never shifts under a second
+/// tap and lands it on the opposite action.
+class _MoveButtons extends StatelessWidget {
+  const _MoveButtons({
+    required this.field,
+    required this.onMoveUp,
+    required this.onMoveDown,
+  });
+
+  final FieldDefinition field;
+
+  final VoidCallback? onMoveUp;
+
+  final VoidCallback? onMoveDown;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        FButton.icon(
+          variant: FButtonVariant.ghost,
+          semanticsLabel: l10n.libraryFieldsMoveUpLabel(field.label),
+          onPress: onMoveUp,
+          child: const Icon(FLucideIcons.arrowUp),
+        ),
+        FButton.icon(
+          variant: FButtonVariant.ghost,
+          semanticsLabel: l10n.libraryFieldsMoveDownLabel(field.label),
+          onPress: onMoveDown,
+          child: const Icon(FLucideIcons.arrowDown),
+        ),
+      ],
+    );
   }
 }
 

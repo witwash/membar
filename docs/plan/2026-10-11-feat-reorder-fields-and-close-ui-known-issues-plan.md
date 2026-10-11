@@ -318,7 +318,7 @@ Remove the four closed entries from `docs/known-issues.md` as each phase lands.
 
 ### Phase 3: Field reorder
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `RecipesFieldMoved`, its handler and mutation kind; reorder mode on the fields screen; the storage test that pins a reorder to a libraries-only write.
 - **Files touched:** `lib/recipes/bloc/recipes_bloc.dart`, `lib/recipes/bloc/recipes_event.dart`, `lib/recipes/bloc/recipes_state.dart`, `lib/libraries/view/library_fields_view.dart`, `lib/l10n/arb/app_en.arb`, `lib/l10n/gen/*`, `test/recipes/bloc/recipes_bloc_test.dart`, `test/recipes/bloc/recipes_event_test.dart`, `test/libraries/view/library_fields_view_test.dart`, `packages/local_storage_recipes_api/test/src/local_storage_recipes_api_test.dart`, `docs/known-issues.md`
 - **Acceptance criteria:** A field moves up or down from reorder mode and the new order persists; no recipe value changes; a failed move is reported on the fields screen only; the known-issues entry is gone.

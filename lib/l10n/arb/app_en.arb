@@ -696,6 +696,56 @@
     "@libraryFieldsDeleteFailure": {
         "description": "Shown on a library's fields screen when deleting a field fails"
     },
+    "libraryFieldsReorderLabel": "Reorder fields",
+    "@libraryFieldsReorderLabel": {
+        "description": "Accessibility label of the header action that puts a library's fields screen into reorder mode"
+    },
+    "libraryFieldsReorderDoneLabel": "Done reordering",
+    "@libraryFieldsReorderDoneLabel": {
+        "description": "Accessibility label of the header action that leaves reorder mode"
+    },
+    "libraryFieldsMoveUpLabel": "Move {field} up",
+    "@libraryFieldsMoveUpLabel": {
+        "description": "Accessibility label of the action that moves a field one place earlier",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "libraryFieldsMoveDownLabel": "Move {field} down",
+    "@libraryFieldsMoveDownLabel": {
+        "description": "Accessibility label of the action that moves a field one place later",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "libraryFieldsMovedAnnouncement": "{field} moved to position {position} of {count}",
+    "@libraryFieldsMovedAnnouncement": {
+        "description": "Announced to assistive technology once a field has moved, saying where it now sits",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            },
+            "position": {
+                "type": "int",
+                "example": "2"
+            },
+            "count": {
+                "type": "int",
+                "example": "5"
+            }
+        }
+    },
+    "libraryFieldsMoveFailure": "Your field could not be moved.",
+    "@libraryFieldsMoveFailure": {
+        "description": "Shown on a library's fields screen when moving a field fails"
+    },
     "fieldTypeText": "Text",
     "@fieldTypeText": {
         "description": "Name of the field type holding a single line of text"

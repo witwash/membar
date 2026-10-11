@@ -22,6 +22,7 @@ enum RecipesMutation {
   librarySaved,
   libraryDeleted,
   fieldDeleted,
+  fieldMoved,
   ingredientSaved,
   ingredientDeleted,
   ingredientsImported,

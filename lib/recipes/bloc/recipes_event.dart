@@ -83,6 +83,26 @@ final class RecipesFieldDeleted extends RecipesEvent {
   List<Object?> get props => [libraryId, fieldId];
 }
 
+/// Moves the field carrying [fieldId] within the library carrying
+/// [libraryId] by [delta], leaving every value recipes hold for it in place.
+final class RecipesFieldMoved extends RecipesEvent {
+  const RecipesFieldMoved({
+    required this.libraryId,
+    required this.fieldId,
+    required this.delta,
+  });
+
+  final String libraryId;
+
+  final String fieldId;
+
+  /// An offset in list positions: -1 is one place earlier, +1 one place later.
+  final int delta;
+
+  @override
+  List<Object?> get props => [libraryId, fieldId, delta];
+}
+
 /// Stores [ingredient] in the catalog, replacing any entry that already
 /// carries its id.
 final class RecipesIngredientSaved extends RecipesEvent {

@@ -597,6 +597,233 @@ void main() {
       }
     });
 
+    group('RecipesFieldMoved', () {
+      final glassware = FieldDefinition(
+        id: 'f1',
+        label: 'Glassware',
+        type: FieldType.select,
+        options: const ['Coupe'],
+      );
+      final garnish = FieldDefinition(
+        id: 'f2',
+        label: 'Garnish',
+        type: FieldType.text,
+      );
+      final method = FieldDefinition(
+        id: 'f3',
+        label: 'Method',
+        type: FieldType.text,
+      );
+
+      Library cocktailsWith(List<FieldDefinition> fields) =>
+          Library(id: 'l1', name: 'Cocktails', fields: fields);
+
+      final loaded = RecipesState(
+        libraries: [
+          cocktailsWith([glassware, garnish, method]),
+          coffee,
+        ],
+        activeLibraryId: 'l1',
+      );
+
+      for (final (direction, delta, fields) in [
+        ('up', -1, [garnish, glassware, method]),
+        ('down', 1, [glassware, method, garnish]),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits loading then success and saves the library with the field '
+          'one place $direction',
+          setUp: () => when(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ).thenAnswer((_) async {}),
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(
+            RecipesFieldMoved(libraryId: 'l1', fieldId: 'f2', delta: delta),
+          ),
+          expect: () => [
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldMoved,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldMoved,
+              mutationStatus: RecipesMutationStatus.success,
+            ),
+          ],
+          verify: (_) => verify(
+            () => repository.saveLibrary(cocktailsWith(fields)),
+          ).called(1),
+        );
+      }
+
+      for (final (reason, event) in [
+        (
+          'the first field is moved up',
+          const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f1', delta: -1),
+        ),
+        (
+          'the last field is moved down',
+          const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f3', delta: 1),
+        ),
+        (
+          'the delta is zero',
+          const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f2', delta: 0),
+        ),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits nothing and saves nothing when $reason',
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(event),
+          expect: () => const <RecipesState>[],
+          verify: (_) => verifyNever(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ),
+        );
+      }
+
+      for (final (reason, event) in [
+        (
+          'the library is not there',
+          const RecipesFieldMoved(libraryId: 'gone', fieldId: 'f2', delta: 1),
+        ),
+        (
+          'the field is not there',
+          const RecipesFieldMoved(libraryId: 'l1', fieldId: 'gone', delta: 1),
+        ),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure without calling the repository when $reason',
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(event),
+          expect: () => [
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldMoved,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldMoved,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+          verify: (_) => verifyNever(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ),
+        );
+      }
+
+      for (final (reason, exception) in [
+        ('the name is taken', const LibraryNameTakenException('Cocktails')),
+        ('the write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure when $reason',
+          setUp: () => when(
+            () => repository.saveLibrary(
+              any(),
+              optionRenames: any(named: 'optionRenames'),
+            ),
+          ).thenThrow(exception),
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(
+            const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f2', delta: 1),
+          ),
+          expect: () => [
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldMoved,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            loaded.copyWith(
+              mutation: RecipesMutation.fieldMoved,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
+
+      group('queued behind another move', () {
+        late StreamController<RecipesSnapshot> snapshots;
+
+        RecipesSnapshot snapshotWith(Library library) => RecipesSnapshot(
+          libraries: [library, coffee],
+          recipes: const [],
+          ingredients: const [],
+          activeLibraryId: 'l1',
+          ingredientsImported: true,
+        );
+
+        blocTest<RecipesBloc, RecipesState>(
+          'moves the field on from where the first move left it',
+          setUp: () {
+            snapshots = StreamController<RecipesSnapshot>();
+            addTearDown(snapshots.close);
+            when(() => repository.watch()).thenAnswer((_) => snapshots.stream);
+            when(
+              () => repository.saveLibrary(
+                any(),
+                optionRenames: any(named: 'optionRenames'),
+              ),
+            ).thenAnswer((invocation) async {
+              // As the storage layer does: the snapshot is out before the
+              // save returns, which is what the second move relies on.
+              snapshots.add(
+                snapshotWith(invocation.positionalArguments.first as Library),
+              );
+            });
+          },
+          build: buildBloc,
+          act: (bloc) async {
+            bloc.add(const RecipesSubscriptionRequested());
+            snapshots.add(
+              snapshotWith(cocktailsWith([glassware, garnish, method])),
+            );
+            await Future<void>.delayed(Duration.zero);
+            bloc
+              ..add(
+                const RecipesFieldMoved(
+                  libraryId: 'l1',
+                  fieldId: 'f3',
+                  delta: -1,
+                ),
+              )
+              ..add(
+                const RecipesFieldMoved(
+                  libraryId: 'l1',
+                  fieldId: 'f3',
+                  delta: -1,
+                ),
+              );
+          },
+          verify: (bloc) {
+            verifyInOrder([
+              () => repository.saveLibrary(
+                cocktailsWith([glassware, method, garnish]),
+              ),
+              () => repository.saveLibrary(
+                cocktailsWith([method, glassware, garnish]),
+              ),
+            ]);
+            expect(
+              bloc.state.libraryById('l1')!.fields,
+              equals([method, glassware, garnish]),
+            );
+          },
+        );
+      });
+    });
+
     group('RecipesIngredientSaved', () {
       blocTest<RecipesBloc, RecipesState>(
         'emits loading then success and delegates to the repository',

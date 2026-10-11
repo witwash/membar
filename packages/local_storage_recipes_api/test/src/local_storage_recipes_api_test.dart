@@ -1165,6 +1165,59 @@ void main() {
         );
       });
 
+      test('stores a new field order without touching any recipe', () async {
+        final recipes = [
+          cocktail('r1', {glassware.id: 'Coupe', garnish.id: 'Lemon twist'}),
+          cocktail('r2', {garnish.id: 'Orange'}),
+        ];
+        final store = await open(recipes: recipes);
+        final storedRecipes = plugin.getString(
+          LocalStorageRecipesApi.kRecipesKey,
+        );
+        final reordered = cocktailsWith(cocktails.fields.reversed.toList());
+
+        await api.saveLibrary(reordered);
+
+        final snapshot = await api.watch().first;
+        expect(
+          snapshot.libraries.first.fields.map((field) => field.id),
+          equals(cocktails.fields.reversed.map((field) => field.id)),
+        );
+        expect(snapshot.recipes, equals(recipes));
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kLibrariesKey),
+          equals(jsonEncode([reordered.toJson(), coffee.toJson()])),
+        );
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+          equals(storedRecipes),
+        );
+        expect(
+          store.writtenKeys,
+          equals([LocalStorageRecipesApi.kLibrariesKey]),
+        );
+      });
+
+      test(
+        'queues the snapshot for a listener before the save returns',
+        () async {
+          await open();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+          await pumpEventQueue();
+          final reordered = cocktailsWith(cocktails.fields.reversed.toList());
+
+          await api.saveLibrary(reordered);
+          // One microtask, not a pumped queue: a caller that acts on what it
+          // was last handed, in work it schedules once the save returns, has
+          // to find the new order already there.
+          await Future<void>.microtask(() {});
+
+          expect(emitted.single.libraries.first, equals(reordered));
+        },
+      );
+
       test(
         "drops a removed field's values from that library's recipes only",
         () async {
