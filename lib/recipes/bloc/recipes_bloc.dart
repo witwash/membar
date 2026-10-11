@@ -26,7 +26,9 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     // _onFieldMoved build their write from the state, so each relies on no
     // other library edit being in flight. The sheets that edit a library are
     // modal. A move is not, but moves queue behind one another, and reorder
-    // mode offers neither delete nor the field sheet.
+    // mode offers neither delete nor the field sheet. Leaving reorder mode
+    // while a move is still being written reopens the overlap; nothing guards
+    // that window.
     on<RecipesRecipeSaved>(_onRecipeSaved, transformer: sequential());
     on<RecipesRecipeDeleted>(_onRecipeDeleted, transformer: sequential());
     on<RecipesLibrarySelected>(_onLibrarySelected, transformer: sequential());
@@ -343,18 +345,19 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     final index =
         library?.fields.indexWhere((field) => field.id == event.fieldId) ?? -1;
     final target = index + event.delta;
-    // A stale tap on a field already at the end it was sent towards: nothing
-    // to do, and nothing failed.
-    if (library != null &&
+    // A tap on a field already at the end it was sent towards: nothing to do,
+    // and nothing failed.
+    final isStaleTap =
+        library != null &&
         index != -1 &&
-        (target == index || target < 0 || target >= library.fields.length)) {
-      return;
-    }
+        (target == index || target < 0 || target >= library.fields.length);
+    if (isStaleTap) return;
 
     emit(
       state.copyWith(
         mutation: RecipesMutation.fieldMoved,
         mutationStatus: RecipesMutationStatus.loading,
+        movedFieldId: event.fieldId,
       ),
     );
 
@@ -363,6 +366,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         state.copyWith(
           mutation: RecipesMutation.fieldMoved,
           mutationStatus: RecipesMutationStatus.failure,
+          movedFieldId: event.fieldId,
         ),
       );
       return;
@@ -382,6 +386,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         state.copyWith(
           mutation: RecipesMutation.fieldMoved,
           mutationStatus: RecipesMutationStatus.success,
+          movedFieldId: event.fieldId,
         ),
       );
     } on LibraryNameTakenException {
@@ -389,6 +394,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         state.copyWith(
           mutation: RecipesMutation.fieldMoved,
           mutationStatus: RecipesMutationStatus.failure,
+          movedFieldId: event.fieldId,
         ),
       );
     } on RecipesPersistenceException {
@@ -396,6 +402,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         state.copyWith(
           mutation: RecipesMutation.fieldMoved,
           mutationStatus: RecipesMutationStatus.failure,
+          movedFieldId: event.fieldId,
         ),
       );
     }

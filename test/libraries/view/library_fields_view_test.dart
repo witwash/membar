@@ -487,11 +487,13 @@ void main() {
         ],
         mutation: RecipesMutation.fieldMoved,
         mutationStatus: RecipesMutationStatus.success,
+        movedFieldId: garnishField.id,
       );
 
       final moveFailed = loaded.copyWith(
         mutation: RecipesMutation.fieldMoved,
         mutationStatus: RecipesMutationStatus.failure,
+        movedFieldId: garnishField.id,
       );
 
       FButton moveButton(WidgetTester tester, IconData icon, int tile) =>
@@ -622,12 +624,95 @@ void main() {
         expect(find.byType(FailureBanner), findsNothing);
       });
 
-      testWidgets('announces nothing for a move it did not dispatch', (
+      testWidgets('announces each of two moves queued for different fields', (
+        tester,
+      ) async {
+        Library cocktailsWith(List<FieldDefinition> fields) => Library(
+          id: cocktailsLibrary.id,
+          name: cocktailsLibrary.name,
+          fields: fields,
+        );
+        final start = loaded.copyWith(
+          libraries: [
+            cocktailsWith([glasswareField, garnishField, abvField]),
+          ],
+        );
+        await pumpView(tester, state: start);
+        await tapAction(tester, 'Reorder fields');
+
+        // Both are dispatched before either reports back.
+        await tapAction(tester, 'Move Garnish up');
+        await tapAction(tester, 'Move ABV up');
+
+        await emit(
+          tester,
+          start.copyWith(
+            libraries: [
+              cocktailsWith([garnishField, glasswareField, abvField]),
+            ],
+            mutation: RecipesMutation.fieldMoved,
+            mutationStatus: RecipesMutationStatus.success,
+            movedFieldId: garnishField.id,
+          ),
+        );
+        await emit(
+          tester,
+          start.copyWith(
+            libraries: [
+              cocktailsWith([garnishField, glasswareField, abvField]),
+            ],
+            mutation: RecipesMutation.fieldMoved,
+            mutationStatus: RecipesMutationStatus.loading,
+            movedFieldId: abvField.id,
+          ),
+        );
+        await emit(
+          tester,
+          start.copyWith(
+            libraries: [
+              cocktailsWith([garnishField, abvField, glasswareField]),
+            ],
+            mutation: RecipesMutation.fieldMoved,
+            mutationStatus: RecipesMutationStatus.success,
+            movedFieldId: abvField.id,
+          ),
+        );
+
+        expect(
+          tester.takeAnnouncements().map(
+            (announcement) => announcement.message,
+          ),
+          equals([
+            'Garnish moved to position 1 of 3',
+            'ABV moved to position 2 of 3',
+          ]),
+        );
+      });
+
+      testWidgets('announces the position the reporting state holds, not a '
+          'later one', (tester) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        // The bloc has already moved on by the time the listener runs.
+        when(() => recipesBloc.state).thenReturn(loaded);
+        states.add(movedState);
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.takeAnnouncements().map(
+            (announcement) => announcement.message,
+          ),
+          equals(['Garnish moved to position 1 of 2']),
+        );
+      });
+
+      testWidgets('announces nothing for a field of another library', (
         tester,
       ) async {
         await pumpView(tester);
 
-        await emit(tester, movedState);
+        await emit(tester, movedState.copyWith(movedFieldId: doseField.id));
 
         expect(tester.takeAnnouncements(), isEmpty);
       });
@@ -655,6 +740,7 @@ void main() {
         await pumpView(tester);
         await tapAction(tester, 'Reorder fields');
         await emit(tester, moveFailed);
+        expect(find.byType(FailureBanner), findsOneWidget);
 
         await tapAction(tester, 'Move Garnish up');
 

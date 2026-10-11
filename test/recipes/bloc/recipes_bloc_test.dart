@@ -648,10 +648,12 @@ void main() {
             loaded.copyWith(
               mutation: RecipesMutation.fieldMoved,
               mutationStatus: RecipesMutationStatus.loading,
+              movedFieldId: 'f2',
             ),
             loaded.copyWith(
               mutation: RecipesMutation.fieldMoved,
               mutationStatus: RecipesMutationStatus.success,
+              movedFieldId: 'f2',
             ),
           ],
           verify: (_) => verify(
@@ -708,10 +710,12 @@ void main() {
             loaded.copyWith(
               mutation: RecipesMutation.fieldMoved,
               mutationStatus: RecipesMutationStatus.loading,
+              movedFieldId: event.fieldId,
             ),
             loaded.copyWith(
               mutation: RecipesMutation.fieldMoved,
               mutationStatus: RecipesMutationStatus.failure,
+              movedFieldId: event.fieldId,
             ),
           ],
           verify: (_) => verifyNever(
@@ -744,10 +748,12 @@ void main() {
             loaded.copyWith(
               mutation: RecipesMutation.fieldMoved,
               mutationStatus: RecipesMutationStatus.loading,
+              movedFieldId: 'f2',
             ),
             loaded.copyWith(
               mutation: RecipesMutation.fieldMoved,
               mutationStatus: RecipesMutationStatus.failure,
+              movedFieldId: 'f2',
             ),
           ],
         );
@@ -785,11 +791,14 @@ void main() {
           },
           build: buildBloc,
           act: (bloc) async {
+            final subscribed = bloc.stream.firstWhere(
+              (state) => state.status == RecipesStatus.success,
+            );
             bloc.add(const RecipesSubscriptionRequested());
             snapshots.add(
               snapshotWith(cocktailsWith([glassware, garnish, method])),
             );
-            await Future<void>.delayed(Duration.zero);
+            await subscribed;
             bloc
               ..add(
                 const RecipesFieldMoved(
@@ -819,6 +828,7 @@ void main() {
               bloc.state.libraryById('l1')!.fields,
               equals([method, glassware, garnish]),
             );
+            expect(bloc.state.movedFieldId, equals('f3'));
           },
         );
       });

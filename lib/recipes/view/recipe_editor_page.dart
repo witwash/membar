@@ -167,7 +167,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.recipeSaved,
-      onSuccess: () => Navigator.of(context).pop(),
+      onSuccess: (_) => Navigator.of(context).pop(),
       onFailure: () => setState(() => _saveFailed = true),
       child: PopScope(
         // Every way out — the back action and the system gesture alike — runs

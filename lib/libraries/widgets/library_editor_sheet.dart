@@ -76,7 +76,7 @@ class _LibraryEditorSheetState extends State<LibraryEditorSheet> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.librarySaved,
-      onSuccess: () {
+      onSuccess: (_) {
         if (_submitted) Navigator.of(context).pop();
       },
       onFailure: () => setState(() => _saveFailed = true),

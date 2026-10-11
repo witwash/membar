@@ -76,7 +76,7 @@ class _LibraryDeleteSheetState extends State<LibraryDeleteSheet> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.libraryDeleted,
-      onSuccess: () {
+      onSuccess: (_) {
         if (_submitted) Navigator.of(context).pop();
       },
       onFailure: () => setState(() => _deleteFailed = true),

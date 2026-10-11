@@ -77,7 +77,7 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.ingredientSaved,
-      onSuccess: () {
+      onSuccess: (_) {
         if (_submitted) Navigator.of(context).pop();
       },
       onFailure: () => setState(() => _saveFailed = true),

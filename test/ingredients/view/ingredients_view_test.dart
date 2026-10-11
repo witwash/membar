@@ -80,9 +80,6 @@ void main() {
     Finder tileOf(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(FTile));
 
-    Finder inToast(String text) =>
-        find.descendant(of: find.byType(FToast), matching: find.text(text));
-
     testWidgets('lists every entry by name with its unit and libraries', (
       tester,
     ) async {

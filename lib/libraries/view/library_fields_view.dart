@@ -31,10 +31,6 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
   String? _failure;
   var _reordering = false;
 
-  /// The field the last move was dispatched for, so that its success can say
-  /// where it went.
-  String? _movedFieldId;
-
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -47,7 +43,7 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.fieldDeleted,
-      onSuccess: () {},
+      onSuccess: (_) {},
       onFailure: () =>
           setState(() => _failure = l10n.libraryFieldsDeleteFailure),
       child: RecipesMutationListener(
@@ -62,25 +58,26 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
               FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
             ],
             suffixes: [
-              if (library != null && _reordering)
-                FHeaderAction(
-                  icon: const Icon(FLucideIcons.check),
-                  semanticsLabel: l10n.libraryFieldsReorderDoneLabel,
-                  onPress: () => setState(() => _reordering = false),
-                )
-              else if (library != null) ...[
-                if (fields.length > 1)
+              if (library != null)
+                if (_reordering)
                   FHeaderAction(
-                    icon: const Icon(FLucideIcons.arrowUpDown),
-                    semanticsLabel: l10n.libraryFieldsReorderLabel,
-                    onPress: () => setState(() => _reordering = true),
+                    icon: const Icon(FLucideIcons.check),
+                    semanticsLabel: l10n.libraryFieldsReorderDoneLabel,
+                    onPress: () => setState(() => _reordering = false),
+                  )
+                else ...[
+                  if (fields.length > 1)
+                    FHeaderAction(
+                      icon: const Icon(FLucideIcons.arrowUpDown),
+                      semanticsLabel: l10n.libraryFieldsReorderLabel,
+                      onPress: () => setState(() => _reordering = true),
+                    ),
+                  FHeaderAction(
+                    icon: const Icon(FLucideIcons.plus),
+                    semanticsLabel: l10n.libraryFieldsAddLabel,
+                    onPress: () => _edit(library),
                   ),
-                FHeaderAction(
-                  icon: const Icon(FLucideIcons.plus),
-                  semanticsLabel: l10n.libraryFieldsAddLabel,
-                  onPress: () => _edit(library),
-                ),
-              ],
+                ],
             ],
           ),
           child: Column(
@@ -171,7 +168,6 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
 
   void _move(Library library, FieldDefinition field, int delta) {
     setState(() => _failure = null);
-    _movedFieldId = field.id;
     context.read<RecipesBloc>().add(
       RecipesFieldMoved(
         libraryId: library.id,
@@ -181,18 +177,14 @@ class _LibraryFieldsViewState extends State<LibraryFieldsView> {
     );
   }
 
-  /// Says where the moved field now sits. Tiles are not keyed, so
-  /// screen-reader focus stays on the slot rather than following the field,
-  /// and this is the only thing that tells where it went.
-  void _announceMove() {
+  /// Says where the field [state] reports as moved now sits. Tiles are not
+  /// keyed, so screen-reader focus stays on the slot rather than following
+  /// the field, and this is the only thing that tells where it went.
+  void _announceMove(RecipesState state) {
     final fields =
-        context
-            .read<RecipesBloc>()
-            .state
-            .libraryById(widget.libraryId)
-            ?.fields ??
+        state.libraryById(widget.libraryId)?.fields ??
         const <FieldDefinition>[];
-    final index = fields.indexWhere((field) => field.id == _movedFieldId);
+    final index = fields.indexWhere((field) => field.id == state.movedFieldId);
     if (index == -1) return;
 
     unawaited(

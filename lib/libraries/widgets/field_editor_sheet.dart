@@ -116,7 +116,7 @@ class _FieldEditorSheetState extends State<FieldEditorSheet> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.librarySaved,
-      onSuccess: () {
+      onSuccess: (_) {
         if (_submitted) Navigator.of(context).pop();
       },
       onFailure: () => setState(() => _saveFailed = true),

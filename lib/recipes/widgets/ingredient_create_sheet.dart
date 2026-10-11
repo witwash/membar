@@ -70,7 +70,7 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.ingredientSaved,
-      onSuccess: () {
+      onSuccess: (_) {
         if (_pending case final entry?) Navigator.of(context).pop(entry);
       },
       onFailure: () => setState(() => _saveFailed = true),

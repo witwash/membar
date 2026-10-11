@@ -26,9 +26,6 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    Finder inToast(String text) =>
-        find.descendant(of: find.byType(FToast), matching: find.text(text));
-
     testWidgets('renders the title and description in a toast', (
       tester,
     ) async {

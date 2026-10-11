@@ -1199,7 +1199,8 @@ void main() {
       });
 
       test(
-        'queues the snapshot for a listener before the save returns',
+        'delivers the snapshot to a listener within a microtask of the save '
+        'returning',
         () async {
           await open();
           final emitted = <RecipesSnapshot>[];

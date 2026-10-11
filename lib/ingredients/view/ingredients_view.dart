@@ -40,11 +40,11 @@ class _IngredientsViewState extends State<IngredientsView> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.ingredientDeleted,
-      onSuccess: () {},
+      onSuccess: (_) {},
       onFailure: () => setState(() => _failure = l10n.ingredientsDeleteFailure),
       child: RecipesMutationListener(
         mutation: RecipesMutation.ingredientsImported,
-        onSuccess: () {},
+        onSuccess: (_) {},
         onFailure: () =>
             setState(() => _failure = l10n.ingredientsImportFailure),
         child: FScaffold(

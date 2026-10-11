@@ -65,6 +65,7 @@ final class RecipesState extends Equatable {
     this.searchTerm = '',
     this.activeTags = const {},
     this.ingredientsImported = false,
+    this.movedFieldId,
   });
 
   /// How the subscription to the repository is faring.
@@ -100,6 +101,14 @@ final class RecipesState extends Equatable {
   /// Whether the one-time import of ingredient names from saved recipes has
   /// run. Once it has, [importableIngredients] offers nothing.
   final bool ingredientsImported;
+
+  /// The id of the field the latest [RecipesMutation.fieldMoved] emission
+  /// reports on, or null before any move.
+  ///
+  /// Carried here rather than remembered by the screen that dispatched the
+  /// move: moves queue, so by the time one reports back the screen may have
+  /// dispatched another.
+  final String? movedFieldId;
 
   /// The library being browsed, or null before the first snapshot arrives.
   ///
@@ -350,6 +359,7 @@ final class RecipesState extends Equatable {
     String? searchTerm,
     Set<String>? activeTags,
     bool? ingredientsImported,
+    String? movedFieldId,
   }) {
     return RecipesState(
       status: status ?? this.status,
@@ -362,6 +372,7 @@ final class RecipesState extends Equatable {
       searchTerm: searchTerm ?? this.searchTerm,
       activeTags: activeTags ?? this.activeTags,
       ingredientsImported: ingredientsImported ?? this.ingredientsImported,
+      movedFieldId: movedFieldId ?? this.movedFieldId,
     );
   }
 
@@ -377,5 +388,6 @@ final class RecipesState extends Equatable {
     searchTerm,
     activeTags,
     ingredientsImported,
+    movedFieldId,
   ];
 }
