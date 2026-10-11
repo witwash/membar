@@ -99,3 +99,36 @@ not all be visible from the library being browsed.
 another library still depends on the entry.
 
 **Closing it:** name the libraries alongside the count in the refusal.
+
+## The last-library refusal reads as a stray status line
+
+Trying to delete the only library prints "… is your only library, so it cannot
+be deleted" as left-aligned red text above the list on the Libraries screen,
+where it stays until the next rename, create or delete. It looks like a status
+of the screen rather than an answer to the tap that caused it.
+
+**Why it was left:** it was noticed in the manual walkthrough after the slice
+was built. `LibrariesView` reuses `FailureBanner`, which is rendered in place
+on purpose so a failed save leaves its form in view; a refusal has no form to
+protect, so that reasoning does not carry over.
+
+**Closing it:** show the refusal as a toast through the `FToaster` already
+mounted in `lib/app/view/app.dart` and drop the `_refusal` state from
+`LibrariesView`. Keep it announced to screen readers, which the banner's live
+region does today.
+
+## Required fields are not marked until a save fails
+
+The recipe editor renders a required field's label exactly like an optional
+one. The only sign is "This field is required." under the control after a save
+is refused. The fields screen does say `Required` beside each field, but that
+is not where a recipe is filled in.
+
+**Why it was left:** it was noticed in the manual walkthrough after the slice
+was built. Required fields existed in the templates before, but the field
+editor is what lets a user add their own, which is when the gap shows.
+
+**Closing it:** mark the label of a required field in
+`lib/recipes/widgets/schema_field_control.dart`, for every field type, with an
+asterisk or an equivalent, and expose the requirement to assistive technology
+rather than as a bare glyph.
