@@ -136,6 +136,26 @@
     "@recipeEditorRequiredFieldError": {
         "description": "Validation error shown when a required schema field is blank"
     },
+    "recipeEditorRequiredFieldMark": "{label} *",
+    "@recipeEditorRequiredFieldMark": {
+        "description": "Label of a field a recipe has to fill in, as shown: the field's label followed by a mark",
+        "placeholders": {
+            "label": {
+                "type": "String",
+                "example": "Garnish"
+            }
+        }
+    },
+    "recipeEditorRequiredFieldSemanticLabel": "{label}, required",
+    "@recipeEditorRequiredFieldSemanticLabel": {
+        "description": "Label of a field a recipe has to fill in, as read by a screen reader in place of the visual mark",
+        "placeholders": {
+            "label": {
+                "type": "String",
+                "example": "Garnish"
+            }
+        }
+    },
     "recipeEditorNumberFieldError": "Enter a number.",
     "@recipeEditorNumberFieldError": {
         "description": "Validation error shown when a Number field holds something that is not a number, kept distinct from the required-field error"

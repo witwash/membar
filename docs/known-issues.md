@@ -87,19 +87,3 @@ two, and merging near-duplicates is a rename on the ingredients screen.
 
 **Closing it:** introduce a shared normalization for tags and ingredients
 together, and migrate existing duplicates deliberately.
-
-## Required fields are not marked until a save fails
-
-The recipe editor renders a required field's label exactly like an optional
-one. The only sign is "This field is required." under the control after a save
-is refused. The fields screen does say `Required` beside each field, but that
-is not where a recipe is filled in.
-
-**Why it was left:** it was noticed in the manual walkthrough after the slice
-was built. Required fields existed in the templates before, but the field
-editor is what lets a user add their own, which is when the gap shows.
-
-**Closing it:** mark the label of a required field in
-`lib/recipes/widgets/schema_field_control.dart`, for every field type, with an
-asterisk or an equivalent, and expose the requirement to assistive technology
-rather than as a bare glyph.

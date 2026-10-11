@@ -207,7 +207,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
                   KeyedSubtree(
                     key: _nameKey,
                     child: FTextFormField(
-                      label: Text(l10n.recipeEditorNameLabel),
+                      label: RequiredFieldLabel(l10n.recipeEditorNameLabel),
                       control: FTextFieldControl.managed(
                         controller: _nameController,
                       ),

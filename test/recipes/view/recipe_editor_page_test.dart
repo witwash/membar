@@ -117,6 +117,16 @@ void main() {
       return events.whereType<RecipesRecipeSaved>().single.recipe;
     }
 
+    testWidgets('marks the name as required', (tester) async {
+      await pumpEditor(tester);
+
+      expect(find.text('Name *'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.text('Name *')).label,
+        contains('Name, required'),
+      );
+    });
+
     testWidgets('renders one control per schema field, in schema order', (
       tester,
     ) async {
@@ -165,7 +175,7 @@ void main() {
     testWidgets('saves the recipe the form describes', (tester) async {
       await pumpEditor(tester);
 
-      await tester.enterText(fieldNamed('Name'), 'Martini');
+      await tester.enterText(fieldNamed('Name *'), 'Martini');
       await tapSave(tester);
 
       final recipe = savedRecipe();
@@ -205,7 +215,7 @@ void main() {
 
       testWidgets('blocks a save on a blank required field', (tester) async {
         await pumpEditor(tester, library: requiredLibrary);
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
 
         await tapSave(tester);
 
@@ -220,7 +230,7 @@ void main() {
       ) async {
         await pumpEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapSave(tester);
 
         expect(savedRecipe().fieldValues, isEmpty);
@@ -231,7 +241,7 @@ void main() {
       ) async {
         await pumpEditor(tester, library: coffeeLibrary);
 
-        await tester.enterText(fieldNamed('Name'), 'Pour-over');
+        await tester.enterText(fieldNamed('Name *'), 'Pour-over');
         await tester.enterText(fieldNamed('Dose (g)'), '1,234');
         await tapSave(tester);
 
@@ -291,7 +301,7 @@ void main() {
       testWidgets('strips rows the user left blank', (tester) async {
         await pumpEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapVisible(tester, find.text('Add ingredient'));
         await tapVisible(tester, find.text('Add step'));
         await tapSave(tester);
@@ -304,7 +314,7 @@ void main() {
       testWidgets('keeps the rows the user filled in', (tester) async {
         await pumpEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapVisible(tester, find.text('Add ingredient'));
         await tester.enterText(fieldNamed('Ingredient'), 'Gin');
         await tester.enterText(fieldNamed('Quantity'), '2');
@@ -357,7 +367,7 @@ void main() {
       Finder ingredientField(int index) => fieldNamed('Ingredient').at(index);
 
       Future<void> fillName(WidgetTester tester) async {
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
       }
 
       testWidgets('links a row to the entry picked for it', (tester) async {
@@ -548,7 +558,7 @@ void main() {
       testWidgets('adds a typed tag to the selection', (tester) async {
         await pumpEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tester.enterText(fieldNamed('New tag'), '  Stirred  ');
         await tapVisible(tester, find.text('Add tag'));
         await tapSave(tester);
@@ -573,7 +583,7 @@ void main() {
       ) async {
         await pumpEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tester.enterText(fieldNamed('New tag'), 'Stirred');
         await tester.testTextInput.receiveAction(TextInputAction.done);
         await tester.pumpAndSettle();
@@ -585,7 +595,7 @@ void main() {
       testWidgets('ignores a blank tag', (tester) async {
         await pumpEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tester.enterText(fieldNamed('New tag'), '   ');
         await tapVisible(tester, find.text('Add tag'));
         await tapSave(tester);
@@ -621,11 +631,14 @@ void main() {
         );
 
         // The default 800x600 test view: the tenth field starts well below it.
-        expect(tester.getTopLeft(find.text('Field 10')).dy, greaterThan(600.0));
+        expect(
+          tester.getTopLeft(find.text('Field 10 *')).dy,
+          greaterThan(600.0),
+        );
 
         await tapSave(tester);
 
-        expect(tester.getTopLeft(find.text('Field 10')).dy, lessThan(600.0));
+        expect(tester.getTopLeft(find.text('Field 10 *')).dy, lessThan(600.0));
         expect(find.text('This field is required.'), findsOneWidget);
       });
     });
@@ -634,7 +647,7 @@ void main() {
       testWidgets('pops once the save succeeds', (tester) async {
         await pushEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapSave(tester);
 
         // The bloc reports the save in flight before it reports the outcome.
@@ -663,7 +676,7 @@ void main() {
       ) async {
         await pushEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapSave(tester);
 
         states.add(
@@ -717,7 +730,7 @@ void main() {
       testWidgets('prompts before discarding an edited recipe', (tester) async {
         await pushEditor(tester, recipe: negroni);
 
-        await tester.enterText(fieldNamed('Name'), 'Negroni Sbag');
+        await tester.enterText(fieldNamed('Name *'), 'Negroni Sbag');
         await tapBack(tester);
 
         expect(find.text('Discard changes?'), findsOneWidget);
@@ -732,7 +745,7 @@ void main() {
       ) async {
         await pushEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapBack(tester);
 
         expect(
@@ -746,7 +759,7 @@ void main() {
       ) async {
         await pushEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapBack(tester);
         await tester.tap(find.text('Keep editing'));
         await tester.pumpAndSettle();
@@ -757,7 +770,7 @@ void main() {
       testWidgets('leaves when the prompt is confirmed', (tester) async {
         await pushEditor(tester);
 
-        await tester.enterText(fieldNamed('Name'), 'Martini');
+        await tester.enterText(fieldNamed('Name *'), 'Martini');
         await tapBack(tester);
         await tester.tap(find.text('Discard'));
         await tester.pumpAndSettle();

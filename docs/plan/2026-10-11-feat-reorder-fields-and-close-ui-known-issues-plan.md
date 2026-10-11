@@ -310,7 +310,7 @@ Remove the four closed entries from `docs/known-issues.md` as each phase lands.
 
 ### Phase 2: Required marks
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** `RequiredFieldLabel`, used by every required schema field and by the recipe name.
 - **Files touched:** `lib/recipes/widgets/required_field_label.dart`, `lib/recipes/widgets/schema_field_control.dart`, `lib/recipes/view/recipe_editor_page.dart`, `lib/l10n/arb/app_en.arb`, `lib/l10n/gen/*`, `test/recipes/widgets/required_field_label_test.dart`, `test/recipes/widgets/schema_field_control_test.dart`, `test/recipes/view/recipe_editor_page_test.dart`, `docs/known-issues.md`
 - **Acceptance criteria:** A required text, long text, number and select field and the recipe name each show the mark and expose "…, required"; optional fields are unchanged; the known-issues entry is gone.

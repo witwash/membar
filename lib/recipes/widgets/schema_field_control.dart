@@ -2,6 +2,7 @@ import 'package:forui/forui.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:membar/l10n/l10n.dart';
+import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// Holds the live value of one schema field while the editor is open, and
@@ -207,10 +208,12 @@ class SchemaFieldControl extends StatelessWidget {
     // Every control validates as the user works, so a correction clears its
     // error there and then rather than leaving it up until the next Save.
     const autovalidate = AutovalidateMode.onUserInteraction;
+    Widget label(String text) =>
+        field.required ? RequiredFieldLabel(text) : Text(text);
 
     return switch (controller) {
       _TextSchemaFieldController(controller: final text) => FTextFormField(
-        label: Text(field.label),
+        label: label(field.label),
         control: FTextFieldControl.managed(controller: text),
         minLines: field.type == FieldType.longText ? 3 : null,
         maxLines: field.type == FieldType.longText ? 5 : 1,
@@ -218,7 +221,7 @@ class SchemaFieldControl extends StatelessWidget {
         validator: (_) => validate(),
       ),
       _NumberSchemaFieldController(controller: final text) => FTextFormField(
-        label: Text(
+        label: label(
           field.unit == null ? field.label : '${field.label} (${field.unit})',
         ),
         control: FTextFieldControl.managed(controller: text),
@@ -227,7 +230,7 @@ class SchemaFieldControl extends StatelessWidget {
         validator: (_) => validate(),
       ),
       _SelectSchemaFieldController(controller: final select) => FSelect<String>(
-        label: Text(field.label),
+        label: label(field.label),
         items: {
           for (final option in field.optionsOrEmpty) option: option,
         },
