@@ -88,35 +88,6 @@ two, and merging near-duplicates is a rename on the ingredients screen.
 **Closing it:** introduce a shared normalization for tags and ingredients
 together, and migrate existing duplicates deliberately.
 
-
-## Usage counts span every library
-
-"Used in 4 recipes" on the ingredients screen counts recipes in all libraries,
-because deleting an entry is global. The recipes behind a refused delete may
-not all be visible from the library being browsed.
-
-**Why it was left:** a per-library count would let a delete look safe while
-another library still depends on the entry.
-
-**Closing it:** name the libraries alongside the count in the refusal.
-
-## The last-library refusal reads as a stray status line
-
-Trying to delete the only library prints "… is your only library, so it cannot
-be deleted" as left-aligned red text above the list on the Libraries screen,
-where it stays until the next rename, create or delete. It looks like a status
-of the screen rather than an answer to the tap that caused it.
-
-**Why it was left:** it was noticed in the manual walkthrough after the slice
-was built. `LibrariesView` reuses `FailureBanner`, which is rendered in place
-on purpose so a failed save leaves its form in view; a refusal has no form to
-protect, so that reasoning does not carry over.
-
-**Closing it:** show the refusal as a toast through the `FToaster` already
-mounted in `lib/app/view/app.dart` and drop the `_refusal` state from
-`LibrariesView`. Keep it announced to screen readers, which the banner's live
-region does today.
-
 ## Required fields are not marked until a save fails
 
 The recipe editor renders a required field's label exactly like an optional

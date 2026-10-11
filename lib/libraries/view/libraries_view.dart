@@ -22,7 +22,7 @@ class LibrariesView extends StatefulWidget {
 }
 
 class _LibrariesViewState extends State<LibrariesView> {
-  String? _refusal;
+  FToasterEntry? _refusalToast;
 
   @override
   Widget build(BuildContext context) {
@@ -44,54 +44,46 @@ class _LibrariesViewState extends State<LibrariesView> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (_refusal case final refusal?) FailureBanner(refusal),
-          Expanded(
-            child: FTileGroup.builder(
-              count: libraries.length,
-              tileBuilder: (context, index) {
-                final library = libraries[index];
-                return FTile(
-                  title: Text(library.name),
-                  subtitle: Text(
-                    [
-                      l10n.librariesFieldCount(library.fields.length),
-                      l10n.librariesRecipeCount(
-                        state.recipeCountIn(library.id),
-                      ),
-                    ].join(' · '),
-                  ),
-                  suffix: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FButton.icon(
-                        variant: FButtonVariant.ghost,
-                        semanticsLabel: l10n.librariesRenameLabel(library.name),
-                        onPress: () => _edit(library),
-                        child: const Icon(FLucideIcons.pencil),
-                      ),
-                      FButton.icon(
-                        variant: FButtonVariant.ghost,
-                        semanticsLabel: l10n.librariesDeleteLabel(library.name),
-                        onPress: () => _delete(library),
-                        child: const Icon(FLucideIcons.trash2),
-                      ),
-                    ],
-                  ),
-                  onPress: () => _openFields(library),
-                );
-              },
+      child: FTileGroup.builder(
+        count: libraries.length,
+        tileBuilder: (context, index) {
+          final library = libraries[index];
+          return FTile(
+            title: Text(library.name),
+            subtitle: Text(
+              [
+                l10n.librariesFieldCount(library.fields.length),
+                l10n.librariesRecipeCount(
+                  state.recipeCountIn(library.id),
+                ),
+              ].join(' · '),
             ),
-          ),
-        ],
+            suffix: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FButton.icon(
+                  variant: FButtonVariant.ghost,
+                  semanticsLabel: l10n.librariesRenameLabel(library.name),
+                  onPress: () => _edit(library),
+                  child: const Icon(FLucideIcons.pencil),
+                ),
+                FButton.icon(
+                  variant: FButtonVariant.ghost,
+                  semanticsLabel: l10n.librariesDeleteLabel(library.name),
+                  onPress: () => _delete(library),
+                  child: const Icon(FLucideIcons.trash2),
+                ),
+              ],
+            ),
+            onPress: () => _openFields(library),
+          );
+        },
       ),
     );
   }
 
   void _openFields(Library library) {
-    setState(() => _refusal = null);
+    _refusalToast?.dismiss();
     Navigator.of(context).push(
       LibraryFieldsPage.route(
         bloc: context.read<RecipesBloc>(),
@@ -101,7 +93,7 @@ class _LibrariesViewState extends State<LibrariesView> {
   }
 
   void _edit([Library? library]) {
-    setState(() => _refusal = null);
+    _refusalToast?.dismiss();
     unawaited(LibraryEditorSheet.show(context, library: library));
   }
 
@@ -109,14 +101,17 @@ class _LibrariesViewState extends State<LibrariesView> {
   /// a successor to take the ingredients, and with one library there is none
   /// to offer.
   void _delete(Library library) {
+    _refusalToast?.dismiss();
     if (context.read<RecipesBloc>().state.libraries.length == 1) {
-      setState(
-        () => _refusal = context.l10n.librariesLastLibraryRefusal(library.name),
+      final l10n = context.l10n;
+      _refusalToast = showRefusalToast(
+        context,
+        title: l10n.librariesLastLibraryRefusalTitle(library.name),
+        description: l10n.librariesLastLibraryRefusalDescription,
       );
       return;
     }
 
-    setState(() => _refusal = null);
     unawaited(LibraryDeleteSheet.show(context, library: library));
   }
 }

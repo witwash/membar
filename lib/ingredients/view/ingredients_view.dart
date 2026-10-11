@@ -21,6 +21,7 @@ class IngredientsView extends StatefulWidget {
 
 class _IngredientsViewState extends State<IngredientsView> {
   String? _failure;
+  FToasterEntry? _refusalToast;
 
   @override
   Widget build(BuildContext context) {
@@ -91,9 +92,7 @@ class _IngredientsViewState extends State<IngredientsView> {
                                   unawaited(_delete(entry, recipeCount)),
                               child: const Icon(FLucideIcons.trash2),
                             ),
-                            onPress: () => unawaited(
-                              IngredientEditorSheet.show(context, entry: entry),
-                            ),
+                            onPress: () => _edit(entry),
                           );
                         },
                       ),
@@ -125,13 +124,32 @@ class _IngredientsViewState extends State<IngredientsView> {
     context.read<RecipesBloc>().add(const RecipesIngredientsImported());
   }
 
+  void _edit(CatalogIngredient entry) {
+    _refusalToast?.dismiss();
+    unawaited(IngredientEditorSheet.show(context, entry: entry));
+  }
+
   /// Refuses an entry in use before dispatching, which is how the refusal can
-  /// name the count: a failed delete cannot say why it failed.
+  /// name the count and the libraries to look in: a failed delete cannot say
+  /// why it failed. A library id that resolves to nothing is left out.
   Future<void> _delete(CatalogIngredient entry, int recipeCount) async {
     final l10n = context.l10n;
+    _refusalToast?.dismiss();
     if (recipeCount > 0) {
-      setState(
-        () => _failure = l10n.ingredientsDeleteRefusal(entry.name, recipeCount),
+      final state = context.read<RecipesBloc>().state;
+      final libraries = [
+        for (final id in state.libraryIdsUsingIngredient(entry.id))
+          ?state.libraryById(id)?.name,
+      ]..sort(compareCaseInsensitive);
+      _refusalToast = showRefusalToast(
+        context,
+        title: l10n.ingredientsDeleteRefusalTitle(entry.name),
+        description: libraries.isEmpty
+            ? l10n.ingredientsDeleteRefusalDescriptionNoLibraries(recipeCount)
+            : l10n.ingredientsDeleteRefusalDescription(
+                recipeCount,
+                libraries.join(', '),
+              ),
       );
       return;
     }

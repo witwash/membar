@@ -232,6 +232,17 @@ final class RecipesState extends Equatable {
     return usage;
   }
 
+  /// The ids of the libraries holding a recipe that references the entry
+  /// carrying [ingredientId] — where a refused delete sends the user to look.
+  ///
+  /// Read from the recipes rather than the entry's own libraries, which can
+  /// lag behind its use.
+  Set<String> libraryIdsUsingIngredient(String ingredientId) => {
+    for (final recipe in recipes)
+      if (recipe.ingredients.any((row) => row.catalogId == ingredientId))
+        recipe.libraryId,
+  };
+
   /// The entries the import would create: one per ingredient name used in a
   /// saved recipe that no catalog entry claims, ordered case-insensitively.
   /// Empty once [ingredientsImported], so the import is offered only once.

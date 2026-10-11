@@ -330,14 +330,34 @@
             }
         }
     },
-    "ingredientsDeleteRefusal": "{ingredient} is used in {count, plural, =1{1 recipe} other{{count} recipes}}, so it cannot be deleted.",
-    "@ingredientsDeleteRefusal": {
-        "description": "Shown instead of deleting a catalog ingredient that recipes still use",
+    "ingredientsDeleteRefusalTitle": "{ingredient} cannot be deleted",
+    "@ingredientsDeleteRefusalTitle": {
+        "description": "Title of the toast shown instead of deleting a catalog ingredient that recipes still use",
         "placeholders": {
             "ingredient": {
                 "type": "String",
                 "example": "Gin"
+            }
+        }
+    },
+    "ingredientsDeleteRefusalDescription": "Used in {count, plural, =1{1 recipe} other{{count} recipes}}. Libraries: {libraries}.",
+    "@ingredientsDeleteRefusalDescription": {
+        "description": "Body of the toast shown instead of deleting a catalog ingredient, naming how many recipes use it and the libraries holding them",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "4"
             },
+            "libraries": {
+                "type": "String",
+                "example": "Cocktails, Coffee"
+            }
+        }
+    },
+    "ingredientsDeleteRefusalDescriptionNoLibraries": "Used in {count, plural, =1{1 recipe} other{{count} recipes}}.",
+    "@ingredientsDeleteRefusalDescriptionNoLibraries": {
+        "description": "Body of the toast shown instead of deleting a catalog ingredient when none of the libraries holding its recipes can be named",
+        "placeholders": {
             "count": {
                 "type": "int",
                 "example": "4"
@@ -464,15 +484,19 @@
             }
         }
     },
-    "librariesLastLibraryRefusal": "{library} is your only library, so it cannot be deleted. Create another library first.",
-    "@librariesLastLibraryRefusal": {
-        "description": "Shown instead of deleting the only library that exists",
+    "librariesLastLibraryRefusalTitle": "{library} cannot be deleted",
+    "@librariesLastLibraryRefusalTitle": {
+        "description": "Title of the toast shown instead of deleting the only library that exists",
         "placeholders": {
             "library": {
                 "type": "String",
                 "example": "Cocktails"
             }
         }
+    },
+    "librariesLastLibraryRefusalDescription": "It is your only library. Create another library first.",
+    "@librariesLastLibraryRefusalDescription": {
+        "description": "Body of the toast shown instead of deleting the only library that exists"
     },
     "libraryEditorCreateTitle": "New library",
     "@libraryEditorCreateTitle": {

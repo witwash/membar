@@ -66,6 +66,9 @@ void main() {
     Finder tileOf(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(FTile));
 
+    Finder inToast(String text) =>
+        find.descendant(of: find.byType(FToast), matching: find.text(text));
+
     testWidgets('lists every library in stored order', (tester) async {
       await pumpView(tester, loaded);
 
@@ -219,19 +222,18 @@ void main() {
         expect(tester.element(fields).read<RecipesBloc>(), same(recipesBloc));
       });
 
-      testWidgets('clears the refusal once a library is opened', (
+      testWidgets('dismisses the refusal once a library is opened', (
         tester,
       ) async {
         await pumpView(tester, onlyCocktails);
         await tapAction(tester, 'Delete Cocktails');
+        expect(find.byType(FToast), findsOneWidget);
 
         await tester.tap(find.text('Cocktails'));
         await tester.pumpAndSettle();
-        await tester.tap(find.byType(FHeaderAction).first);
-        await tester.pumpAndSettle();
 
-        expect(find.byType(LibrariesView), findsOneWidget);
-        expect(find.byType(FailureBanner), findsNothing);
+        expect(find.byType(LibraryFieldsView), findsOneWidget);
+        expect(find.byType(FToast), findsNothing);
       });
     });
 
@@ -297,45 +299,49 @@ void main() {
 
         await tapAction(tester, 'Delete Cocktails');
 
+        expect(inToast('Cocktails cannot be deleted'), findsOneWidget);
         expect(
-          find.text(
-            'Cocktails is your only library, so it cannot be deleted. '
-            'Create another library first.',
-          ),
+          inToast('It is your only library. Create another library first.'),
           findsOneWidget,
         );
+        expect(find.byType(FailureBanner), findsNothing);
         expect(find.byType(LibraryDeleteSheet), findsNothing);
         verifyNever(() => recipesBloc.add(any()));
       });
 
-      testWidgets('clears the refusal once a library is being added', (
+      testWidgets('leaves one toast when it is refused twice', (tester) async {
+        await pumpView(tester, onlyCocktails);
+
+        await tapAction(tester, 'Delete Cocktails');
+        await tapAction(tester, 'Delete Cocktails');
+
+        expect(find.byType(FToast), findsOneWidget);
+      });
+
+      testWidgets('dismisses the refusal once a library is being added', (
         tester,
       ) async {
         await pumpView(tester, onlyCocktails);
         await tapAction(tester, 'Delete Cocktails');
+        expect(find.byType(FToast), findsOneWidget);
 
         await tapAction(tester, 'Add library');
 
-        expect(find.byType(FailureBanner), findsNothing);
+        expect(find.byType(LibraryEditorSheet), findsOneWidget);
+        expect(find.byType(FToast), findsNothing);
       });
 
-      testWidgets('clears the refusal once a second library can take over', (
-        tester,
-      ) async {
+      testWidgets('dismisses the refusal once a second library can take '
+          'over', (tester) async {
         await pumpView(tester, onlyCocktails);
         await tapAction(tester, 'Delete Cocktails');
+        expect(find.byType(FToast), findsOneWidget);
         await emit(tester, loaded);
 
         await tapAction(tester, 'Delete Cocktails');
 
         expect(find.byType(LibraryDeleteSheet), findsOneWidget);
-        expect(
-          find.descendant(
-            of: find.byType(LibrariesView),
-            matching: find.byType(FailureBanner),
-          ),
-          findsNothing,
-        );
+        expect(find.byType(FToast), findsNothing);
       });
     });
   });
