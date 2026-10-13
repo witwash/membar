@@ -72,3 +72,74 @@ two, and merging near-duplicates is a rename on the ingredients screen.
 
 **Closing it:** introduce a shared normalization for tags and ingredients
 together, and migrate existing duplicates deliberately.
+
+## Empty inline callbacks stand in for "do nothing"
+
+Where an API requires a callback and the caller has nothing to do, the code
+writes an empty closure on the spot:
+
+- `onSuccess: (_) {}` on three `RecipesMutationListener`s — both in
+  `lib/ingredients/view/ingredients_view.dart` and the `fieldDeleted` one in
+  `lib/libraries/view/library_fields_view.dart`.
+- `result.then((_) {}, …)` in `_serialized` in
+  `packages/local_storage_recipes_api/lib/src/local_storage_recipes_api.dart`.
+
+Each reads as a body someone forgot to fill in rather than a decision to
+discard the value.
+
+**Why it was left:** every one is correct as written, so this is a readability
+cleanup with no behaviour attached, deferred until the helper below exists.
+
+**Closing it:** add a helper named `ignore` that takes one nullable dynamic
+argument and does nothing — `void ignore(dynamic _) {}` — and pass it as a
+tear-off (`onSuccess: ignore`) in place of every empty single-argument
+closure. The app and `local_storage_recipes_api` cannot share an app-level
+file, so the helper needs a home both can import, or one copy per package.
+Closures of a different shape are out of its reach and stay as they are: the
+two-argument `onError: (_, _) {}` beside the `then` above, zero-argument ones
+such as `setState(() {})`, and `parse: (_) => null` in
+`lib/recipes/widgets/ingredient_picker.dart`, which must return a value.
+
+## Mutable state is declared with `var`, and no linter says otherwise
+
+Seventeen mutable fields across eight files in `lib/` are declared as
+`var _submitted = false;` rather than `bool _submitted = false;`, and three
+locals in `lib/recipes/bloc/recipes_state.dart` and
+`packages/local_storage_recipes_api/lib/src/local_storage_recipes_api.dart`
+do the same. The type is inferred correctly everywhere, but a reader has to
+work it out from the initializer, and the house preference is to see it
+written.
+
+The gap behind it is wider than `var`: the only static analysis is
+`very_good_analysis` plus `bloc_lint`, which cover style and Bloc usage but
+not metrics, unused code or the stricter rules a dedicated linter adds.
+
+**Why it was left:** the code follows the lint set as configured.
+`very_good_analysis` 10.3.0 asks for a type only when there is no initializer
+or the type is not obvious, and its `omit_local_variable_types` rejects a
+type on a local outright. Retyping by hand with no rule behind it would drift
+back.
+
+**Closing it:** two steps, the second of which keeps the first from undoing
+itself.
+
+1. Give the seventeen fields and three locals explicit types. The locals need
+   `omit_local_variable_types` switched off in every `analysis_options.yaml`
+   first — the root and the three under `packages/` — or the fix trades one
+   warning for another.
+2. Add DCM (dcm.dev) on its Free plan and enable a chosen set of its rules
+   under `dcm: rules:` in `analysis_options.yaml`. As of October 2026 that plan
+   offers 100 lint rules and 22 metrics for one seat and up to 50k analyzed
+   lines, activated per device with a licence key; the repo holds about 23k
+   lines of Dart including tests.
+
+Two things to settle before step 2:
+
+- DCM's rule for this, `prefer-type-over-var`, is badged "pro+" in its docs,
+  so the Free plan will not enforce step 1. Either accept the Pro plan for
+  that rule, enable Dart's own `always_specify_types` (which also demands
+  types on closure parameters and generic literals), or leave step 1 as a
+  convention.
+- The pricing page lists the CI/CD key under the Teams plan. Confirm whether
+  a Free licence can run in `.github/workflows/main.yaml`; if not, DCM is a
+  local and IDE check only.
