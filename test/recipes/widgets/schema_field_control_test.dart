@@ -158,7 +158,14 @@ void main() {
       testWidgets('renders a label without a unit when it has none', (
         tester,
       ) async {
-        await pumpControl(tester, requiredField);
+        await pumpControl(
+          tester,
+          FieldDefinition(
+            id: 'field-dose',
+            label: 'Dose',
+            type: FieldType.number,
+          ),
+        );
 
         expect(find.text('Dose'), findsOneWidget);
       });
@@ -389,6 +396,52 @@ void main() {
 
         expect(controller.value, 'Rocks');
       });
+    });
+
+    group('required mark', () {
+      final cases = [
+        (type: FieldType.text, unit: null, label: 'Strength'),
+        (type: FieldType.longText, unit: null, label: 'Strength'),
+        (type: FieldType.number, unit: '%', label: 'Strength (%)'),
+        (type: FieldType.number, unit: null, label: 'Strength'),
+        (type: FieldType.select, unit: null, label: 'Strength'),
+      ];
+
+      for (final (:type, :unit, :label) in cases) {
+        final kind = '${type.name} field${unit == null ? '' : ' with a unit'}';
+        FieldDefinition field({required bool required}) => FieldDefinition(
+          id: 'field-strength',
+          label: 'Strength',
+          type: type,
+          required: required,
+          unit: unit,
+          options: type == FieldType.select ? const ['Low', 'High'] : null,
+        );
+
+        testWidgets('marks a required $kind and reads the requirement out', (
+          tester,
+        ) async {
+          await pumpControl(tester, field(required: true));
+
+          expect(find.text('$label *'), findsOneWidget);
+          expect(find.text(label), findsNothing);
+          expect(
+            tester.getSemantics(find.text('$label *')).label,
+            contains('$label, required'),
+          );
+        });
+
+        testWidgets('leaves an optional $kind bare', (tester) async {
+          await pumpControl(tester, field(required: false));
+
+          expect(find.text(label), findsOneWidget);
+          expect(find.byType(RequiredFieldLabel), findsNothing);
+          expect(
+            tester.getSemantics(find.text(label)).label,
+            isNot(contains('required')),
+          );
+        });
+      }
     });
   });
 }

@@ -50,21 +50,6 @@ has to decide what happens to the values the destination has no field for.
 field or drops it, stating the count of values dropped before it runs — the
 rule schema edits already follow.
 
-## Fields cannot be reordered
-
-A new field is appended to its library's schema, and the schema's list order
-is the order the recipe editor and the details screen render. Moving a field
-means deleting it and adding it again, which clears every value recipes held
-for it.
-
-**Why it was left:** reordering was deferred from the slice that introduced
-the field editor, to keep the sheet and its option rows in a review of their
-own.
-
-**Closing it:** add a reorder control to the fields screen that saves the
-library with its fields in the new order. A field's id does not change when it
-moves, so no recipe value is touched.
-
 ## Unit labels are not localized
 
 `Unit.label` is the canonical spelling (`ml`, `barspoon`) and is rendered as-is
@@ -88,47 +73,73 @@ two, and merging near-duplicates is a rename on the ingredients screen.
 **Closing it:** introduce a shared normalization for tags and ingredients
 together, and migrate existing duplicates deliberately.
 
+## Empty inline callbacks stand in for "do nothing"
 
-## Usage counts span every library
+Where an API requires a callback and the caller has nothing to do, the code
+writes an empty closure on the spot:
 
-"Used in 4 recipes" on the ingredients screen counts recipes in all libraries,
-because deleting an entry is global. The recipes behind a refused delete may
-not all be visible from the library being browsed.
+- `onSuccess: (_) {}` on three `RecipesMutationListener`s — both in
+  `lib/ingredients/view/ingredients_view.dart` and the `fieldDeleted` one in
+  `lib/libraries/view/library_fields_view.dart`.
+- `result.then((_) {}, …)` in `_serialized` in
+  `packages/local_storage_recipes_api/lib/src/local_storage_recipes_api.dart`.
 
-**Why it was left:** a per-library count would let a delete look safe while
-another library still depends on the entry.
+Each reads as a body someone forgot to fill in rather than a decision to
+discard the value.
 
-**Closing it:** name the libraries alongside the count in the refusal.
+**Why it was left:** every one is correct as written, so this is a readability
+cleanup with no behaviour attached, deferred until the helper below exists.
 
-## The last-library refusal reads as a stray status line
+**Closing it:** add a helper named `ignore` that takes one nullable dynamic
+argument and does nothing — `void ignore(dynamic _) {}` — and pass it as a
+tear-off (`onSuccess: ignore`) in place of every empty single-argument
+closure. The app and `local_storage_recipes_api` cannot share an app-level
+file, so the helper needs a home both can import, or one copy per package.
+Closures of a different shape are out of its reach and stay as they are: the
+two-argument `onError: (_, _) {}` beside the `then` above, zero-argument ones
+such as `setState(() {})`, and `parse: (_) => null` in
+`lib/recipes/widgets/ingredient_picker.dart`, which must return a value.
 
-Trying to delete the only library prints "… is your only library, so it cannot
-be deleted" as left-aligned red text above the list on the Libraries screen,
-where it stays until the next rename, create or delete. It looks like a status
-of the screen rather than an answer to the tap that caused it.
+## Mutable state is declared with `var`, and no linter says otherwise
 
-**Why it was left:** it was noticed in the manual walkthrough after the slice
-was built. `LibrariesView` reuses `FailureBanner`, which is rendered in place
-on purpose so a failed save leaves its form in view; a refusal has no form to
-protect, so that reasoning does not carry over.
+Seventeen mutable fields across eight files in `lib/` are declared as
+`var _submitted = false;` rather than `bool _submitted = false;`, and three
+locals in `lib/recipes/bloc/recipes_state.dart` and
+`packages/local_storage_recipes_api/lib/src/local_storage_recipes_api.dart`
+do the same. The type is inferred correctly everywhere, but a reader has to
+work it out from the initializer, and the house preference is to see it
+written.
 
-**Closing it:** show the refusal as a toast through the `FToaster` already
-mounted in `lib/app/view/app.dart` and drop the `_refusal` state from
-`LibrariesView`. Keep it announced to screen readers, which the banner's live
-region does today.
+The gap behind it is wider than `var`: the only static analysis is
+`very_good_analysis` plus `bloc_lint`, which cover style and Bloc usage but
+not metrics, unused code or the stricter rules a dedicated linter adds.
 
-## Required fields are not marked until a save fails
+**Why it was left:** the code follows the lint set as configured.
+`very_good_analysis` 10.3.0 asks for a type only when there is no initializer
+or the type is not obvious, and its `omit_local_variable_types` rejects a
+type on a local outright. Retyping by hand with no rule behind it would drift
+back.
 
-The recipe editor renders a required field's label exactly like an optional
-one. The only sign is "This field is required." under the control after a save
-is refused. The fields screen does say `Required` beside each field, but that
-is not where a recipe is filled in.
+**Closing it:** two steps, the second of which keeps the first from undoing
+itself.
 
-**Why it was left:** it was noticed in the manual walkthrough after the slice
-was built. Required fields existed in the templates before, but the field
-editor is what lets a user add their own, which is when the gap shows.
+1. Give the seventeen fields and three locals explicit types. The locals need
+   `omit_local_variable_types` switched off in every `analysis_options.yaml`
+   first — the root and the three under `packages/` — or the fix trades one
+   warning for another.
+2. Add DCM (dcm.dev) on its Free plan and enable a chosen set of its rules
+   under `dcm: rules:` in `analysis_options.yaml`. As of October 2026 that plan
+   offers 100 lint rules and 22 metrics for one seat and up to 50k analyzed
+   lines, activated per device with a licence key; the repo holds about 23k
+   lines of Dart including tests.
 
-**Closing it:** mark the label of a required field in
-`lib/recipes/widgets/schema_field_control.dart`, for every field type, with an
-asterisk or an equivalent, and expose the requirement to assistive technology
-rather than as a bare glyph.
+Two things to settle before step 2:
+
+- DCM's rule for this, `prefer-type-over-var`, is badged "pro+" in its docs,
+  so the Free plan will not enforce step 1. Either accept the Pro plan for
+  that rule, enable Dart's own `always_specify_types` (which also demands
+  types on closure parameters and generic literals), or leave step 1 as a
+  convention.
+- The pricing page lists the CI/CD key under the Teams plan. Confirm whether
+  a Free licence can run in `.github/workflows/main.yaml`; if not, DCM is a
+  local and IDE check only.

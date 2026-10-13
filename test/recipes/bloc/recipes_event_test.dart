@@ -90,6 +90,37 @@ void main() {
       );
     });
 
+    test('RecipesFieldMoved carries the library, the field and the delta', () {
+      const moved = RecipesFieldMoved(
+        libraryId: 'l1',
+        fieldId: 'f1',
+        delta: -1,
+      );
+
+      expect(
+        moved,
+        const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f1', delta: -1),
+      );
+      expect(
+        moved,
+        isNot(
+          const RecipesFieldMoved(libraryId: 'l2', fieldId: 'f1', delta: -1),
+        ),
+      );
+      expect(
+        moved,
+        isNot(
+          const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f2', delta: -1),
+        ),
+      );
+      expect(
+        moved,
+        isNot(
+          const RecipesFieldMoved(libraryId: 'l1', fieldId: 'f1', delta: 1),
+        ),
+      );
+    });
+
     test('RecipesIngredientSaved carries the ingredient', () {
       final gin = CatalogIngredient(
         id: 'i1',

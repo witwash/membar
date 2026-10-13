@@ -73,7 +73,7 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
 
     return RecipesMutationListener(
       mutation: RecipesMutation.recipeDeleted,
-      onSuccess: () => Navigator.of(context).pop(),
+      onSuccess: (_) => Navigator.of(context).pop(),
       onFailure: () => setState(() => _deleteFailed = true),
       child: FScaffold(
         header: FHeader.nested(

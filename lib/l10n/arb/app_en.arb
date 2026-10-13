@@ -136,6 +136,26 @@
     "@recipeEditorRequiredFieldError": {
         "description": "Validation error shown when a required schema field is blank"
     },
+    "recipeEditorRequiredFieldMark": "{label} *",
+    "@recipeEditorRequiredFieldMark": {
+        "description": "Label of a field a recipe has to fill in, as shown: the field's label followed by a mark",
+        "placeholders": {
+            "label": {
+                "type": "String",
+                "example": "Garnish"
+            }
+        }
+    },
+    "recipeEditorRequiredFieldSemanticLabel": "{label}, required",
+    "@recipeEditorRequiredFieldSemanticLabel": {
+        "description": "Label of a field a recipe has to fill in, as read by a screen reader in place of the visual mark",
+        "placeholders": {
+            "label": {
+                "type": "String",
+                "example": "Garnish"
+            }
+        }
+    },
     "recipeEditorNumberFieldError": "Enter a number.",
     "@recipeEditorNumberFieldError": {
         "description": "Validation error shown when a Number field holds something that is not a number, kept distinct from the required-field error"
@@ -330,14 +350,34 @@
             }
         }
     },
-    "ingredientsDeleteRefusal": "{ingredient} is used in {count, plural, =1{1 recipe} other{{count} recipes}}, so it cannot be deleted.",
-    "@ingredientsDeleteRefusal": {
-        "description": "Shown instead of deleting a catalog ingredient that recipes still use",
+    "ingredientsDeleteRefusalTitle": "{ingredient} cannot be deleted",
+    "@ingredientsDeleteRefusalTitle": {
+        "description": "Title of the toast shown instead of deleting a catalog ingredient that recipes still use",
         "placeholders": {
             "ingredient": {
                 "type": "String",
                 "example": "Gin"
+            }
+        }
+    },
+    "ingredientsDeleteRefusalDescription": "Used in {count, plural, =1{1 recipe} other{{count} recipes}}. Libraries: {libraries}.",
+    "@ingredientsDeleteRefusalDescription": {
+        "description": "Body of the toast shown instead of deleting a catalog ingredient, naming how many recipes use it and the libraries holding them",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "4"
             },
+            "libraries": {
+                "type": "String",
+                "example": "Cocktails, Coffee"
+            }
+        }
+    },
+    "ingredientsDeleteRefusalDescriptionNoLibraries": "Used in {count, plural, =1{1 recipe} other{{count} recipes}}.",
+    "@ingredientsDeleteRefusalDescriptionNoLibraries": {
+        "description": "Body of the toast shown instead of deleting a catalog ingredient when none of the libraries holding its recipes can be named",
+        "placeholders": {
             "count": {
                 "type": "int",
                 "example": "4"
@@ -464,15 +504,19 @@
             }
         }
     },
-    "librariesLastLibraryRefusal": "{library} is your only library, so it cannot be deleted. Create another library first.",
-    "@librariesLastLibraryRefusal": {
-        "description": "Shown instead of deleting the only library that exists",
+    "librariesLastLibraryRefusalTitle": "{library} cannot be deleted",
+    "@librariesLastLibraryRefusalTitle": {
+        "description": "Title of the toast shown instead of deleting the only library that exists",
         "placeholders": {
             "library": {
                 "type": "String",
                 "example": "Cocktails"
             }
         }
+    },
+    "librariesLastLibraryRefusalDescription": "It is your only library. Create another library first.",
+    "@librariesLastLibraryRefusalDescription": {
+        "description": "Body of the toast shown instead of deleting the only library that exists"
     },
     "libraryEditorCreateTitle": "New library",
     "@libraryEditorCreateTitle": {
@@ -651,6 +695,56 @@
     "libraryFieldsDeleteFailure": "Your field could not be deleted.",
     "@libraryFieldsDeleteFailure": {
         "description": "Shown on a library's fields screen when deleting a field fails"
+    },
+    "libraryFieldsReorderLabel": "Reorder fields",
+    "@libraryFieldsReorderLabel": {
+        "description": "Accessibility label of the header action that puts a library's fields screen into reorder mode"
+    },
+    "libraryFieldsReorderDoneLabel": "Done reordering",
+    "@libraryFieldsReorderDoneLabel": {
+        "description": "Accessibility label of the header action that leaves reorder mode"
+    },
+    "libraryFieldsMoveUpLabel": "Move {field} up",
+    "@libraryFieldsMoveUpLabel": {
+        "description": "Accessibility label of the action that moves a field one place earlier",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "libraryFieldsMoveDownLabel": "Move {field} down",
+    "@libraryFieldsMoveDownLabel": {
+        "description": "Accessibility label of the action that moves a field one place later",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            }
+        }
+    },
+    "libraryFieldsMovedAnnouncement": "{field} moved to position {position} of {count}",
+    "@libraryFieldsMovedAnnouncement": {
+        "description": "Announced to assistive technology once a field has moved, saying where it now sits",
+        "placeholders": {
+            "field": {
+                "type": "String",
+                "example": "Glassware"
+            },
+            "position": {
+                "type": "int",
+                "example": "2"
+            },
+            "count": {
+                "type": "int",
+                "example": "5"
+            }
+        }
+    },
+    "libraryFieldsMoveFailure": "Your field could not be moved.",
+    "@libraryFieldsMoveFailure": {
+        "description": "Shown on a library's fields screen when moving a field fails"
     },
     "fieldTypeText": "Text",
     "@fieldTypeText": {

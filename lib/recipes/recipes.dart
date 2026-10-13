@@ -11,6 +11,7 @@ export 'widgets/recipe_placeholder_image.dart';
 export 'widgets/recipe_section_title.dart';
 export 'widgets/recipe_tile.dart';
 export 'widgets/recipes_mutation_listener.dart';
+export 'widgets/required_field_label.dart';
 export 'widgets/schema_field_control.dart';
 export 'widgets/schema_field_value.dart';
 export 'widgets/step_row_field.dart';

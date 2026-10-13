@@ -21,9 +21,13 @@ void main() {
     late RecipesBloc recipesBloc;
     late StreamController<RecipesState> states;
 
-    Recipe recipeUsing(String id, List<Ingredient> ingredients) => Recipe(
+    Recipe recipeUsing(
+      String id,
+      List<Ingredient> ingredients, {
+      String? libraryId,
+    }) => Recipe(
       id: id,
-      libraryId: cocktailsLibrary.id,
+      libraryId: libraryId ?? cocktailsLibrary.id,
       name: id,
       ingredients: ingredients,
     );
@@ -185,6 +189,20 @@ void main() {
       );
     });
 
+    testWidgets('dismisses a refusal once the editor sheet is opened', (
+      tester,
+    ) async {
+      await pumpView(tester, loaded);
+      await tapDelete(tester, 'Gin');
+      expect(find.byType(FToast), findsOneWidget);
+
+      await tester.tap(find.text('Cinnamon'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(IngredientEditorSheet), findsOneWidget);
+      expect(find.byType(FToast), findsNothing);
+    });
+
     group('import', () {
       final withFreeText = loaded.copyWith(
         recipes: [
@@ -326,18 +344,91 @@ void main() {
     });
 
     group('delete', () {
-      testWidgets('is refused for an entry in use, naming the count, '
-          'without dispatching', (tester) async {
+      Ingredient sugarRow() =>
+          Ingredient(name: 'sugar', catalogId: sugarIngredient.id);
+
+      testWidgets('is refused for an entry in use, naming the count and the '
+          'library, without dispatching', (tester) async {
         await pumpView(tester, loaded);
 
         await tapDelete(tester, 'Gin');
 
+        expect(inToast('Gin cannot be deleted'), findsOneWidget);
         expect(
-          find.text('Gin is used in 2 recipes, so it cannot be deleted.'),
+          inToast('Used in 2 recipes. Libraries: Cocktails.'),
           findsOneWidget,
         );
+        expect(find.byType(FailureBanner), findsNothing);
         expect(find.byType(FDialog), findsNothing);
         verifyNever(() => recipesBloc.add(any()));
+      });
+
+      testWidgets('names every library using the entry, ordered by name', (
+        tester,
+      ) async {
+        await pumpView(
+          tester,
+          loaded.copyWith(
+            recipes: [
+              recipeUsing('Latte', [sugarRow()], libraryId: coffeeLibrary.id),
+              recipeUsing('Old Fashioned', [sugarRow()]),
+            ],
+          ),
+        );
+
+        await tapDelete(tester, 'sugar');
+
+        expect(
+          inToast('Used in 2 recipes. Libraries: Cocktails, Coffee.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('leaves out a library that is gone', (tester) async {
+        await pumpView(
+          tester,
+          loaded.copyWith(
+            recipes: [
+              recipeUsing('Orphan', [sugarRow()], libraryId: 'library-gone'),
+              recipeUsing('Latte', [sugarRow()], libraryId: coffeeLibrary.id),
+            ],
+          ),
+        );
+
+        await tapDelete(tester, 'sugar');
+
+        expect(
+          inToast('Used in 2 recipes. Libraries: Coffee.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('names the count alone when no library can be named', (
+        tester,
+      ) async {
+        await pumpView(
+          tester,
+          loaded.copyWith(
+            recipes: [
+              recipeUsing('Orphan', [sugarRow()], libraryId: 'library-gone'),
+            ],
+          ),
+        );
+
+        await tapDelete(tester, 'sugar');
+
+        expect(inToast('sugar cannot be deleted'), findsOneWidget);
+        expect(inToast('Used in 1 recipe.'), findsOneWidget);
+      });
+
+      testWidgets('leaves one toast when it is refused twice', (tester) async {
+        await pumpView(tester, loaded);
+
+        await tapDelete(tester, 'Gin');
+        await tapDelete(tester, 'sugar');
+
+        expect(find.byType(FToast), findsOneWidget);
+        expect(inToast('sugar cannot be deleted'), findsOneWidget);
       });
 
       testWidgets('dispatches after confirming for an unused entry', (
@@ -356,17 +447,17 @@ void main() {
         ).called(1);
       });
 
-      testWidgets('clears a refusal once a delete is dispatched', (
+      testWidgets('dismisses a refusal once a delete reaches the dialog', (
         tester,
       ) async {
         await pumpView(tester, loaded);
-
         await tapDelete(tester, 'Gin');
-        await tapDelete(tester, 'Cinnamon');
-        await tester.tap(find.text('Delete'));
-        await tester.pumpAndSettle();
+        expect(find.byType(FToast), findsOneWidget);
 
-        expect(find.byType(FailureBanner), findsNothing);
+        await tapDelete(tester, 'Cinnamon');
+
+        expect(find.byType(FDialog), findsOneWidget);
+        expect(find.byType(FToast), findsNothing);
       });
 
       testWidgets('does nothing when the confirmation is cancelled', (

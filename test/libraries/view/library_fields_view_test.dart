@@ -473,5 +473,319 @@ void main() {
         expect(find.byType(FailureBanner), findsNothing);
       });
     });
+
+    group('reorder', () {
+      final movedState = loaded.copyWith(
+        libraries: [
+          Library(
+            id: cocktailsLibrary.id,
+            name: cocktailsLibrary.name,
+            fields: [garnishField, glasswareField],
+          ),
+          coffeeLibrary,
+          blankLibrary,
+        ],
+        mutation: RecipesMutation.fieldMoved,
+        mutationStatus: RecipesMutationStatus.success,
+        movedFieldId: garnishField.id,
+      );
+
+      final moveFailed = loaded.copyWith(
+        mutation: RecipesMutation.fieldMoved,
+        mutationStatus: RecipesMutationStatus.failure,
+        movedFieldId: garnishField.id,
+      );
+
+      FButton moveButton(WidgetTester tester, IconData icon, int tile) =>
+          tester.widget<FButton>(find.widgetWithIcon(FButton, icon).at(tile));
+
+      testWidgets('is offered beside add for two or more fields', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        expect(find.bySemanticsLabel('Reorder fields'), findsOneWidget);
+        expect(find.bySemanticsLabel('Add field'), findsOneWidget);
+      });
+
+      testWidgets('is not offered for a single field', (tester) async {
+        final single = Library(
+          id: 'library-single',
+          name: 'Single',
+          fields: [garnishField],
+        );
+        await pumpView(
+          tester,
+          state: loaded.copyWith(libraries: [single]),
+          libraryId: single.id,
+        );
+
+        expect(find.bySemanticsLabel('Reorder fields'), findsNothing);
+        expect(find.bySemanticsLabel('Add field'), findsOneWidget);
+      });
+
+      testWidgets('swaps delete for the move buttons and add for done', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        await tapAction(tester, 'Reorder fields');
+
+        for (final label in ['Glassware', 'Garnish']) {
+          expect(find.bySemanticsLabel('Delete $label'), findsNothing);
+          expect(find.bySemanticsLabel('Move $label up'), findsOneWidget);
+          expect(find.bySemanticsLabel('Move $label down'), findsOneWidget);
+        }
+        expect(find.bySemanticsLabel('Add field'), findsNothing);
+        expect(find.bySemanticsLabel('Reorder fields'), findsNothing);
+        expect(find.bySemanticsLabel('Done reordering'), findsOneWidget);
+        expect(find.byType(FHeaderAction), findsNWidgets(2));
+      });
+
+      testWidgets('disables up on the first field and down on the last', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        await tapAction(tester, 'Reorder fields');
+
+        expect(moveButton(tester, FLucideIcons.arrowUp, 0).onPress, isNull);
+        expect(
+          moveButton(tester, FLucideIcons.arrowDown, 0).onPress,
+          isNotNull,
+        );
+        expect(moveButton(tester, FLucideIcons.arrowUp, 1).onPress, isNotNull);
+        expect(moveButton(tester, FLucideIcons.arrowDown, 1).onPress, isNull);
+      });
+
+      testWidgets('dispatches a move one place up or down', (tester) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        await tapAction(tester, 'Move Garnish up');
+
+        verify(
+          () => recipesBloc.add(
+            RecipesFieldMoved(
+              libraryId: cocktailsLibrary.id,
+              fieldId: garnishField.id,
+              delta: -1,
+            ),
+          ),
+        ).called(1);
+
+        await tapAction(tester, 'Move Glassware down');
+
+        verify(
+          () => recipesBloc.add(
+            RecipesFieldMoved(
+              libraryId: cocktailsLibrary.id,
+              fieldId: glasswareField.id,
+              delta: 1,
+            ),
+          ),
+        ).called(1);
+      });
+
+      testWidgets('dispatches nothing from a disabled move button', (
+        tester,
+      ) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        await tapAction(tester, 'Move Glassware up');
+        await tapAction(tester, 'Move Garnish down');
+
+        verifyNever(() => recipesBloc.add(any()));
+      });
+
+      testWidgets("announces the field's new position once the move succeeds", (
+        tester,
+      ) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        await tapAction(tester, 'Move Garnish up');
+
+        expect(
+          tester.takeAnnouncements(),
+          isEmpty,
+          reason: 'the outcome is not known at dispatch',
+        );
+
+        await emit(tester, movedState);
+
+        expect(
+          tester.takeAnnouncements().map(
+            (announcement) => announcement.message,
+          ),
+          equals(['Garnish moved to position 1 of 2']),
+        );
+        expect(find.byType(FailureBanner), findsNothing);
+      });
+
+      testWidgets('announces each of two moves queued for different fields', (
+        tester,
+      ) async {
+        Library cocktailsWith(List<FieldDefinition> fields) => Library(
+          id: cocktailsLibrary.id,
+          name: cocktailsLibrary.name,
+          fields: fields,
+        );
+        final start = loaded.copyWith(
+          libraries: [
+            cocktailsWith([glasswareField, garnishField, abvField]),
+          ],
+        );
+        await pumpView(tester, state: start);
+        await tapAction(tester, 'Reorder fields');
+
+        // Both are dispatched before either reports back.
+        await tapAction(tester, 'Move Garnish up');
+        await tapAction(tester, 'Move ABV up');
+
+        await emit(
+          tester,
+          start.copyWith(
+            libraries: [
+              cocktailsWith([garnishField, glasswareField, abvField]),
+            ],
+            mutation: RecipesMutation.fieldMoved,
+            mutationStatus: RecipesMutationStatus.success,
+            movedFieldId: garnishField.id,
+          ),
+        );
+        await emit(
+          tester,
+          start.copyWith(
+            libraries: [
+              cocktailsWith([garnishField, glasswareField, abvField]),
+            ],
+            mutation: RecipesMutation.fieldMoved,
+            mutationStatus: RecipesMutationStatus.loading,
+            movedFieldId: abvField.id,
+          ),
+        );
+        await emit(
+          tester,
+          start.copyWith(
+            libraries: [
+              cocktailsWith([garnishField, abvField, glasswareField]),
+            ],
+            mutation: RecipesMutation.fieldMoved,
+            mutationStatus: RecipesMutationStatus.success,
+            movedFieldId: abvField.id,
+          ),
+        );
+
+        expect(
+          tester.takeAnnouncements().map(
+            (announcement) => announcement.message,
+          ),
+          equals([
+            'Garnish moved to position 1 of 3',
+            'ABV moved to position 2 of 3',
+          ]),
+        );
+      });
+
+      testWidgets('announces the position the reporting state holds, not a '
+          'later one', (tester) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        // The bloc has already moved on by the time the listener runs.
+        when(() => recipesBloc.state).thenReturn(loaded);
+        states.add(movedState);
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.takeAnnouncements().map(
+            (announcement) => announcement.message,
+          ),
+          equals(['Garnish moved to position 1 of 2']),
+        );
+      });
+
+      testWidgets('announces nothing for a field of another library', (
+        tester,
+      ) async {
+        await pumpView(tester);
+
+        await emit(tester, movedState.copyWith(movedFieldId: doseField.id));
+
+        expect(tester.takeAnnouncements(), isEmpty);
+      });
+
+      testWidgets('reports a failed move in its banner and announces nothing', (
+        tester,
+      ) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+        await tapAction(tester, 'Move Garnish up');
+
+        await emit(tester, moveFailed);
+
+        expect(
+          inView(find.text('Your field could not be moved.')),
+          findsOneWidget,
+        );
+        expect(find.byType(FailureBanner), findsOneWidget);
+        expect(tester.takeAnnouncements(), isEmpty);
+      });
+
+      testWidgets('clears the banner when a move is dispatched again', (
+        tester,
+      ) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+        await emit(tester, moveFailed);
+        expect(find.byType(FailureBanner), findsOneWidget);
+
+        await tapAction(tester, 'Move Garnish up');
+
+        expect(find.byType(FailureBanner), findsNothing);
+      });
+
+      testWidgets('opens no sheet from a tapped field', (tester) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        await tester.tap(find.text('Garnish'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(FieldEditorSheet), findsNothing);
+      });
+
+      testWidgets('returns to delete and add from the done action', (
+        tester,
+      ) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        await tapAction(tester, 'Done reordering');
+
+        expect(find.bySemanticsLabel('Move Garnish up'), findsNothing);
+        expect(find.bySemanticsLabel('Delete Garnish'), findsOneWidget);
+        expect(find.bySemanticsLabel('Add field'), findsOneWidget);
+        expect(find.bySemanticsLabel('Reorder fields'), findsOneWidget);
+        expect(find.bySemanticsLabel('Done reordering'), findsNothing);
+      });
+
+      testWidgets('leaves only the back action once the library is gone', (
+        tester,
+      ) async {
+        await pumpView(tester);
+        await tapAction(tester, 'Reorder fields');
+
+        await emit(
+          tester,
+          loaded.copyWith(libraries: [coffeeLibrary, blankLibrary]),
+        );
+
+        expect(find.byType(FHeaderAction), findsOneWidget);
+        expect(find.byType(FTile), findsNothing);
+      });
+    });
   });
 }

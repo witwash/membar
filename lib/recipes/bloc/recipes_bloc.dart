@@ -22,15 +22,20 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       transformer: restartable(),
     );
     // Each kind of mutation runs one at a time. Two kinds can still overlap:
-    // the storage layer queues their writes, but _onFieldDeleted builds its
-    // write from the state, so it relies on no other library edit being in
-    // flight — which holds while the sheets that edit a library are modal.
+    // the storage layer queues their writes, but _onFieldDeleted and
+    // _onFieldMoved build their write from the state, so each relies on no
+    // other library edit being in flight. The sheets that edit a library are
+    // modal. A move is not, but moves queue behind one another, and reorder
+    // mode offers neither delete nor the field sheet. Leaving reorder mode
+    // while a move is still being written reopens the overlap; nothing guards
+    // that window.
     on<RecipesRecipeSaved>(_onRecipeSaved, transformer: sequential());
     on<RecipesRecipeDeleted>(_onRecipeDeleted, transformer: sequential());
     on<RecipesLibrarySelected>(_onLibrarySelected, transformer: sequential());
     on<RecipesLibrarySaved>(_onLibrarySaved, transformer: sequential());
     on<RecipesLibraryDeleted>(_onLibraryDeleted, transformer: sequential());
     on<RecipesFieldDeleted>(_onFieldDeleted, transformer: sequential());
+    on<RecipesFieldMoved>(_onFieldMoved, transformer: sequential());
     on<RecipesIngredientSaved>(_onIngredientSaved, transformer: sequential());
     on<RecipesIngredientDeleted>(
       _onIngredientDeleted,
@@ -322,6 +327,82 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         state.copyWith(
           mutation: RecipesMutation.fieldDeleted,
           mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    }
+  }
+
+  /// Saves the event's library with the event's field moved by its delta.
+  ///
+  /// The position is resolved here, against the state, rather than sent by
+  /// the view: a second tap queued behind the first then moves the field on
+  /// from where the first left it.
+  Future<void> _onFieldMoved(
+    RecipesFieldMoved event,
+    Emitter<RecipesState> emit,
+  ) async {
+    final library = state.libraryById(event.libraryId);
+    final index =
+        library?.fields.indexWhere((field) => field.id == event.fieldId) ?? -1;
+    final target = index + event.delta;
+    // A tap on a field already at the end it was sent towards: nothing to do,
+    // and nothing failed.
+    final isStaleTap =
+        library != null &&
+        index != -1 &&
+        (target == index || target < 0 || target >= library.fields.length);
+    if (isStaleTap) return;
+
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.fieldMoved,
+        mutationStatus: RecipesMutationStatus.loading,
+        movedFieldId: event.fieldId,
+      ),
+    );
+
+    if (library == null || index == -1) {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldMoved,
+          mutationStatus: RecipesMutationStatus.failure,
+          movedFieldId: event.fieldId,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _recipesRepository.saveLibrary(
+        Library(
+          id: library.id,
+          name: library.name,
+          fields: [...library.fields]
+            ..removeAt(index)
+            ..insert(target, library.fields[index]),
+        ),
+      );
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldMoved,
+          mutationStatus: RecipesMutationStatus.success,
+          movedFieldId: event.fieldId,
+        ),
+      );
+    } on LibraryNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldMoved,
+          mutationStatus: RecipesMutationStatus.failure,
+          movedFieldId: event.fieldId,
+        ),
+      );
+    } on RecipesPersistenceException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.fieldMoved,
+          mutationStatus: RecipesMutationStatus.failure,
+          movedFieldId: event.fieldId,
         ),
       );
     }

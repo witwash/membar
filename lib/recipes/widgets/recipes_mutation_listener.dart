@@ -21,8 +21,9 @@ class RecipesMutationListener extends StatelessWidget {
   /// The kind of mutation this screen started, and the only kind it reacts to.
   final RecipesMutation mutation;
 
-  /// Called once the mutation has gone through.
-  final VoidCallback onSuccess;
+  /// Called once the mutation has gone through, with the state that reported
+  /// it — the bloc may have moved on by the time this runs.
+  final ValueChanged<RecipesState> onSuccess;
 
   /// Called when the mutation failed and the user is staying put.
   final VoidCallback onFailure;
@@ -40,7 +41,7 @@ class RecipesMutationListener extends StatelessWidget {
         if (state.mutation != mutation) return;
         switch (state.mutationStatus) {
           case RecipesMutationStatus.success:
-            onSuccess();
+            onSuccess(state);
           case RecipesMutationStatus.failure:
             onFailure();
           case RecipesMutationStatus.initial:

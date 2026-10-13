@@ -347,6 +347,96 @@ void main() {
         });
       });
 
+      group('libraryIdsUsingIngredient', () {
+        Recipe recipeUsing(String id, String libraryId, List<String?> links) =>
+            Recipe(
+              id: id,
+              libraryId: libraryId,
+              name: id,
+              ingredients: [
+                for (final link in links)
+                  Ingredient(name: 'Row', catalogId: link),
+              ],
+            );
+
+        test('is empty when no recipe uses the entry', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', cocktailsLibrary.id, [
+                      null,
+                      sugarIngredient.id,
+                    ]),
+                  ],
+                )
+                .libraryIdsUsingIngredient(ginIngredient.id),
+            isEmpty,
+          );
+        });
+
+        test('holds the one library whose recipes use the entry', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', cocktailsLibrary.id, [ginIngredient.id]),
+                    recipeUsing('r2', cocktailsLibrary.id, [ginIngredient.id]),
+                    recipeUsing('r3', coffeeLibrary.id, [sugarIngredient.id]),
+                  ],
+                )
+                .libraryIdsUsingIngredient(ginIngredient.id),
+            {cocktailsLibrary.id},
+          );
+        });
+
+        test('holds every library whose recipes use the entry', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', cocktailsLibrary.id, [
+                      sugarIngredient.id,
+                    ]),
+                    recipeUsing('r2', coffeeLibrary.id, [sugarIngredient.id]),
+                  ],
+                )
+                .libraryIdsUsingIngredient(sugarIngredient.id),
+            {cocktailsLibrary.id, coffeeLibrary.id},
+          );
+        });
+
+        test('holds a library once for a recipe using the entry on two '
+            'rows', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', cocktailsLibrary.id, [
+                      ginIngredient.id,
+                      ginIngredient.id,
+                    ]),
+                  ],
+                )
+                .libraryIdsUsingIngredient(ginIngredient.id),
+            {cocktailsLibrary.id},
+          );
+        });
+
+        test('holds the id of a library that is gone', () {
+          expect(
+            catalog
+                .copyWith(
+                  recipes: [
+                    recipeUsing('r1', 'library-gone', [ginIngredient.id]),
+                  ],
+                )
+                .libraryIdsUsingIngredient(ginIngredient.id),
+            {'library-gone'},
+          );
+        });
+      });
+
       group('importableIngredients', () {
         Recipe recipeWith(
           String id,
