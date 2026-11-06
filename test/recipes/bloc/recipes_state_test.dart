@@ -6,15 +6,23 @@ import '../../helpers/helpers.dart';
 
 void main() {
   group('RecipesState', () {
-    final cocktails = Library(id: 'l1', name: 'Cocktails');
-    final coffee = Library(id: 'l2', name: 'Coffee');
+    final cocktails = Library(
+      id: 'l1',
+      name: 'Cocktails',
+      ingredientLibraryId: 'il1',
+    );
+    final coffee = Library(
+      id: 'l2',
+      name: 'Coffee',
+      ingredientLibraryId: 'il2',
+    );
 
     final negroni = Recipe(
       id: 'r1',
       libraryId: 'l1',
       name: 'Negroni',
       tags: const ['Classic', 'Bitter'],
-      ingredients: [Ingredient(name: 'Campari')],
+      ingredients: [Ingredient(catalogId: 'campari')],
       notes: 'Stir, do not shake.',
       fieldValues: const {'f1': 'Rocks'},
     );
@@ -40,6 +48,10 @@ void main() {
       expect(
         const RecipesState(searchTerm: 'a'),
         isNot(const RecipesState(searchTerm: 'b')),
+      );
+      expect(
+        RecipesState(ingredientLibraries: [cocktailsPantry]),
+        isNot(RecipesState(ingredientLibraries: [coffeeShelf])),
       );
     });
 
@@ -79,7 +91,6 @@ void main() {
           // The same key in another library, which no count may reach.
           recipe('r5', coffeeLibrary, {glasswareField.id: 'Coupe'}),
         ],
-        ingredients: [ginIngredient, cinnamonIngredient, sugarIngredient],
         activeLibraryId: cocktailsLibrary.id,
       );
 
@@ -116,19 +127,6 @@ void main() {
 
         test('is zero for an unknown id', () {
           expect(schema.recipeCountIn('gone'), 0);
-        });
-      });
-
-      group('ingredientCountOnlyIn', () {
-        test('counts the entries visible in that library and nowhere '
-            'else', () {
-          // Sugar is visible in both libraries, so neither count has it.
-          expect(schema.ingredientCountOnlyIn(cocktailsLibrary.id), 1);
-          expect(schema.ingredientCountOnlyIn(coffeeLibrary.id), 1);
-        });
-
-        test('is zero for an unknown id', () {
-          expect(schema.ingredientCountOnlyIn('gone'), 0);
         });
       });
 
@@ -188,6 +186,31 @@ void main() {
       });
     });
 
+    group('libraryTags', () {
+      test("holds the active library's distinct tags in their first "
+          'spelling, ordered case-insensitively', () {
+        final spritz = Recipe(
+          id: 'r6',
+          libraryId: 'l1',
+          name: 'Spritz',
+          tags: const ['classic', 'aperitivo'],
+        );
+        final filter = Recipe(
+          id: 'r7',
+          libraryId: 'l2',
+          name: 'Filter',
+          tags: const ['Brewed'],
+        );
+
+        expect(
+          loaded
+              .copyWith(recipes: [...loaded.recipes, spritz, filter])
+              .libraryTags,
+          ['aperitivo', 'Bitter', 'Classic'],
+        );
+      });
+    });
+
     group('visibleRecipes', () {
       test("holds only the active library's recipes, sorted by name", () {
         expect(loaded.visibleRecipes, [americano, daiquiri, negroni]);
@@ -241,70 +264,79 @@ void main() {
     });
 
     group('catalog', () {
+      // Shares cocktailsPantry with cocktailsLibrary, and was created after
+      // both fixtures.
+      final barLibrary = Library(
+        id: 'library-bar',
+        name: 'Bar',
+        ingredientLibraryId: cocktailsPantry.id,
+      );
       final catalog = RecipesState(
-        libraries: [cocktailsLibrary, coffeeLibrary],
-        ingredients: [ginIngredient, cinnamonIngredient, sugarIngredient],
+        libraries: [cocktailsLibrary, coffeeLibrary, barLibrary],
+        ingredientLibraries: [cocktailsPantry, coffeeShelf],
+        ingredients: [
+          ginIngredient,
+          cinnamonIngredient,
+          sugarIngredient,
+          coffeeSugarIngredient,
+        ],
         activeLibraryId: cocktailsLibrary.id,
       );
 
-      group('libraryIngredients', () {
-        test('holds entries visible in the active library, ordered '
-            'case-insensitively', () {
-          expect(catalog.libraryIngredients, [ginIngredient, sugarIngredient]);
-        });
+      Recipe recipeUsing(
+        String id,
+        String libraryId,
+        List<String> catalogIds, {
+        String? name,
+      }) => Recipe(
+        id: id,
+        libraryId: libraryId,
+        name: name ?? id,
+        ingredients: [
+          for (final catalogId in catalogIds) Ingredient(catalogId: catalogId),
+        ],
+      );
 
-        test('follows the active library', () {
-          expect(
-            catalog
-                .copyWith(activeLibraryId: coffeeLibrary.id)
-                .libraryIngredients,
-            [cinnamonIngredient, sugarIngredient],
-          );
-        });
-      });
-
-      group('otherLibraryIngredients', () {
-        test('holds the entries the active library does not see', () {
-          expect(catalog.otherLibraryIngredients, [cinnamonIngredient]);
+      group('ingredientsIn', () {
+        test('holds the entries of that ingredient library alone', () {
+          expect(catalog.ingredientsIn(cocktailsPantry.id), [
+            ginIngredient,
+            sugarIngredient,
+          ]);
         });
 
         test('orders them case-insensitively', () {
           final apricot = CatalogIngredient(
             id: 'ingredient-apricot',
             name: 'apricot',
-            libraryIds: {coffeeLibrary.id},
+            ingredientLibraryId: coffeeShelf.id,
           );
 
           expect(
             catalog
                 .copyWith(
-                  ingredients: [cinnamonIngredient, apricot],
+                  ingredients: [
+                    coffeeSugarIngredient,
+                    cinnamonIngredient,
+                    apricot,
+                  ],
                 )
-                .otherLibraryIngredients,
-            [apricot, cinnamonIngredient],
+                .ingredientsIn(coffeeShelf.id),
+            [apricot, cinnamonIngredient, coffeeSugarIngredient],
           );
+        });
+
+        test('is empty for an unknown id', () {
+          expect(catalog.ingredientsIn('gone'), isEmpty);
         });
       });
 
       group('ingredientUsage', () {
-        Recipe recipeUsing(String id, String libraryId, List<String?> links) =>
-            Recipe(
-              id: id,
-              libraryId: libraryId,
-              name: id,
-              ingredients: [
-                for (final link in links)
-                  Ingredient(name: 'Row', catalogId: link),
-              ],
-            );
-
-        test('is empty when no recipe links to the catalog', () {
+        test('is empty when no recipe has a row', () {
           expect(
             catalog
                 .copyWith(
-                  recipes: [
-                    recipeUsing('r1', cocktailsLibrary.id, [null]),
-                  ],
+                  recipes: [recipeUsing('r1', cocktailsLibrary.id, [])],
                 )
                 .ingredientUsage,
             isEmpty,
@@ -319,10 +351,7 @@ void main() {
                     ginIngredient.id,
                     sugarIngredient.id,
                   ]),
-                  recipeUsing('r2', coffeeLibrary.id, [
-                    sugarIngredient.id,
-                    null,
-                  ]),
+                  recipeUsing('r2', barLibrary.id, [sugarIngredient.id]),
                 ],
               )
               .ingredientUsage;
@@ -347,318 +376,126 @@ void main() {
         });
       });
 
-      group('libraryIdsUsingIngredient', () {
-        Recipe recipeUsing(String id, String libraryId, List<String?> links) =>
-            Recipe(
-              id: id,
-              libraryId: libraryId,
-              name: id,
-              ingredients: [
-                for (final link in links)
-                  Ingredient(name: 'Row', catalogId: link),
-              ],
-            );
-
-        test('is empty when no recipe uses the entry', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeUsing('r1', cocktailsLibrary.id, [
-                      null,
-                      sugarIngredient.id,
-                    ]),
-                  ],
-                )
-                .libraryIdsUsingIngredient(ginIngredient.id),
-            isEmpty,
-          );
-        });
-
-        test('holds the one library whose recipes use the entry', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeUsing('r1', cocktailsLibrary.id, [ginIngredient.id]),
-                    recipeUsing('r2', cocktailsLibrary.id, [ginIngredient.id]),
-                    recipeUsing('r3', coffeeLibrary.id, [sugarIngredient.id]),
-                  ],
-                )
-                .libraryIdsUsingIngredient(ginIngredient.id),
-            {cocktailsLibrary.id},
-          );
-        });
-
-        test('holds every library whose recipes use the entry', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeUsing('r1', cocktailsLibrary.id, [
-                      sugarIngredient.id,
-                    ]),
-                    recipeUsing('r2', coffeeLibrary.id, [sugarIngredient.id]),
-                  ],
-                )
-                .libraryIdsUsingIngredient(sugarIngredient.id),
-            {cocktailsLibrary.id, coffeeLibrary.id},
-          );
-        });
-
-        test('holds a library once for a recipe using the entry on two '
-            'rows', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeUsing('r1', cocktailsLibrary.id, [
-                      ginIngredient.id,
-                      ginIngredient.id,
-                    ]),
-                  ],
-                )
-                .libraryIdsUsingIngredient(ginIngredient.id),
-            {cocktailsLibrary.id},
-          );
-        });
-
-        test('holds the id of a library that is gone', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeUsing('r1', 'library-gone', [ginIngredient.id]),
-                  ],
-                )
-                .libraryIdsUsingIngredient(ginIngredient.id),
-            {'library-gone'},
-          );
-        });
-      });
-
-      group('importableIngredients', () {
-        Recipe recipeWith(
-          String id,
-          String libraryId,
-          List<Ingredient> ingredients,
-        ) => Recipe(
-          id: id,
-          libraryId: libraryId,
-          name: id,
-          ingredients: ingredients,
+      group('recipesUsingIngredient', () {
+        final aviation = recipeUsing(
+          'r1',
+          barLibrary.id,
+          [ginIngredient.id],
+          name: 'Aviation',
+        );
+        final negroni = recipeUsing(
+          'r2',
+          cocktailsLibrary.id,
+          [ginIngredient.id],
+          name: 'Negroni',
+        );
+        final martinez = recipeUsing(
+          'r3',
+          cocktailsLibrary.id,
+          [ginIngredient.id, ginIngredient.id],
+          name: 'martinez',
+        );
+        final daiquiri = recipeUsing(
+          'r4',
+          cocktailsLibrary.id,
+          [sugarIngredient.id],
+          name: 'Daiquiri',
+        );
+        final orphan = recipeUsing(
+          'r5',
+          'library-gone',
+          [ginIngredient.id],
+          name: 'Orphan',
+        );
+        final using = catalog.copyWith(
+          recipes: [aviation, negroni, martinez, daiquiri, orphan],
         );
 
-        test('hands out an unmodifiable library set', () {
-          final importable = catalog
-              .copyWith(
-                ingredients: const [],
-                recipes: [
-                  recipeWith('r1', cocktailsLibrary.id, [
-                    Ingredient(name: 'Gin'),
-                  ]),
-                ],
-              )
-              .importableIngredients
-              .single;
+        test('orders by library creation order, then case-insensitively by '
+            'name', () {
+          expect(using.recipesUsingIngredient(ginIngredient.id), [
+            martinez,
+            negroni,
+            aviation,
+          ]);
+        });
 
+        test('leaves out the recipes of the excepted library', () {
           expect(
-            () => importable.libraryIds.add(coffeeLibrary.id),
-            throwsUnsupportedError,
+            using.recipesUsingIngredient(
+              ginIngredient.id,
+              exceptLibraryId: cocktailsLibrary.id,
+            ),
+            [aviation],
           );
         });
 
-        test('is empty once the import has run', () {
+        test('leaves out a recipe whose library no longer exists', () {
           expect(
-            catalog
-                .copyWith(
-                  ingredients: const [],
-                  ingredientsImported: true,
-                  recipes: [
-                    recipeWith('r1', cocktailsLibrary.id, [
-                      Ingredient(name: 'Gin'),
-                    ]),
-                  ],
-                )
-                .importableIngredients,
-            isEmpty,
+            using.recipesUsingIngredient(ginIngredient.id),
+            isNot(contains(orphan)),
           );
         });
 
-        test('is equal across two reads', () {
-          final state = catalog.copyWith(
-            ingredients: const [],
-            recipes: [
-              recipeWith('r1', cocktailsLibrary.id, [
-                Ingredient(name: 'Gin', unit: 'ml'),
-                Ingredient(name: 'Campari'),
-              ]),
-            ],
-          );
-
-          expect(state.importableIngredients, state.importableIngredients);
-          expect(state.importableIngredients, hasLength(2));
-        });
-
-        test('is empty when the catalog claims every name', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeWith('r1', cocktailsLibrary.id, [
-                      Ingredient(name: 'GIN'),
-                      Ingredient(name: 'Sugar'),
-                    ]),
-                  ],
-                )
-                .importableIngredients,
-            isEmpty,
-          );
-        });
-
-        test('skips a row whose link resolves, whatever name it stored', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeWith('r1', cocktailsLibrary.id, [
-                      Ingredient(name: 'Old Tom', catalogId: ginIngredient.id),
-                    ]),
-                  ],
-                )
-                .importableIngredients,
-            isEmpty,
-          );
-        });
-
-        test('imports a row whose link resolves to nothing', () {
-          expect(
-            catalog
-                .copyWith(
-                  recipes: [
-                    recipeWith('r1', cocktailsLibrary.id, [
-                      Ingredient(name: 'Old Tom', catalogId: 'gone'),
-                    ]),
-                  ],
-                )
-                .importableIngredients,
-            [
-              ImportableIngredient(
-                name: 'Old Tom',
-                libraryIds: {cocktailsLibrary.id},
-              ),
-            ],
-          );
-        });
-
-        test('folds names to the first spelling and orders them', () {
-          final importable = catalog
-              .copyWith(
-                ingredients: const [],
-                recipes: [
-                  recipeWith('r1', cocktailsLibrary.id, [
-                    Ingredient(name: 'vermouth'),
-                    Ingredient(name: 'Gin'),
-                  ]),
-                  recipeWith('r2', cocktailsLibrary.id, [
-                    Ingredient(name: 'gin'),
-                  ]),
-                ],
-              )
-              .importableIngredients;
-
-          expect(importable.map((entry) => entry.name), ['Gin', 'vermouth']);
-        });
-
-        test('unions the libraries of the recipes using a name', () {
-          final importable = catalog
-              .copyWith(
-                ingredients: const [],
-                recipes: [
-                  recipeWith('r1', cocktailsLibrary.id, [
-                    Ingredient(name: 'Cardamom'),
-                  ]),
-                  recipeWith('r2', coffeeLibrary.id, [
-                    Ingredient(name: 'cardamom'),
-                  ]),
-                ],
-              )
-              .importableIngredients;
-
-          expect(importable.single.libraryIds, {
-            cocktailsLibrary.id,
-            coffeeLibrary.id,
-          });
-        });
-
-        test('ignores recipes whose library no longer exists', () {
-          expect(
-            catalog
-                .copyWith(
-                  ingredients: const [],
-                  recipes: [
-                    recipeWith('r1', 'gone', [Ingredient(name: 'Cardamom')]),
-                  ],
-                )
-                .importableIngredients,
-            isEmpty,
-          );
-        });
-
-        group('default unit', () {
-          Unit? inferred(List<String> units) => catalog
-              .copyWith(
-                ingredients: const [],
-                recipes: [
-                  for (final (index, unit) in units.indexed)
-                    recipeWith('r$index', cocktailsLibrary.id, [
-                      Ingredient(name: 'Gin', unit: unit),
-                    ]),
-                ],
-              )
-              .importableIngredients
-              .single
-              .defaultUnit;
-
-          test('is the most frequent spelling', () {
-            expect(
-              inferred(['oz', 'ml', 'ml']),
-              const KnownUnit(StandardUnit.ml),
-            );
-          });
-
-          test('goes to the first spelling seen on a tie', () {
-            expect(
-              inferred(['oz', 'ml', 'ml', 'oz']),
-              const KnownUnit(StandardUnit.oz),
-            );
-          });
-
-          test('matches a standard unit case-insensitively', () {
-            expect(inferred(['mL']), const KnownUnit(StandardUnit.ml));
-          });
-
-          test('is custom for a spelling no standard unit has', () {
-            expect(inferred(['sprig']), CustomUnit('sprig'));
-          });
-
-          test('is null when no row carries a unit', () {
-            expect(inferred(['', '']), isNull);
-          });
+        test('is empty when no recipe uses the entry', () {
+          expect(using.recipesUsingIngredient(cinnamonIngredient.id), isEmpty);
         });
       });
 
       group('ingredientNamed', () {
         test('is the entry whose name matches, ignoring case and padding', () {
-          expect(catalog.ingredientNamed('  gIN '), ginIngredient);
+          expect(
+            catalog.ingredientNamed(
+              '  gIN ',
+              ingredientLibraryId: cocktailsPantry.id,
+            ),
+            ginIngredient,
+          );
+        });
+
+        test('is the entry of the given ingredient library when two share '
+            'the name', () {
+          expect(
+            catalog.ingredientNamed(
+              'Sugar',
+              ingredientLibraryId: cocktailsPantry.id,
+            ),
+            sugarIngredient,
+          );
+          expect(
+            catalog.ingredientNamed(
+              'Sugar',
+              ingredientLibraryId: coffeeShelf.id,
+            ),
+            coffeeSugarIngredient,
+          );
+        });
+
+        test('is null for a name only another ingredient library carries', () {
+          expect(
+            catalog.ingredientNamed('Gin', ingredientLibraryId: coffeeShelf.id),
+            isNull,
+          );
         });
 
         test('is null for a name no entry carries', () {
-          expect(catalog.ingredientNamed('Gin fizz'), isNull);
+          expect(
+            catalog.ingredientNamed(
+              'Gin fizz',
+              ingredientLibraryId: cocktailsPantry.id,
+            ),
+            isNull,
+          );
         });
 
         test('is null for a blank name', () {
-          expect(catalog.ingredientNamed('   '), isNull);
+          expect(
+            catalog.ingredientNamed(
+              '   ',
+              ingredientLibraryId: cocktailsPantry.id,
+            ),
+            isNull,
+          );
         });
       });
 
@@ -671,6 +508,31 @@ void main() {
           expect(catalog.ingredientById('gone'), isNull);
         });
       });
+
+      group('ingredientLibraryById', () {
+        test('is the ingredient library carrying the id', () {
+          expect(catalog.ingredientLibraryById(coffeeShelf.id), coffeeShelf);
+        });
+
+        test('is null for an unknown id', () {
+          expect(catalog.ingredientLibraryById('gone'), isNull);
+        });
+      });
+
+      group('ingredientLibraryNamed', () {
+        test('is the ingredient library whose name matches, ignoring case '
+            'and padding', () {
+          expect(catalog.ingredientLibraryNamed(' coffee SHELF '), coffeeShelf);
+        });
+
+        test('is null for a name no ingredient library carries', () {
+          expect(catalog.ingredientLibraryNamed('Tea'), isNull);
+        });
+
+        test('is null for a blank name', () {
+          expect(catalog.ingredientLibraryNamed('   '), isNull);
+        });
+      });
     });
 
     group('copyWith', () {
@@ -681,28 +543,32 @@ void main() {
       test('replaces every value it is given', () {
         final replaced = loaded.copyWith(
           status: RecipesStatus.failure,
+          mutation: RecipesMutation.fieldMoved,
           mutationStatus: RecipesMutationStatus.loading,
           libraries: [coffee],
           recipes: [v60],
+          ingredientLibraries: [coffeeShelf],
           ingredients: [ginIngredient],
           activeLibraryId: 'l2',
           searchTerm: 'v60',
           activeTags: const {'Filter'},
-          ingredientsImported: true,
+          movedFieldId: 'f1',
         );
 
         expect(
           replaced,
           RecipesState(
             status: RecipesStatus.failure,
+            mutation: RecipesMutation.fieldMoved,
             mutationStatus: RecipesMutationStatus.loading,
             libraries: [coffee],
             recipes: [v60],
+            ingredientLibraries: [coffeeShelf],
             ingredients: [ginIngredient],
             activeLibraryId: 'l2',
             searchTerm: 'v60',
             activeTags: const {'Filter'},
-            ingredientsImported: true,
+            movedFieldId: 'f1',
           ),
         );
       });

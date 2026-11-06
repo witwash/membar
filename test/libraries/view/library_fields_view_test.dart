@@ -42,7 +42,11 @@ void main() {
       options: const ['Stirred'],
     );
 
-    final blankLibrary = Library(id: 'library-blank', name: 'Tea');
+    final blankLibrary = Library(
+      id: 'library-blank',
+      name: 'Tea',
+      ingredientLibraryId: cocktailsPantry.id,
+    );
 
     Recipe recipeWith(String name, Map<String, Object?> fieldValues) => Recipe(
       id: name,
@@ -54,6 +58,7 @@ void main() {
     final loaded = RecipesState(
       status: RecipesStatus.success,
       libraries: [cocktailsLibrary, coffeeLibrary, blankLibrary],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
       recipes: [
         recipeWith('Negroni', {garnishField.id: 'Orange peel'}),
         recipeWith('Martini', {
@@ -142,6 +147,7 @@ void main() {
       final library = Library(
         id: 'library-all',
         name: 'Everything',
+        ingredientLibraryId: cocktailsPantry.id,
         fields: [
           glasswareField,
           styleField,
@@ -183,6 +189,7 @@ void main() {
             Library(
               id: cocktailsLibrary.id,
               name: cocktailsLibrary.name,
+              ingredientLibraryId: cocktailsPantry.id,
               fields: [...cocktailsLibrary.fields, abvField],
             ),
             coffeeLibrary,
@@ -312,6 +319,7 @@ void main() {
         final single = Library(
           id: 'library-single',
           name: 'Single',
+          ingredientLibraryId: cocktailsPantry.id,
           fields: [garnishField],
         );
         await pumpView(
@@ -323,7 +331,13 @@ void main() {
         await emit(
           tester,
           loaded.copyWith(
-            libraries: [Library(id: single.id, name: single.name)],
+            libraries: [
+              Library(
+                id: single.id,
+                name: single.name,
+                ingredientLibraryId: cocktailsPantry.id,
+              ),
+            ],
             mutation: RecipesMutation.fieldDeleted,
             mutationStatus: RecipesMutationStatus.success,
           ),
@@ -459,6 +473,7 @@ void main() {
               Library(
                 id: cocktailsLibrary.id,
                 name: cocktailsLibrary.name,
+                ingredientLibraryId: cocktailsPantry.id,
                 fields: [glasswareField],
               ),
               coffeeLibrary,
@@ -480,6 +495,7 @@ void main() {
           Library(
             id: cocktailsLibrary.id,
             name: cocktailsLibrary.name,
+            ingredientLibraryId: cocktailsPantry.id,
             fields: [garnishField, glasswareField],
           ),
           coffeeLibrary,
@@ -512,6 +528,7 @@ void main() {
         final single = Library(
           id: 'library-single',
           name: 'Single',
+          ingredientLibraryId: cocktailsPantry.id,
           fields: [garnishField],
         );
         await pumpView(
@@ -630,6 +647,7 @@ void main() {
         Library cocktailsWith(List<FieldDefinition> fields) => Library(
           id: cocktailsLibrary.id,
           name: cocktailsLibrary.name,
+          ingredientLibraryId: cocktailsPantry.id,
           fields: fields,
         );
         final start = loaded.copyWith(

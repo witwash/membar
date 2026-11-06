@@ -16,9 +16,9 @@ class RecipesSnapshot extends Equatable {
   const RecipesSnapshot({
     required this.libraries,
     required this.recipes,
+    required this.ingredientLibraries,
     required this.ingredients,
     required this.activeLibraryId,
-    required this.ingredientsImported,
   });
 
   /// Every library that exists, in creation order.
@@ -27,7 +27,10 @@ class RecipesSnapshot extends Equatable {
   /// Every recipe that exists, across all libraries.
   final List<Recipe> recipes;
 
-  /// Every catalog entry that exists, across all libraries.
+  /// Every ingredient library that exists, in creation order.
+  final List<IngredientLibrary> ingredientLibraries;
+
+  /// Every catalog entry that exists, across all ingredient libraries.
   final List<CatalogIngredient> ingredients;
 
   /// The id of the library currently being browsed.
@@ -36,16 +39,12 @@ class RecipesSnapshot extends Equatable {
   /// active one.
   final String activeLibraryId;
 
-  /// Whether the one-time import of ingredient names from saved recipes has
-  /// run.
-  final bool ingredientsImported;
-
   @override
   List<Object?> get props => [
     libraries,
     recipes,
+    ingredientLibraries,
     ingredients,
     activeLibraryId,
-    ingredientsImported,
   ];
 }

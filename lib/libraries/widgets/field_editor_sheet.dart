@@ -305,6 +305,7 @@ class _FieldEditorSheetState extends State<FieldEditorSheet> {
         Library(
           id: library.id,
           name: library.name,
+          ingredientLibraryId: library.ingredientLibraryId,
           fields: stored == null
               ? [...library.fields, edited]
               : [

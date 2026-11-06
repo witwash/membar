@@ -18,9 +18,9 @@ void main() {
           RecipesSnapshot(
             libraries: [cocktailsLibrary],
             recipes: const [],
+            ingredientLibraries: [cocktailsPantry],
             ingredients: const [],
             activeLibraryId: cocktailsLibrary.id,
-            ingredientsImported: false,
           ),
         ),
       );

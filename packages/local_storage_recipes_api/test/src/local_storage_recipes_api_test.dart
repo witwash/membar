@@ -65,8 +65,8 @@ void main() {
     late List<String> reported;
     final templates = LibraryTemplates(idBuilder: _counterIds());
     final seeded = templates.all();
-    final cocktails = seeded.first;
-    final coffee = seeded.last;
+    final (cocktails, cocktailsIngredients) = seeded.first;
+    final (coffee, coffeeIngredients) = seeded.last;
 
     /// The api under test, closed in `tearDown` so no subject outlives its
     /// test.
@@ -83,10 +83,11 @@ void main() {
       return built;
     }
 
-    /// Prefs holding an already-seeded install: both templates, no recipes,
-    /// an empty catalog, Cocktails active.
+    /// Prefs holding an already-seeded install: both templates and their
+    /// ingredient libraries, no recipes, an empty catalog, Cocktails active.
     Map<String, Object> seededPrefs({
       List<Library>? libraries,
+      List<IngredientLibrary>? ingredientLibraries,
       List<Recipe>? recipes,
       List<CatalogIngredient>? ingredients,
       String? activeLibraryId,
@@ -95,7 +96,14 @@ void main() {
         LocalStorageRecipesApi.kSchemaVersionKey:
             LocalStorageRecipesApi.kSchemaVersion,
         LocalStorageRecipesApi.kLibrariesKey: jsonEncode([
-          for (final library in libraries ?? seeded) library.toJson(),
+          for (final library in libraries ?? [cocktails, coffee])
+            library.toJson(),
+        ]),
+        LocalStorageRecipesApi.kIngredientLibrariesKey: jsonEncode([
+          for (final ingredientLibrary
+              in ingredientLibraries ??
+                  [cocktailsIngredients, coffeeIngredients])
+            ingredientLibrary.toJson(),
         ]),
         LocalStorageRecipesApi.kRecipesKey: jsonEncode([
           for (final recipe in recipes ?? const <Recipe>[]) recipe.toJson(),
@@ -145,38 +153,49 @@ void main() {
         await api.initialWrite;
       });
 
-      test('seeds every template and opens on the first one', () async {
-        final snapshot = await api.watch().first;
+      test(
+        'seeds every template with its own ingredient library and opens on '
+        'the first one',
+        () async {
+          final snapshot = await api.watch().first;
 
-        expect(
-          snapshot.libraries.map((library) => library.name),
-          equals(['Cocktails', 'Coffee']),
-        );
-        expect(snapshot.recipes, isEmpty);
-        expect(snapshot.activeLibraryId, equals(snapshot.libraries.first.id));
-      });
+          expect(snapshot.libraries, equals([cocktails, coffee]));
+          expect(
+            snapshot.ingredientLibraries,
+            equals([cocktailsIngredients, coffeeIngredients]),
+          );
+          expect(snapshot.recipes, isEmpty);
+          expect(snapshot.activeLibraryId, equals(cocktails.id));
+        },
+      );
 
-      test('writes the libraries, the active id and the schema version', () {
-        expect(
-          plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
-          equals(LocalStorageRecipesApi.kSchemaVersion),
-        );
-        expect(
-          plugin.getString(LocalStorageRecipesApi.kActiveLibraryIdKey),
-          equals(cocktails.id),
-        );
-
-        final stored = jsonDecode(
-          plugin.getString(LocalStorageRecipesApi.kLibrariesKey)!,
-        ) as List<dynamic>;
-        expect(
-          [
-            for (final library in stored)
-              Library.fromJson(library as Map<String, dynamic>).name,
-          ],
-          equals(['Cocktails', 'Coffee']),
-        );
-      });
+      test(
+        'writes the libraries, the ingredient libraries, the active id and '
+        'the schema version',
+        () {
+          expect(
+            plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
+            equals(LocalStorageRecipesApi.kSchemaVersion),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kActiveLibraryIdKey),
+            equals(cocktails.id),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kLibrariesKey),
+            equals(jsonEncode([cocktails.toJson(), coffee.toJson()])),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientLibrariesKey),
+            equals(
+              jsonEncode([
+                cocktailsIngredients.toJson(),
+                coffeeIngredients.toJson(),
+              ]),
+            ),
+          );
+        },
+      );
 
       test('starts with an empty catalog', () async {
         expect((await api.watch().first).ingredients, isEmpty);
@@ -191,146 +210,101 @@ void main() {
       });
     });
 
-    group('schema migration', () {
-      /// Prefs as a version 1 install left them: no catalog key.
-      Map<String, Object> v1Prefs({List<Recipe> recipes = const []}) =>
-          seededPrefs(recipes: recipes)
-            ..remove(LocalStorageRecipesApi.kIngredientsKey)
-            ..[LocalStorageRecipesApi.kSchemaVersionKey] = 1;
+    group('reseed', () {
+      const reseededKeys = [
+        LocalStorageRecipesApi.kIngredientLibrariesKey,
+        LocalStorageRecipesApi.kIngredientsKey,
+        LocalStorageRecipesApi.kRecipesKey,
+        LocalStorageRecipesApi.kLibrariesKey,
+        LocalStorageRecipesApi.kActiveLibraryIdKey,
+        LocalStorageRecipesApi.kSchemaVersionKey,
+      ];
+
+      Future<void> expectReseeded() async {
+        final snapshot = await api.watch().first;
+        expect(snapshot.libraries, equals([cocktails, coffee]));
+        expect(
+          snapshot.ingredientLibraries,
+          equals([cocktailsIngredients, coffeeIngredients]),
+        );
+        expect(snapshot.recipes, isEmpty);
+        expect(snapshot.ingredients, isEmpty);
+        expect(snapshot.activeLibraryId, equals(cocktails.id));
+        expect(
+          plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
+          equals(3),
+        );
+        expect(reported, isEmpty);
+      }
 
       test(
-        'a fresh install writes the catalog before the version, at 2',
+        'a fresh install writes every key, the version last, at 3',
         () async {
           final store = await setUpRecordingPrefs({});
 
           api = buildApi();
           await api.initialWrite;
 
-          expect(
-            store.writtenKeys,
-            equals([
-              LocalStorageRecipesApi.kLibrariesKey,
-              LocalStorageRecipesApi.kActiveLibraryIdKey,
-              LocalStorageRecipesApi.kIngredientsKey,
-              LocalStorageRecipesApi.kSchemaVersionKey,
-            ]),
-          );
-          expect(
-            plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
-            equals(2),
-          );
+          expect(store.writtenKeys, equals(reseededKeys));
+          await expectReseeded();
         },
       );
 
       test(
-        'a version 1 install gains an empty catalog without rewriting '
-        'recipes or libraries',
+        'a version 2 install is discarded and reseeded with two pairs',
         () async {
-          final negroni = Recipe(
-            id: 'r1',
-            libraryId: cocktails.id,
-            name: 'Negroni',
-            ingredients: [Ingredient(name: 'Gin', quantity: '30', unit: 'ml')],
-          );
-          final prefs = v1Prefs(recipes: [negroni]);
-          final store = await setUpRecordingPrefs(prefs);
+          // Shaped as version 2 stored it: none of it decodes as version 3,
+          // so a reseed that read any of it would fail.
+          final store = await setUpRecordingPrefs({
+            LocalStorageRecipesApi.kSchemaVersionKey: 2,
+            LocalStorageRecipesApi.kLibrariesKey: jsonEncode([
+              {'id': 'old', 'name': 'Bar', 'fields': <Object>[]},
+            ]),
+            LocalStorageRecipesApi.kRecipesKey: jsonEncode([
+              {
+                'id': 'r1',
+                'libraryId': 'old',
+                'name': 'Negroni',
+                'ingredients': [
+                  {'name': 'Gin'},
+                ],
+              },
+            ]),
+            LocalStorageRecipesApi.kIngredientsKey: jsonEncode([
+              {
+                'id': 'i1',
+                'name': 'Gin',
+                'libraryIds': ['old'],
+              },
+            ]),
+            LocalStorageRecipesApi.kActiveLibraryIdKey: 'old',
+            '__ingredients_import_version_key__': 1,
+          });
 
           api = buildApi();
           await api.initialWrite;
 
+          expect(store.writtenKeys, equals(reseededKeys));
+          await expectReseeded();
           expect(
-            store.writtenKeys,
-            equals([
-              LocalStorageRecipesApi.kIngredientsKey,
-              LocalStorageRecipesApi.kSchemaVersionKey,
-            ]),
-          );
-          expect(
-            plugin.getString(LocalStorageRecipesApi.kRecipesKey),
-            equals(prefs[LocalStorageRecipesApi.kRecipesKey]),
-          );
-          expect(
-            plugin.getString(LocalStorageRecipesApi.kLibrariesKey),
-            equals(prefs[LocalStorageRecipesApi.kLibrariesKey]),
-          );
-          expect(
-            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
-            equals('[]'),
-          );
-          expect(
-            plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
-            equals(2),
-          );
-
-          final snapshot = await api.watch().first;
-          expect(snapshot.recipes, equals([negroni]));
-          expect(snapshot.ingredients, isEmpty);
-          expect(reported, isEmpty);
-        },
-      );
-
-      test(
-        'a version 1 install with unreadable libraries re-seeds and still '
-        'writes the catalog',
-        () async {
-          final store = await setUpRecordingPrefs(
-            v1Prefs()..[LocalStorageRecipesApi.kLibrariesKey] = 'not json',
-          );
-
-          api = buildApi();
-          await api.initialWrite;
-
-          expect(
-            store.writtenKeys,
-            containsAllInOrder([
-              LocalStorageRecipesApi.kLibrariesKey,
-              LocalStorageRecipesApi.kIngredientsKey,
-              LocalStorageRecipesApi.kSchemaVersionKey,
-            ]),
-          );
-          expect(
-            store.writtenKeys.last,
-            LocalStorageRecipesApi.kSchemaVersionKey,
-          );
-          expect(
-            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
-            equals('[]'),
+            plugin.getInt('__ingredients_import_version_key__'),
+            equals(1),
+            reason: 'nothing reads it, and there is no remove path',
           );
         },
       );
 
-      test('a migration finding the catalog present keeps it', () async {
-        // A version write that failed last launch leaves a v1 install whose
-        // catalog the user may have built on since.
-        final gin = CatalogIngredient(
-          id: 'i1',
-          name: 'Gin',
-          libraryIds: {cocktails.id},
-        );
-        final store = await setUpRecordingPrefs(
-          v1Prefs()
-            ..[LocalStorageRecipesApi.kIngredientsKey] = jsonEncode([
-              gin.toJson(),
-            ]),
-        );
-
-        api = buildApi();
-        await api.initialWrite;
-
-        expect(
-          store.writtenKeys,
-          equals([LocalStorageRecipesApi.kSchemaVersionKey]),
-        );
-        expect((await api.watch().first).ingredients, equals([gin]));
-      });
-
-      test('a version 2 install writes nothing', () async {
+      test('a version 3 install writes nothing', () async {
         final store = await setUpRecordingPrefs(seededPrefs());
 
         api = buildApi();
         await api.initialWrite;
 
         expect(store.writtenKeys, isEmpty);
+        expect(
+          (await api.watch().first).ingredientLibraries,
+          equals([cocktailsIngredients, coffeeIngredients]),
+        );
         expect(reported, isEmpty);
       });
     });
@@ -408,11 +382,18 @@ void main() {
 
           final snapshot = await api.watch().first;
           expect(snapshot.libraries, hasLength(2));
+          expect(
+            snapshot.ingredientLibraries.map((library) => library.id),
+            equals(
+              snapshot.libraries.map((library) => library.ingredientLibraryId),
+            ),
+          );
           expect(snapshot.recipes, equals([orphan]));
           expect(
             reported,
             equals([
               contains('libraries could not be read'),
+              contains('were missing'),
               contains('belong to a library that no longer exists'),
             ]),
           );
@@ -429,7 +410,13 @@ void main() {
         await api.initialWrite;
 
         expect((await api.watch().first).libraries, hasLength(2));
-        expect(reported.single, contains('No libraries were stored'));
+        expect(
+          reported,
+          equals([
+            contains('No libraries were stored'),
+            contains('were missing'),
+          ]),
+        );
       });
 
       test('recovers an unreadable recipes blob as an empty list', () async {
@@ -471,16 +458,115 @@ void main() {
       );
 
       test(
-        'keeps rows whose catalog entry is gone, and reports them',
+        'recreates each ingredient library an unreadable blob lost under its '
+        'id, named after the first library using it',
+        () async {
+          final drinks = Library(
+            id: cocktails.id,
+            name: 'Drinks',
+            ingredientLibraryId: cocktailsIngredients.id,
+            fields: cocktails.fields,
+          );
+          final tiki = Library(
+            id: 'tiki',
+            name: 'Tiki',
+            ingredientLibraryId: cocktailsIngredients.id,
+          );
+          final gin = CatalogIngredient(
+            id: 'i1',
+            name: 'Gin',
+            ingredientLibraryId: cocktailsIngredients.id,
+          );
+          final store = await setUpRecordingPrefs(
+            seededPrefs(libraries: [drinks, tiki, coffee], ingredients: [gin])
+              ..[LocalStorageRecipesApi.kIngredientLibrariesKey] = 'not json',
+          );
+
+          api = buildApi();
+          await api.initialWrite;
+
+          final recreated = [
+            IngredientLibrary(id: cocktailsIngredients.id, name: 'Drinks'),
+            IngredientLibrary(id: coffeeIngredients.id, name: 'Coffee'),
+          ];
+          final snapshot = await api.watch().first;
+          expect(snapshot.ingredientLibraries, equals(recreated));
+          expect(snapshot.libraries, equals([drinks, tiki, coffee]));
+          expect(snapshot.ingredients, equals([gin]));
+          expect(
+            store.writtenKeys,
+            equals([LocalStorageRecipesApi.kIngredientLibrariesKey]),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientLibrariesKey),
+            equals(jsonEncode([for (final entry in recreated) entry.toJson()])),
+          );
+          expect(
+            reported,
+            equals([
+              contains('ingredient libraries could not be read'),
+              startsWith('2 ingredient library(ies) were missing'),
+            ]),
+          );
+        },
+      );
+
+      test(
+        'recreates only the missing ingredient libraries, after the stored '
+        'ones',
+        () async {
+          await setUpPrefs(
+            seededPrefs(ingredientLibraries: [coffeeIngredients]),
+          );
+
+          api = buildApi();
+          await api.initialWrite;
+
+          expect(
+            (await api.watch().first).ingredientLibraries,
+            equals([coffeeIngredients, cocktailsIngredients]),
+          );
+          expect(
+            reported.single,
+            startsWith('1 ingredient library(ies) were missing'),
+          );
+        },
+      );
+
+      test(
+        'keeps an ingredient whose ingredient library is gone, and reports it',
+        () async {
+          final stray = CatalogIngredient(
+            id: 'i1',
+            name: 'Gin',
+            ingredientLibraryId: 'gone',
+          );
+          await setUpPrefs(seededPrefs(ingredients: [stray]));
+
+          api = buildApi();
+          await api.initialWrite;
+
+          expect((await api.watch().first).ingredients, equals([stray]));
+          expect(
+            reported.single,
+            allOf(
+              startsWith('1 ingredient(s)'),
+              contains('belong to an ingredient library that no longer exists'),
+            ),
+          );
+        },
+      );
+
+      test(
+        'keeps rows whose catalog entry is gone, and reports them as hidden',
         () async {
           final negroni = Recipe(
             id: 'r1',
             libraryId: cocktails.id,
             name: 'Negroni',
             ingredients: [
-              Ingredient(name: 'Gin', catalogId: 'gone'),
-              Ingredient(name: 'Campari', catalogId: 'i1'),
-              Ingredient(name: 'Vermouth'),
+              Ingredient(catalogId: 'gone'),
+              Ingredient(catalogId: 'i1'),
             ],
           );
           await setUpPrefs(
@@ -490,7 +576,7 @@ void main() {
                 CatalogIngredient(
                   id: 'i1',
                   name: 'Campari',
-                  libraryIds: {cocktails.id},
+                  ingredientLibraryId: cocktailsIngredients.id,
                 ),
               ],
             ),
@@ -505,6 +591,7 @@ void main() {
             allOf(
               startsWith('1 ingredient row(s)'),
               contains('catalog entry that no longer exists'),
+              contains('they are hidden'),
             ),
           );
         },
@@ -566,19 +653,37 @@ void main() {
         opened.add(defaulted);
         await defaulted.initialWrite;
 
-        expect(printed.single, contains('libraries could not be read'));
+        expect(printed.first, contains('libraries could not be read'));
       });
     });
 
     group('saveRecipe', () {
+      final gin = CatalogIngredient(
+        id: 'i1',
+        name: 'Gin',
+        ingredientLibraryId: cocktailsIngredients.id,
+      );
+      final milk = CatalogIngredient(
+        id: 'i2',
+        name: 'Milk',
+        ingredientLibraryId: coffeeIngredients.id,
+      );
       late Recipe negroni;
 
       setUp(() async {
         negroni = Recipe(id: 'r1', libraryId: cocktails.id, name: 'Negroni');
-        await setUpPrefs(seededPrefs());
+        await setUpPrefs(seededPrefs(ingredients: [gin, milk]));
         api = buildApi();
         await api.initialWrite;
       });
+
+      Future<void> expectNothingStored() async {
+        expect((await api.watch().first).recipes, isEmpty);
+        expect(
+          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+          equals('[]'),
+        );
+      }
 
       test('adds a recipe and re-emits the snapshot', () async {
         await api.saveRecipe(negroni);
@@ -589,6 +694,22 @@ void main() {
           equals(jsonEncode([negroni.toJson()])),
         );
       });
+
+      test(
+        "stores rows drawn from its library's ingredient library",
+        () async {
+          final withGin = Recipe(
+            id: 'r1',
+            libraryId: cocktails.id,
+            name: 'Negroni',
+            ingredients: [Ingredient(catalogId: gin.id, quantity: '30')],
+          );
+
+          await api.saveRecipe(withGin);
+
+          expect((await api.watch().first).recipes, equals([withGin]));
+        },
+      );
 
       test('replaces a recipe that already carries the id', () async {
         await api.saveRecipe(negroni);
@@ -610,6 +731,58 @@ void main() {
         expect(snapshot.libraries, hasLength(2));
         expect(snapshot.activeLibraryId, equals(cocktails.id));
       });
+
+      test(
+        'throws LibraryNotFoundException for a library that is gone, storing '
+        'nothing',
+        () async {
+          await expectLater(
+            () => api.saveRecipe(
+              Recipe(id: 'r1', libraryId: 'gone', name: 'Sour'),
+            ),
+            throwsA(
+              isA<LibraryNotFoundException>().having(
+                (exception) => exception.id,
+                'id',
+                equals('gone'),
+              ),
+            ),
+          );
+          await expectNothingStored();
+        },
+      );
+
+      for (final (reason, catalogId) in [
+        ('an unknown ingredient', 'nope'),
+        ("another ingredient library's ingredient", milk.id),
+      ]) {
+        test(
+          'throws IngredientNotFoundException for $reason, storing nothing',
+          () async {
+            await expectLater(
+              () => api.saveRecipe(
+                Recipe(
+                  id: 'r1',
+                  libraryId: cocktails.id,
+                  name: 'Negroni',
+                  ingredients: [
+                    Ingredient(catalogId: gin.id),
+                    Ingredient(catalogId: catalogId),
+                  ],
+                ),
+              ),
+              throwsA(
+                isA<IngredientNotFoundException>().having(
+                  (exception) => exception.id,
+                  'id',
+                  equals(catalogId),
+                ),
+              ),
+            );
+            await expectNothingStored();
+          },
+        );
+      }
 
       test('throws when the write fails', () async {
         SharedPreferencesStorePlatform.instance = _FailingStore();
@@ -677,7 +850,7 @@ void main() {
         gin = CatalogIngredient(
           id: 'i1',
           name: 'Gin',
-          libraryIds: {cocktails.id},
+          ingredientLibraryId: cocktailsIngredients.id,
           defaultUnit: const KnownUnit(StandardUnit.ml),
         );
         await setUpPrefs(seededPrefs());
@@ -700,7 +873,7 @@ void main() {
         final renamed = CatalogIngredient(
           id: gin.id,
           name: 'GIN',
-          libraryIds: {cocktails.id, coffee.id},
+          ingredientLibraryId: cocktailsIngredients.id,
         );
 
         // Folding onto its own name is a rename, not a collision.
@@ -718,14 +891,17 @@ void main() {
       });
 
       test(
-        'throws IngredientNameTakenException for a name another entry '
-        'carries',
+        'throws IngredientNameTakenException for a name another entry in the '
+        'same ingredient library carries',
         () async {
           await api.saveIngredient(gin);
 
           await expectLater(
             () => api.saveIngredient(
-              CatalogIngredient(name: ' gin ', libraryIds: {coffee.id}),
+              CatalogIngredient(
+                name: ' gin ',
+                ingredientLibraryId: cocktailsIngredients.id,
+              ),
             ),
             throwsA(
               isA<IngredientNameTakenException>().having(
@@ -739,6 +915,49 @@ void main() {
         },
       );
 
+      test(
+        'accepts a name an entry in another ingredient library carries',
+        () async {
+          await api.saveIngredient(gin);
+          final coffeeGin = CatalogIngredient(
+            id: 'i2',
+            name: 'gin',
+            ingredientLibraryId: coffeeIngredients.id,
+          );
+
+          await api.saveIngredient(coffeeGin);
+
+          expect(
+            (await api.watch().first).ingredients,
+            equals([gin, coffeeGin]),
+          );
+        },
+      );
+
+      test(
+        'throws IngredientLibraryNotFoundException for an unknown ingredient '
+        'library, storing nothing',
+        () async {
+          await expectLater(
+            () => api.saveIngredient(
+              CatalogIngredient(name: 'Gin', ingredientLibraryId: 'nope'),
+            ),
+            throwsA(
+              isA<IngredientLibraryNotFoundException>().having(
+                (exception) => exception.id,
+                'id',
+                equals('nope'),
+              ),
+            ),
+          );
+          expect((await api.watch().first).ingredients, isEmpty);
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
+            equals('[]'),
+          );
+        },
+      );
+
       test('throws when the write fails', () async {
         SharedPreferencesStorePlatform.instance = _FailingStore();
 
@@ -749,238 +968,179 @@ void main() {
       });
     });
 
-    group('importIngredients', () {
+    group('deleteIngredient', () {
+      // Shares the Cocktails ingredient library, so a strip has to reach
+      // past the one library the entry was picked from.
+      final tiki = Library(
+        id: 'tiki',
+        name: 'Tiki',
+        ingredientLibraryId: cocktailsIngredients.id,
+      );
       final gin = CatalogIngredient(
         id: 'i1',
         name: 'Gin',
-        libraryIds: {cocktails.id},
+        ingredientLibraryId: cocktailsIngredients.id,
       );
       final campari = CatalogIngredient(
         id: 'i2',
         name: 'Campari',
-        libraryIds: {cocktails.id},
+        ingredientLibraryId: cocktailsIngredients.id,
       );
-      final sugar = CatalogIngredient(
-        id: 'i3',
-        name: 'Sugar',
-        libraryIds: {coffee.id},
+      final negroni = Recipe(
+        id: 'r1',
+        libraryId: cocktails.id,
+        name: 'Negroni',
+        ingredients: [
+          Ingredient(catalogId: gin.id, quantity: '30', unit: 'ml'),
+          Ingredient(catalogId: campari.id),
+        ],
+        steps: const ['Stir.'],
+        tags: const ['Bitter'],
+        notes: 'Classic.',
+        fieldValues: {cocktails.fields.last.id: 'Orange'},
       );
+      final zombie = Recipe(
+        id: 'r2',
+        libraryId: tiki.id,
+        name: 'Zombie',
+        ingredients: [Ingredient(catalogId: gin.id)],
+      );
+      final americano = Recipe(
+        id: 'r3',
+        libraryId: cocktails.id,
+        name: 'Americano',
+        ingredients: [Ingredient(catalogId: campari.id)],
+      );
+      final stripped = [
+        Recipe(
+          id: negroni.id,
+          libraryId: negroni.libraryId,
+          name: negroni.name,
+          ingredients: [Ingredient(catalogId: campari.id)],
+          steps: negroni.steps,
+          tags: negroni.tags,
+          notes: negroni.notes,
+          fieldValues: negroni.fieldValues,
+        ),
+        Recipe(id: zombie.id, libraryId: zombie.libraryId, name: zombie.name),
+        americano,
+      ];
 
-      test('opens an install that never imported as not imported', () async {
-        await setUpPrefs(seededPrefs());
+      Future<_RecordingStore> open({List<Recipe> recipes = const []}) async {
+        final store = await setUpRecordingPrefs(
+          seededPrefs(
+            libraries: [cocktails, coffee, tiki],
+            recipes: recipes,
+            ingredients: [gin, campari],
+          ),
+        );
         api = buildApi();
-
-        expect((await api.watch().first).ingredientsImported, isFalse);
-      });
-
-      test('opens an install that already imported as imported', () async {
-        await setUpPrefs({
-          ...seededPrefs(),
-          LocalStorageRecipesApi.kIngredientsImportVersionKey:
-              LocalStorageRecipesApi.kIngredientsImportVersion,
-        });
-        api = buildApi();
-
-        expect((await api.watch().first).ingredientsImported, isTrue);
-      });
+        await api.initialWrite;
+        store.writtenKeys.clear();
+        return store;
+      }
 
       test(
-        'writes the catalog, the recipes, then the import version, and '
-        'emits one snapshot',
+        'removes the entry, writing only the ingredients when no recipe '
+        'uses it',
         () async {
-          final store = await setUpRecordingPrefs(
-            seededPrefs(ingredients: [gin]),
+          final store = await open(recipes: [americano]);
+
+          await api.deleteIngredient(gin.id);
+
+          final snapshot = await api.watch().first;
+          expect(snapshot.ingredients, equals([campari]));
+          expect(snapshot.recipes, equals([americano]));
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
+            equals(jsonEncode([campari.toJson()])),
           );
-          api = buildApi();
-          await api.initialWrite;
-          store.writtenKeys.clear();
+          expect(
+            store.writtenKeys,
+            equals([LocalStorageRecipesApi.kIngredientsKey]),
+          );
+        },
+      );
+
+      test(
+        'strips its rows from every recipe in every library sharing the '
+        'ingredient library',
+        () async {
+          await open(recipes: [negroni, zombie, americano]);
+
+          await api.deleteIngredient(gin.id);
+
+          expect((await api.watch().first).recipes, equals(stripped));
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+            equals(
+              jsonEncode([for (final recipe in stripped) recipe.toJson()]),
+            ),
+          );
+        },
+      );
+
+      test(
+        'writes the recipes, then the ingredients, and emits one snapshot',
+        () async {
+          final store = await open(recipes: [negroni, zombie, americano]);
           final emitted = <RecipesSnapshot>[];
           final subscription = api.watch().skip(1).listen(emitted.add);
           addTearDown(subscription.cancel);
 
-          await api.importIngredients([campari, sugar]);
+          await api.deleteIngredient(gin.id);
           await pumpEventQueue();
 
           expect(
             store.writtenKeys,
             equals([
-              LocalStorageRecipesApi.kIngredientsKey,
               LocalStorageRecipesApi.kRecipesKey,
-              LocalStorageRecipesApi.kIngredientsImportVersionKey,
+              LocalStorageRecipesApi.kIngredientsKey,
             ]),
           );
           expect(emitted, hasLength(1));
-          expect(emitted.single.ingredients, equals([gin, campari, sugar]));
-          expect(emitted.single.ingredientsImported, isTrue);
-          expect(
-            plugin.getInt(LocalStorageRecipesApi.kIngredientsImportVersionKey),
-            equals(LocalStorageRecipesApi.kIngredientsImportVersion),
-          );
+          expect(emitted.single.recipes, equals(stripped));
+          expect(emitted.single.ingredients, equals([campari]));
         },
       );
 
-      test('links every row whose name matches an entry', () async {
-        await setUpPrefs(
-          seededPrefs(
-            ingredients: [gin],
-            recipes: [
-              Recipe(
-                id: 'r1',
-                libraryId: cocktails.id,
-                name: 'Negroni',
-                tags: const ['Bitter'],
-                notes: 'Stir.',
-                ingredients: [
-                  Ingredient(name: 'gin', quantity: '30', unit: 'ml'),
-                  Ingredient(name: 'CAMPARI'),
-                  Ingredient(name: 'Vermouth'),
-                  Ingredient(name: 'Old Tom', catalogId: 'gone'),
-                ],
-              ),
-              Recipe(
-                id: 'r2',
-                libraryId: coffee.id,
-                name: 'Cortado',
-                ingredients: [Ingredient(name: 'Sugar', catalogId: gin.id)],
-              ),
-            ],
-          ),
-        );
-        api = buildApi();
-        await api.initialWrite;
+      test(
+        'a failed ingredients write throws and emits nothing, and a retry '
+        'completes the delete',
+        () async {
+          final store = await open(recipes: [negroni, zombie, americano]);
+          final before = await api.watch().first;
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+          store.failingKey = LocalStorageRecipesApi.kIngredientsKey;
 
-        await api.importIngredients([campari]);
+          await expectLater(
+            () => api.deleteIngredient(gin.id),
+            throwsA(isA<RecipesPersistenceException>()),
+          );
+          await pumpEventQueue();
 
-        final recipes = (await api.watch().first).recipes;
-        expect(
-          recipes.first,
-          Recipe(
-            id: 'r1',
-            libraryId: cocktails.id,
-            name: 'Negroni',
-            tags: const ['Bitter'],
-            notes: 'Stir.',
-            ingredients: [
-              Ingredient(
-                name: 'gin',
-                quantity: '30',
-                unit: 'ml',
-                catalogId: gin.id,
-              ),
-              Ingredient(name: 'CAMPARI', catalogId: campari.id),
-              Ingredient(name: 'Vermouth'),
-              Ingredient(name: 'Old Tom', catalogId: 'gone'),
-            ],
-          ),
-        );
-        // A link that resolves is kept even when the row's name no longer
-        // matches its entry: that is what a rename looks like.
-        expect(recipes.last.ingredients.single.catalogId, equals(gin.id));
-        expect(
-          plugin.getString(LocalStorageRecipesApi.kRecipesKey),
-          equals(jsonEncode([for (final recipe in recipes) recipe.toJson()])),
-        );
-      });
+          expect(emitted, isEmpty);
+          expect(await api.watch().first, equals(before));
+          expect(
+            store.writtenKeys,
+            equals([LocalStorageRecipesApi.kRecipesKey]),
+          );
 
-      test('replaces entries that already carry their ids', () async {
-        await setUpPrefs(seededPrefs(ingredients: [gin, campari]));
-        api = buildApi();
-        await api.initialWrite;
-        final renamed = CatalogIngredient(
-          id: gin.id,
-          name: 'London Dry Gin',
-          libraryIds: gin.libraryIds,
-        );
+          store.failingKey = null;
+          await api.deleteIngredient(gin.id);
 
-        await api.importIngredients([renamed]);
-
-        expect(
-          (await api.watch().first).ingredients,
-          equals([renamed, campari]),
-        );
-      });
-
-      test('stores nothing when an entry folds onto a stored one', () async {
-        final store = await setUpRecordingPrefs(
-          seededPrefs(ingredients: [gin]),
-        );
-        api = buildApi();
-        await api.initialWrite;
-        store.writtenKeys.clear();
-
-        await expectLater(
-          () => api.importIngredients([
-            campari,
-            CatalogIngredient(name: 'GIN', libraryIds: {coffee.id}),
-          ]),
-          throwsA(isA<IngredientNameTakenException>()),
-        );
-        final snapshot = await api.watch().first;
-        expect(snapshot.ingredients, equals([gin]));
-        expect(snapshot.ingredientsImported, isFalse);
-        expect(store.writtenKeys, isEmpty);
-      });
-
-      test('throws when two entries in the batch fold together', () async {
-        await setUpPrefs(seededPrefs());
-        api = buildApi();
-        await api.initialWrite;
-
-        await expectLater(
-          () => api.importIngredients([
-            campari,
-            CatalogIngredient(name: 'campari', libraryIds: {coffee.id}),
-          ]),
-          throwsA(isA<IngredientNameTakenException>()),
-        );
-        expect((await api.watch().first).ingredients, isEmpty);
-      });
-
-      test('leaves the import on offer when a write fails', () async {
-        await setUpPrefs(seededPrefs());
-        api = buildApi();
-        await api.initialWrite;
-        SharedPreferencesStorePlatform.instance = _FailingStore();
-
-        await expectLater(
-          () => api.importIngredients([gin]),
-          throwsA(isA<RecipesPersistenceException>()),
-        );
-        expect((await api.watch().first).ingredientsImported, isFalse);
-      });
-    });
-
-    group('deleteIngredient', () {
-      late CatalogIngredient gin;
-
-      setUp(() {
-        gin = CatalogIngredient(
-          id: 'i1',
-          name: 'Gin',
-          libraryIds: {cocktails.id},
-        );
-      });
-
-      test('removes the entry and re-emits the snapshot', () async {
-        await setUpPrefs(seededPrefs(ingredients: [gin]));
-        api = buildApi();
-        await api.initialWrite;
-
-        await api.deleteIngredient(gin.id);
-
-        expect((await api.watch().first).ingredients, isEmpty);
-        expect(
-          plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
-          equals('[]'),
-        );
-      });
+          final snapshot = await api.watch().first;
+          expect(snapshot.ingredients, equals([campari]));
+          expect(snapshot.recipes, equals(stripped));
+        },
+      );
 
       test(
         'throws IngredientNotFoundException for an id that is gone',
         () async {
-          await setUpPrefs(seededPrefs());
-          api = buildApi();
-          await api.initialWrite;
+          final store = await open();
 
           await expectLater(
             () => api.deleteIngredient('nope'),
@@ -992,48 +1152,7 @@ void main() {
               ),
             ),
           );
-        },
-      );
-
-      test(
-        'throws IngredientInUseException counting recipes in every library',
-        () async {
-          await setUpPrefs(
-            seededPrefs(
-              ingredients: [gin],
-              recipes: [
-                Recipe(
-                  id: 'r1',
-                  libraryId: cocktails.id,
-                  name: 'Negroni',
-                  ingredients: [Ingredient(name: 'Gin', catalogId: gin.id)],
-                ),
-                Recipe(
-                  id: 'r2',
-                  libraryId: coffee.id,
-                  name: 'Gin tonic espresso',
-                  ingredients: [Ingredient(name: 'Gin', catalogId: gin.id)],
-                ),
-                Recipe(id: 'r3', libraryId: cocktails.id, name: 'Daiquiri'),
-              ],
-            ),
-          );
-          api = buildApi();
-          await api.initialWrite;
-
-          await expectLater(
-            () => api.deleteIngredient(gin.id),
-            throwsA(
-              isA<IngredientInUseException>()
-                  .having((exception) => exception.id, 'id', equals(gin.id))
-                  .having(
-                    (exception) => exception.recipeCount,
-                    'recipeCount',
-                    equals(2),
-                  ),
-            ),
-          );
-          expect((await api.watch().first).ingredients, equals([gin]));
+          expect(store.writtenKeys, isEmpty);
         },
       );
     });
@@ -1041,7 +1160,11 @@ void main() {
     group('saveLibrary', () {
       final glassware = cocktails.fields.first;
       final garnish = cocktails.fields.last;
-      final tea = Library(id: 'tea', name: 'Tea');
+      final tea = Library(
+        id: 'tea',
+        name: 'Tea',
+        ingredientLibraryId: coffeeIngredients.id,
+      );
 
       FieldDefinition glasswareWith(List<String> options) => FieldDefinition(
         id: glassware.id,
@@ -1050,8 +1173,12 @@ void main() {
         options: options,
       );
 
-      Library cocktailsWith(List<FieldDefinition> fields) =>
-          Library(id: cocktails.id, name: cocktails.name, fields: fields);
+      Library cocktailsWith(List<FieldDefinition> fields) => Library(
+        id: cocktails.id,
+        name: cocktails.name,
+        ingredientLibraryId: cocktails.ingredientLibraryId,
+        fields: fields,
+      );
 
       Recipe cocktail(String id, Map<String, Object?> fieldValues) => Recipe(
         id: id,
@@ -1095,11 +1222,124 @@ void main() {
         );
       });
 
+      test(
+        'writes a new ingredient library before the library pointing at it, '
+        'and emits one snapshot',
+        () async {
+          final store = await open();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+          final teaIngredients = IngredientLibrary(
+            id: 'tea-ingredients',
+            name: 'Tea',
+          );
+          final ownTea = Library(
+            id: 'tea',
+            name: 'Tea',
+            ingredientLibraryId: teaIngredients.id,
+          );
+
+          await api.saveLibrary(ownTea, ingredientLibrary: teaIngredients);
+          await pumpEventQueue();
+
+          expect(
+            store.writtenKeys,
+            equals([
+              LocalStorageRecipesApi.kIngredientLibrariesKey,
+              LocalStorageRecipesApi.kLibrariesKey,
+            ]),
+          );
+          expect(emitted, hasLength(1));
+          expect(
+            emitted.single.libraries,
+            equals([cocktails, coffee, ownTea]),
+          );
+          final ingredientLibraries = [
+            cocktailsIngredients,
+            coffeeIngredients,
+            teaIngredients,
+          ];
+          expect(
+            emitted.single.ingredientLibraries,
+            equals(ingredientLibraries),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientLibrariesKey),
+            equals(
+              jsonEncode([
+                for (final entry in ingredientLibraries) entry.toJson(),
+              ]),
+            ),
+          );
+        },
+      );
+
+      test(
+        'throws IngredientLibraryNameTakenException for a name another '
+        'ingredient library carries, storing nothing',
+        () async {
+          final store = await open();
+          final brunchIngredients = IngredientLibrary(name: ' coffee ');
+
+          await expectLater(
+            () => api.saveLibrary(
+              Library(
+                name: 'Brunch',
+                ingredientLibraryId: brunchIngredients.id,
+              ),
+              ingredientLibrary: brunchIngredients,
+            ),
+            throwsA(
+              isA<IngredientLibraryNameTakenException>().having(
+                (exception) => exception.name,
+                'name',
+                equals('coffee'),
+              ),
+            ),
+          );
+          final snapshot = await api.watch().first;
+          expect(snapshot.libraries, equals([cocktails, coffee]));
+          expect(
+            snapshot.ingredientLibraries,
+            equals([cocktailsIngredients, coffeeIngredients]),
+          );
+          expect(store.writtenKeys, isEmpty);
+        },
+      );
+
+      test(
+        'throws IngredientLibraryNotFoundException for a library whose '
+        'ingredient library is unknown, storing nothing',
+        () async {
+          final store = await open();
+
+          await expectLater(
+            () => api.saveLibrary(
+              Library(name: 'Tea', ingredientLibraryId: 'nope'),
+            ),
+            throwsA(
+              isA<IngredientLibraryNotFoundException>().having(
+                (exception) => exception.id,
+                'id',
+                equals('nope'),
+              ),
+            ),
+          );
+          expect(
+            (await api.watch().first).libraries,
+            equals([cocktails, coffee]),
+          );
+          expect(store.writtenKeys, isEmpty);
+        },
+      );
+
       test('replaces a library whose id is known at the same index', () async {
         await open();
         final renamed = Library(
           id: cocktails.id,
           name: 'Drinks',
+          ingredientLibraryId: cocktails.ingredientLibraryId,
           fields: cocktails.fields,
         );
 
@@ -1117,7 +1357,12 @@ void main() {
           final store = await open();
 
           await expectLater(
-            () => api.saveLibrary(Library(name: ' coffee ')),
+            () => api.saveLibrary(
+              Library(
+                name: ' coffee ',
+                ingredientLibraryId: coffeeIngredients.id,
+              ),
+            ),
             throwsA(
               isA<LibraryNameTakenException>().having(
                 (exception) => exception.name,
@@ -1139,6 +1384,7 @@ void main() {
         final recased = Library(
           id: cocktails.id,
           name: 'COCKTAILS',
+          ingredientLibraryId: cocktails.ingredientLibraryId,
           fields: cocktails.fields,
         );
 
@@ -1156,7 +1402,12 @@ void main() {
         );
 
         await api.saveLibrary(
-          Library(id: cocktails.id, name: 'Drinks', fields: cocktails.fields),
+          Library(
+            id: cocktails.id,
+            name: 'Drinks',
+            ingredientLibraryId: cocktails.ingredientLibraryId,
+            fields: cocktails.fields,
+          ),
         );
 
         expect(
@@ -1502,38 +1753,35 @@ void main() {
     });
 
     group('deleteLibrary', () {
-      final tea = Library(id: 'tea', name: 'Tea');
+      final tea = Library(
+        id: 'tea',
+        name: 'Tea',
+        ingredientLibraryId: coffeeIngredients.id,
+      );
       final gin = CatalogIngredient(
         id: 'i1',
         name: 'Gin',
-        libraryIds: {cocktails.id},
+        ingredientLibraryId: cocktailsIngredients.id,
       );
-      final sugar = CatalogIngredient(
+      final milk = CatalogIngredient(
         id: 'i2',
-        name: 'Sugar',
-        libraryIds: {cocktails.id, coffee.id},
-      );
-      final cinnamon = CatalogIngredient(
-        id: 'i3',
-        name: 'Cinnamon',
-        libraryIds: {coffee.id},
+        name: 'Milk',
+        ingredientLibraryId: coffeeIngredients.id,
       );
       final negroni = Recipe(
         id: 'r1',
         libraryId: cocktails.id,
         name: 'Negroni',
+        ingredients: [Ingredient(catalogId: gin.id)],
       );
       final v60 = Recipe(id: 'r2', libraryId: coffee.id, name: 'V60');
 
-      Future<_RecordingStore> open({
-        List<Library>? libraries,
-        List<CatalogIngredient>? ingredients,
-      }) async {
+      Future<_RecordingStore> open({List<Library>? libraries}) async {
         final store = await setUpRecordingPrefs(
           seededPrefs(
             libraries: libraries,
             recipes: [negroni, v60],
-            ingredients: ingredients ?? [gin, sugar, cinnamon],
+            ingredients: [gin, milk],
           ),
         );
         api = buildApi();
@@ -1561,62 +1809,26 @@ void main() {
       });
 
       test(
-        'strips the id from a shared entry and moves an entry scoped only '
-        'to it to the successor',
+        'leaves the ingredients and the ingredient libraries untouched',
         () async {
-          await open();
+          final store = await open();
 
           await api.deleteLibrary(cocktails.id, successorId: coffee.id);
 
-          final moved = [
-            CatalogIngredient(
-              id: gin.id,
-              name: gin.name,
-              libraryIds: {coffee.id},
-            ),
-            CatalogIngredient(
-              id: sugar.id,
-              name: sugar.name,
-              libraryIds: {coffee.id},
-            ),
-            cinnamon,
-          ];
-          expect((await api.watch().first).ingredients, equals(moved));
+          final snapshot = await api.watch().first;
+          expect(snapshot.ingredients, equals([gin, milk]));
           expect(
-            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
-            equals(jsonEncode([for (final entry in moved) entry.toJson()])),
+            snapshot.ingredientLibraries,
+            equals([cocktailsIngredients, coffeeIngredients]),
           );
-        },
-      );
-
-      test(
-        'leaves a shared entry in its other libraries rather than moving it '
-        'to the successor',
-        () async {
-          final lime = CatalogIngredient(
-            id: 'i4',
-            name: 'Lime',
-            libraryIds: {cocktails.id, tea.id},
-          );
-          await open(
-            libraries: [cocktails, coffee, tea],
-            ingredients: [gin, sugar, cinnamon, lime],
-          );
-
-          await api.deleteLibrary(cocktails.id, successorId: tea.id);
-
-          final scopes = {
-            for (final entry in (await api.watch().first).ingredients)
-              entry.name: entry.libraryIds,
-          };
           expect(
-            scopes,
-            equals({
-              'Gin': {tea.id},
-              'Sugar': {coffee.id},
-              'Cinnamon': {coffee.id},
-              'Lime': {tea.id},
-            }),
+            store.writtenKeys,
+            isNot(
+              anyOf(
+                contains(LocalStorageRecipesApi.kIngredientsKey),
+                contains(LocalStorageRecipesApi.kIngredientLibrariesKey),
+              ),
+            ),
           );
         },
       );
@@ -1700,8 +1912,8 @@ void main() {
       });
 
       test(
-        'writes the ingredients, the active id, the recipes, then the '
-        'libraries, and emits one snapshot',
+        'writes the active id, the recipes, then the libraries, and emits '
+        'one snapshot',
         () async {
           final store = await open();
           final emitted = <RecipesSnapshot>[];
@@ -1714,7 +1926,6 @@ void main() {
           expect(
             store.writtenKeys,
             equals([
-              LocalStorageRecipesApi.kIngredientsKey,
               LocalStorageRecipesApi.kActiveLibraryIdKey,
               LocalStorageRecipesApi.kRecipesKey,
               LocalStorageRecipesApi.kLibrariesKey,
@@ -1736,10 +1947,6 @@ void main() {
         expect(
           store.writtenKeys,
           equals([LocalStorageRecipesApi.kLibrariesKey]),
-        );
-        expect(
-          (await api.watch().first).ingredients,
-          equals([gin, sugar, cinnamon]),
         );
       });
 
@@ -1764,10 +1971,7 @@ void main() {
           expect(await api.watch().first, equals(before));
           expect(
             store.writtenKeys,
-            equals([
-              LocalStorageRecipesApi.kIngredientsKey,
-              LocalStorageRecipesApi.kActiveLibraryIdKey,
-            ]),
+            equals([LocalStorageRecipesApi.kActiveLibraryIdKey]),
           );
 
           store.failingKey = null;
@@ -1802,6 +2006,7 @@ void main() {
               Library(
                 id: cocktails.id,
                 name: cocktails.name,
+                ingredientLibraryId: cocktails.ingredientLibraryId,
                 fields: [cocktails.fields.first],
               ),
             ),
@@ -1887,12 +2092,12 @@ void main() {
           final gin = CatalogIngredient(
             id: 'i1',
             name: 'Gin',
-            libraryIds: {cocktails.id},
+            ingredientLibraryId: cocktailsIngredients.id,
           );
 
           api = buildApi();
-          // Not awaiting the initial write: the migration's empty catalog must
-          // not overtake this save and wipe the entry it wrote.
+          // Not awaiting the initial write: the seed's empty catalog must not
+          // overtake this save and wipe the entry it wrote.
           await api.saveIngredient(gin);
 
           expect(

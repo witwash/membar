@@ -42,18 +42,32 @@ void main() {
       );
     });
 
-    test('RecipesLibrarySaved carries the library and the option renames', () {
-      final tea = Library(id: 'l3', name: 'Tea');
-      final chai = Library(id: 'l4', name: 'Chai');
+    test('RecipesLibrarySaved carries the library, the ingredient library and '
+        'the option renames', () {
+      final tea = Library(id: 'l3', name: 'Tea', ingredientLibraryId: 'il3');
+      final chai = Library(id: 'l4', name: 'Chai', ingredientLibraryId: 'il3');
+      final teaShelf = IngredientLibrary(id: 'il3', name: 'Tea');
       const renames = {
         'f1': {'Coupe': 'Coupe glass'},
       };
 
       expect(
-        RecipesLibrarySaved(tea, optionRenames: renames),
-        RecipesLibrarySaved(tea, optionRenames: renames),
+        RecipesLibrarySaved(
+          tea,
+          ingredientLibrary: teaShelf,
+          optionRenames: renames,
+        ),
+        RecipesLibrarySaved(
+          tea,
+          ingredientLibrary: teaShelf,
+          optionRenames: renames,
+        ),
       );
       expect(RecipesLibrarySaved(tea), isNot(RecipesLibrarySaved(chai)));
+      expect(
+        RecipesLibrarySaved(tea),
+        isNot(RecipesLibrarySaved(tea, ingredientLibrary: teaShelf)),
+      );
       expect(
         RecipesLibrarySaved(tea),
         isNot(RecipesLibrarySaved(tea, optionRenames: renames)),
@@ -125,22 +139,16 @@ void main() {
       final gin = CatalogIngredient(
         id: 'i1',
         name: 'Gin',
-        libraryIds: const {'l1'},
+        ingredientLibraryId: 'il1',
       );
       final rum = CatalogIngredient(
         id: 'i2',
         name: 'Rum',
-        libraryIds: const {'l1'},
+        ingredientLibraryId: 'il1',
       );
 
       expect(RecipesIngredientSaved(gin), RecipesIngredientSaved(gin));
       expect(RecipesIngredientSaved(gin), isNot(RecipesIngredientSaved(rum)));
-    });
-
-    test('RecipesIngredientsImported supports value equality', () {
-      // Not const, for the reason given on RecipesSubscriptionRequested.
-      // ignore: prefer_const_constructors
-      expect(RecipesIngredientsImported(), RecipesIngredientsImported());
     });
 
     test('RecipesIngredientDeleted carries the id', () {
@@ -151,21 +159,6 @@ void main() {
       expect(
         const RecipesIngredientDeleted('i1'),
         isNot(const RecipesIngredientDeleted('i2')),
-      );
-    });
-
-    test('RecipesIngredientScopeWidened carries the entry and library', () {
-      expect(
-        const RecipesIngredientScopeWidened('i1', 'l1'),
-        const RecipesIngredientScopeWidened('i1', 'l1'),
-      );
-      expect(
-        const RecipesIngredientScopeWidened('i1', 'l1'),
-        isNot(const RecipesIngredientScopeWidened('i1', 'l2')),
-      );
-      expect(
-        const RecipesIngredientScopeWidened('i1', 'l1'),
-        isNot(const RecipesIngredientScopeWidened('i2', 'l1')),
       );
     });
 

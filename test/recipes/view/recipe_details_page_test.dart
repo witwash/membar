@@ -18,13 +18,19 @@ void main() {
   group('RecipeDetailsPage', () {
     late RecipesBloc recipesBloc;
 
+    final ice = CatalogIngredient(
+      id: 'ingredient-ice',
+      name: 'Ice',
+      ingredientLibraryId: cocktailsPantry.id,
+    );
+
     final negroni = Recipe(
       id: 'recipe-negroni',
       libraryId: cocktailsLibrary.id,
       name: 'Negroni',
       ingredients: [
-        Ingredient(name: 'Gin', quantity: '1', unit: 'oz'),
-        Ingredient(name: 'Ice'),
+        Ingredient(catalogId: ginIngredient.id, quantity: '1', unit: 'oz'),
+        Ingredient(catalogId: ice.id),
       ],
       steps: const ['Stir with ice.', 'Strain over a big cube.'],
       tags: const ['Bitter'],
@@ -44,7 +50,10 @@ void main() {
       whenListen(
         recipesBloc,
         states.stream,
-        initialState: const RecipesState(),
+        initialState: RecipesState(
+          ingredientLibraries: [cocktailsPantry],
+          ingredients: [ginIngredient, ice],
+        ),
       );
     });
 
@@ -159,13 +168,11 @@ void main() {
         name: 'Sour',
         ingredients: [
           Ingredient(
-            name: 'Gin',
+            catalogId: ginIngredient.id,
             quantity: '2',
             unit: 'oz',
-            catalogId: ginIngredient.id,
           ),
-          Ingredient(name: 'Sugar', catalogId: 'ingredient-deleted'),
-          Ingredient(name: 'Lemon'),
+          Ingredient(catalogId: 'ingredient-deleted', quantity: '1'),
         ],
       );
 
@@ -174,11 +181,12 @@ void main() {
           recipesBloc,
           states.stream,
           initialState: RecipesState(
+            ingredientLibraries: [cocktailsPantry],
             ingredients: [
               CatalogIngredient(
                 id: ginIngredient.id,
                 name: 'London Dry Gin',
-                libraryIds: ginIngredient.libraryIds,
+                ingredientLibraryId: ginIngredient.ingredientLibraryId,
               ),
             ],
           ),
@@ -188,18 +196,17 @@ void main() {
       testWidgets("renders a referenced row under its entry's current name", (
         tester,
       ) async {
-        await pumpDetails(tester, recipe: sour, library: coffeeLibrary);
+        await pumpDetails(tester, recipe: sour, library: cocktailsLibrary);
 
         expect(find.text('2 oz London Dry Gin'), findsOneWidget);
       });
 
-      testWidgets('renders the stored name when there is no entry to read', (
-        tester,
-      ) async {
-        await pumpDetails(tester, recipe: sour, library: coffeeLibrary);
+      testWidgets('skips a row whose entry is gone', (tester) async {
+        await pumpDetails(tester, recipe: sour, library: cocktailsLibrary);
 
-        expect(find.text('Sugar'), findsOneWidget);
-        expect(find.text('Lemon'), findsOneWidget);
+        expect(find.text('Ingredients'), findsOneWidget);
+        expect(find.text('2 oz London Dry Gin'), findsOneWidget);
+        expect(find.textContaining('1'), findsNothing);
       });
     });
 

@@ -9,7 +9,8 @@ part 'library.g.dart';
 /// A named collection of recipes that declares its own field schema.
 ///
 /// The schema is [fields], and its list order is the order the fields are
-/// rendered in — there is no separate ordering index.
+/// rendered in — there is no separate ordering index. Its recipes' rows draw
+/// from the [IngredientLibrary] carrying [ingredientLibraryId].
 /// {@endtemplate}
 @JsonSerializable()
 class Library extends Equatable {
@@ -18,9 +19,14 @@ class Library extends Equatable {
   /// [id] is generated when omitted.
   Library({
     required String name,
+    required this.ingredientLibraryId,
     String? id,
     List<FieldDefinition> fields = const [],
   }) : assert(name.trim().isNotEmpty, 'A library name must not be blank.'),
+       assert(
+         ingredientLibraryId.trim().isNotEmpty,
+         'A library must point at an ingredient library.',
+       ),
        // Two fields sharing an id would share a value, a controller and a
        // form key, which collapses them into one broken control.
        assert(
@@ -45,9 +51,13 @@ class Library extends Equatable {
   /// order.
   final List<FieldDefinition> fields;
 
+  /// The id of the [IngredientLibrary] this library's recipe rows draw from.
+  /// Fixed once the library is created.
+  final String ingredientLibraryId;
+
   /// Converts this [Library] into a JSON [Map].
   Map<String, dynamic> toJson() => _$LibraryToJson(this);
 
   @override
-  List<Object?> get props => [id, name, fields];
+  List<Object?> get props => [id, name, fields, ingredientLibraryId];
 }

@@ -20,16 +20,20 @@ void main() {
     late RecipesBloc recipesBloc;
     late StreamController<RecipesState> states;
 
-    final teaLibrary = Library(id: 'library-tea', name: 'Tea');
+    // Its ingredient library resolves to nothing.
+    final teaLibrary = Library(
+      id: 'library-tea',
+      name: 'Tea',
+      ingredientLibraryId: 'ingredient-library-gone',
+    );
 
     Recipe recipeIn(Library library, String name) =>
         Recipe(id: name, libraryId: library.id, name: name);
 
-    // Gin belongs only to Cocktails, cinnamon only to Coffee, sugar to both;
-    // nothing belongs only to Tea.
     final initialState = RecipesState(
       status: RecipesStatus.success,
       libraries: [cocktailsLibrary, coffeeLibrary, teaLibrary],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
       ingredients: [ginIngredient, sugarIngredient, cinnamonIngredient],
       recipes: [
         recipeIn(cocktailsLibrary, 'Negroni'),
@@ -63,10 +67,6 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
     }
-
-    final successorSelect = find.byWidgetPredicate(
-      (widget) => widget is FSelect<String>,
-    );
 
     Future<void> tap(WidgetTester tester, String label) async {
       await tester.ensureVisible(find.text(label));
@@ -134,86 +134,30 @@ void main() {
     });
 
     group('ingredients', () {
-      testWidgets('states how many belong only to the library and offers the '
-          'other libraries, starting on the first', (tester) async {
+      testWidgets('states that its ingredient library is kept, offering no '
+          'choice', (tester) async {
         await openSheet(tester, cocktailsLibrary);
 
         expect(
-          find.text(
-            '1 ingredient belongs only to this library. It will be kept.',
-          ),
+          find.text('Its ingredients stay in Cocktails pantry.'),
           findsOneWidget,
         );
-        expect(find.text('Move it to'), findsOneWidget);
-        expect(
-          find.descendant(of: successorSelect, matching: find.text('Coffee')),
-          findsOneWidget,
-        );
-
-        await tester.tap(successorSelect);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Tea'), findsOneWidget);
-        expect(find.text('Cocktails'), findsNothing);
+        expect(find.byType(FSelect<String>), findsNothing);
       });
 
-      testWidgets('has its own wording for several', (tester) async {
-        final bitters = CatalogIngredient(
-          id: 'ingredient-bitters',
-          name: 'Bitters',
-          libraryIds: {cocktailsLibrary.id},
-        );
-        whenListen(
-          recipesBloc,
-          states.stream,
-          initialState: initialState.copyWith(
-            ingredients: [...initialState.ingredients, bitters],
-          ),
-        );
-        await openSheet(tester, cocktailsLibrary);
-
-        expect(
-          find.text(
-            '2 ingredients belong only to this library. They will be kept.',
-          ),
-          findsOneWidget,
-        );
-        expect(find.text('Move them to'), findsOneWidget);
-      });
-
-      testWidgets('are not mentioned when none belongs only to the library', (
+      testWidgets('are not mentioned when its ingredient library is gone', (
         tester,
       ) async {
         await openSheet(tester, teaLibrary);
 
-        expect(find.textContaining('belong'), findsNothing);
-        expect(successorSelect, findsNothing);
+        expect(find.textContaining('Its ingredients'), findsNothing);
       });
     });
 
     group('dispatch', () {
-      testWidgets('names the library chosen to take the ingredients', (
+      testWidgets('names the next library when deleting the first', (
         tester,
       ) async {
-        await openSheet(tester, cocktailsLibrary);
-
-        await tester.tap(successorSelect);
-        await tester.pumpAndSettle();
-        await tap(tester, 'Tea');
-        await tap(tester, 'Delete');
-
-        verify(
-          () => recipesBloc.add(
-            RecipesLibraryDeleted(
-              cocktailsLibrary.id,
-              successorId: teaLibrary.id,
-            ),
-          ),
-        ).called(1);
-      });
-
-      testWidgets('names the first other library when the choice is left '
-          'alone', (tester) async {
         await openSheet(tester, cocktailsLibrary);
 
         await tap(tester, 'Delete');
@@ -228,7 +172,7 @@ void main() {
         ).called(1);
       });
 
-      testWidgets('names the first other library when no choice was offered', (
+      testWidgets('names the first library when deleting a later one', (
         tester,
       ) async {
         await openSheet(tester, teaLibrary);

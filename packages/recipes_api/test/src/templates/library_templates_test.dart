@@ -12,19 +12,20 @@ void main() {
     test('generates uuids by default', () {
       const templates = LibraryTemplates();
 
-      expect(templates.cocktails().id, isNotEmpty);
+      expect(templates.cocktails(ingredientLibraryId: 'il1').id, isNotEmpty);
       expect(
-        templates.cocktails().id,
-        isNot(equals(templates.cocktails().id)),
+        templates.cocktails(ingredientLibraryId: 'il1').id,
+        isNot(equals(templates.cocktails(ingredientLibraryId: 'il1').id)),
       );
     });
 
     test('generates deterministic ids from an injected builder', () {
       final templates = LibraryTemplates(idBuilder: _counterIds());
 
-      final cocktails = templates.cocktails();
+      final cocktails = templates.cocktails(ingredientLibraryId: 'il1');
 
       expect(cocktails.id, equals('id_0'));
+      expect(cocktails.ingredientLibraryId, equals('il1'));
       expect(
         cocktails.fields.map((field) => field.id),
         equals(['id_1', 'id_2']),
@@ -35,7 +36,7 @@ void main() {
       test('declares Glassware as a select and Garnish as text', () {
         final cocktails = LibraryTemplates(
           idBuilder: _counterIds(),
-        ).cocktails();
+        ).cocktails(ingredientLibraryId: 'il1');
 
         expect(cocktails.name, equals('Cocktails'));
         expect(
@@ -50,7 +51,7 @@ void main() {
       test('leaves every field optional', () {
         final cocktails = LibraryTemplates(
           idBuilder: _counterIds(),
-        ).cocktails();
+        ).cocktails(ingredientLibraryId: 'il1');
 
         expect(cocktails.fields.every((field) => !field.required), isTrue);
       });
@@ -58,7 +59,9 @@ void main() {
 
     group('coffee', () {
       test('declares one field per brewing variable', () {
-        final coffee = LibraryTemplates(idBuilder: _counterIds()).coffee();
+        final coffee = LibraryTemplates(
+          idBuilder: _counterIds(),
+        ).coffee(ingredientLibraryId: 'il1');
 
         expect(coffee.name, equals('Coffee'));
         expect(
@@ -84,7 +87,9 @@ void main() {
       });
 
       test('carries units on its number fields', () {
-        final coffee = LibraryTemplates(idBuilder: _counterIds()).coffee();
+        final coffee = LibraryTemplates(
+          idBuilder: _counterIds(),
+        ).coffee(ingredientLibraryId: 'il1');
 
         expect(coffee.fields[1].unit, equals('g'));
         expect(coffee.fields[2].unit, equals('°C'));
@@ -96,19 +101,33 @@ void main() {
         final all = LibraryTemplates(idBuilder: _counterIds()).all();
 
         expect(
-          all.map((library) => library.name),
-          equals([
-            'Cocktails',
-            'Coffee',
-          ]),
+          all.map((pair) => pair.$1.name),
+          equals(['Cocktails', 'Coffee']),
         );
       });
 
-      test('gives every library and field a distinct id', () {
+      test('pairs each library with a same-named ingredient library', () {
+        final all = LibraryTemplates(idBuilder: _counterIds()).all();
+
+        for (final (library, ingredientLibrary) in all) {
+          expect(ingredientLibrary.name, equals(library.name));
+          expect(library.ingredientLibraryId, equals(ingredientLibrary.id));
+        }
+      });
+
+      test('takes ingredient library ids from the id builder', () {
+        final all = LibraryTemplates(idBuilder: _counterIds()).all();
+
+        expect(all.first.$2.id, equals('id_0'));
+      });
+
+      test('gives every library, field and ingredient library a distinct '
+          'id', () {
         final all = LibraryTemplates(idBuilder: _counterIds()).all();
 
         final ids = [
-          for (final library in all) ...[
+          for (final (library, ingredientLibrary) in all) ...[
+            ingredientLibrary.id,
             library.id,
             ...library.fields.map((field) => field.id),
           ],

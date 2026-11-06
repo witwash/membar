@@ -11,11 +11,14 @@ class _FakeCatalogIngredient extends Fake implements CatalogIngredient {}
 
 class _FakeLibrary extends Fake implements Library {}
 
+class _FakeIngredientLibrary extends Fake implements IngredientLibrary {}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(_FakeRecipe());
     registerFallbackValue(_FakeCatalogIngredient());
     registerFallbackValue(_FakeLibrary());
+    registerFallbackValue(_FakeIngredientLibrary());
   });
 
   group('RecipesRepository', () {
@@ -36,9 +39,9 @@ void main() {
         const snapshot = RecipesSnapshot(
           libraries: [],
           recipes: [],
+          ingredientLibraries: [],
           ingredients: [],
           activeLibraryId: 'l1',
-          ingredientsImported: false,
         );
         when(() => api.watch()).thenAnswer(
           (_) => Stream.value(snapshot),
@@ -57,6 +60,17 @@ void main() {
         await repository.saveRecipe(recipe);
 
         verify(() => api.saveRecipe(recipe)).called(1);
+      });
+
+      test('passes an IngredientNotFoundException through untranslated', () {
+        when(
+          () => api.saveRecipe(any()),
+        ).thenThrow(const IngredientNotFoundException('i1'));
+
+        expect(
+          () => repository.saveRecipe(Recipe(libraryId: 'l1', name: 'Negroni')),
+          throwsA(isA<IngredientNotFoundException>()),
+        );
       });
     });
 
@@ -85,7 +99,7 @@ void main() {
       test('delegates to the api', () async {
         final ingredient = CatalogIngredient(
           name: 'Gin',
-          libraryIds: const {'l1'},
+          ingredientLibraryId: 'il1',
         );
         when(() => api.saveIngredient(any())).thenAnswer((_) async {});
 
@@ -101,24 +115,10 @@ void main() {
 
         expect(
           () => repository.saveIngredient(
-            CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
+            CatalogIngredient(name: 'Gin', ingredientLibraryId: 'il1'),
           ),
           throwsA(isA<IngredientNameTakenException>()),
         );
-      });
-    });
-
-    group('importIngredients', () {
-      test('delegates to the api', () async {
-        final ingredients = [
-          CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
-          CatalogIngredient(name: 'Campari', libraryIds: const {'l1'}),
-        ];
-        when(() => api.importIngredients(any())).thenAnswer((_) async {});
-
-        await repository.importIngredients(ingredients);
-
-        verify(() => api.importIngredients(ingredients)).called(1);
       });
     });
 
@@ -131,14 +131,14 @@ void main() {
         verify(() => api.deleteIngredient('i1')).called(1);
       });
 
-      test('passes an IngredientInUseException through untranslated', () {
+      test('passes an IngredientNotFoundException through untranslated', () {
         when(
           () => api.deleteIngredient(any()),
-        ).thenThrow(const IngredientInUseException('i1', 2));
+        ).thenThrow(const IngredientNotFoundException('i1'));
 
         expect(
           () => repository.deleteIngredient('i1'),
-          throwsA(isA<IngredientInUseException>()),
+          throwsA(isA<IngredientNotFoundException>()),
         );
       });
     });
@@ -154,31 +154,54 @@ void main() {
     });
 
     group('saveLibrary', () {
-      final tea = Library(id: 'l3', name: 'Tea');
+      final teaShelf = IngredientLibrary(id: 'il3', name: 'Tea');
+      final tea = Library(id: 'l3', name: 'Tea', ingredientLibraryId: 'il3');
+
+      When<Future<void>> stubSaveLibrary() => when(
+        () => api.saveLibrary(
+          any(),
+          ingredientLibrary: any(named: 'ingredientLibrary'),
+          optionRenames: any(named: 'optionRenames'),
+        ),
+      );
 
       test('delegates to the api, renames included', () async {
         const renames = {
           'f1': {'Coupe': 'Coupe glass'},
         };
-        when(
-          () => api.saveLibrary(
-            any(),
-            optionRenames: any(named: 'optionRenames'),
-          ),
-        ).thenAnswer((_) async {});
+        stubSaveLibrary().thenAnswer((_) async {});
 
         await repository.saveLibrary(tea, optionRenames: renames);
 
         verify(() => api.saveLibrary(tea, optionRenames: renames)).called(1);
       });
 
+      test('delegates a new ingredient library to the api', () async {
+        stubSaveLibrary().thenAnswer((_) async {});
+
+        await repository.saveLibrary(tea, ingredientLibrary: teaShelf);
+
+        verify(
+          () => api.saveLibrary(tea, ingredientLibrary: teaShelf),
+        ).called(1);
+      });
+
+      test(
+        'passes an IngredientLibraryNameTakenException through untranslated',
+        () {
+          stubSaveLibrary().thenThrow(
+            const IngredientLibraryNameTakenException('Tea'),
+          );
+
+          expect(
+            () => repository.saveLibrary(tea, ingredientLibrary: teaShelf),
+            throwsA(isA<IngredientLibraryNameTakenException>()),
+          );
+        },
+      );
+
       test('passes a LibraryNameTakenException through untranslated', () {
-        when(
-          () => api.saveLibrary(
-            any(),
-            optionRenames: any(named: 'optionRenames'),
-          ),
-        ).thenThrow(const LibraryNameTakenException('Tea'));
+        stubSaveLibrary().thenThrow(const LibraryNameTakenException('Tea'));
 
         expect(
           () => repository.saveLibrary(tea),

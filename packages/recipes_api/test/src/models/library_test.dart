@@ -6,27 +6,43 @@ import 'package:test/test.dart';
 void main() {
   group('Library', () {
     test('generates an id when none is given', () {
-      final first = Library(name: 'Cocktails');
-      final second = Library(name: 'Cocktails');
+      final first = Library(name: 'Cocktails', ingredientLibraryId: 'il1');
+      final second = Library(name: 'Cocktails', ingredientLibraryId: 'il1');
 
       expect(first.id, isNotEmpty);
       expect(first.id, isNot(equals(second.id)));
     });
 
     test('keeps the id it is given', () {
-      expect(Library(id: 'l1', name: 'Cocktails').id, equals('l1'));
+      expect(
+        Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1').id,
+        equals('l1'),
+      );
     });
 
     test('trims the name', () {
-      expect(Library(name: '  Cocktails  ').name, equals('Cocktails'));
+      expect(
+        Library(name: '  Cocktails  ', ingredientLibraryId: 'il1').name,
+        equals('Cocktails'),
+      );
     });
 
     test('asserts on a blank name', () {
-      expect(() => Library(name: '  '), throwsA(isA<AssertionError>()));
+      expect(
+        () => Library(name: '  ', ingredientLibraryId: 'il1'),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('asserts on a blank ingredient library id', () {
+      expect(
+        () => Library(name: 'Cocktails', ingredientLibraryId: ' '),
+        throwsA(isA<AssertionError>()),
+      );
     });
 
     test('defaults to an empty schema, exposed as unmodifiable', () {
-      final library = Library(name: 'Cocktails');
+      final library = Library(name: 'Cocktails', ingredientLibraryId: 'il1');
 
       expect(library.fields, isEmpty);
       expect(
@@ -40,6 +56,7 @@ void main() {
     test('keeps its fields in the order they are declared', () {
       final library = Library(
         name: 'Coffee',
+        ingredientLibraryId: 'il1',
         fields: [
           FieldDefinition(id: 'f1', label: 'Dose', type: FieldType.number),
           FieldDefinition(id: 'f2', label: 'Grind', type: FieldType.text),
@@ -51,12 +68,24 @@ void main() {
 
     test('supports value equality', () {
       expect(
-        Library(id: 'l1', name: 'Cocktails'),
-        equals(Library(id: 'l1', name: 'Cocktails')),
+        Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1'),
+        equals(
+          Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1'),
+        ),
       );
       expect(
-        Library(id: 'l1', name: 'Cocktails'),
-        isNot(equals(Library(id: 'l1', name: 'Coffee'))),
+        Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1'),
+        isNot(
+          equals(Library(id: 'l1', name: 'Coffee', ingredientLibraryId: 'il1')),
+        ),
+      );
+      expect(
+        Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1'),
+        isNot(
+          equals(
+            Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il2'),
+          ),
+        ),
       );
     });
 
@@ -64,6 +93,7 @@ void main() {
       final library = Library(
         id: 'l1',
         name: 'Cocktails',
+        ingredientLibraryId: 'il1',
         fields: [
           FieldDefinition(
             id: 'f1',
@@ -83,7 +113,11 @@ void main() {
     });
 
     test('decodes a payload with no fields', () {
-      final decoded = Library.fromJson(const {'id': 'l1', 'name': 'Cocktails'});
+      final decoded = Library.fromJson(const {
+        'id': 'l1',
+        'name': 'Cocktails',
+        'ingredientLibraryId': 'il1',
+      });
 
       expect(decoded.fields, isEmpty);
     });
@@ -94,7 +128,11 @@ void main() {
       final field = FieldDefinition(label: 'Glassware', type: FieldType.text);
 
       expect(
-        () => Library(name: 'Cocktails', fields: [field, field]),
+        () => Library(
+          name: 'Cocktails',
+          ingredientLibraryId: 'il1',
+          fields: [field, field],
+        ),
         throwsA(isA<AssertionError>()),
       );
     });
@@ -103,6 +141,7 @@ void main() {
       expect(
         () => Library(
           name: 'Cocktails',
+          ingredientLibraryId: 'il1',
           fields: [
             FieldDefinition(label: 'Glassware', type: FieldType.text),
             FieldDefinition(label: 'Garnish', type: FieldType.text),

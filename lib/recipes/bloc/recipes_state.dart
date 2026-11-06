@@ -25,32 +25,6 @@ enum RecipesMutation {
   fieldMoved,
   ingredientSaved,
   ingredientDeleted,
-  ingredientsImported,
-}
-
-/// A catalog entry the import would create from the ingredient rows of saved
-/// recipes.
-///
-/// It carries no id: the entry's id is minted when the import is written, so
-/// reading [RecipesState.importableIngredients] twice yields equal values.
-final class ImportableIngredient extends Equatable {
-  ImportableIngredient({
-    required this.name,
-    required Set<String> libraryIds,
-    this.defaultUnit,
-  }) : libraryIds = Set.unmodifiable(libraryIds);
-
-  /// The first spelling of the name seen across the recipes using it.
-  final String name;
-
-  /// The unit spelled most often on those rows, or null when none carries one.
-  final Unit? defaultUnit;
-
-  /// Every library holding a recipe that uses the name.
-  final Set<String> libraryIds;
-
-  @override
-  List<Object?> get props => [name, defaultUnit, libraryIds];
 }
 
 final class RecipesState extends Equatable {
@@ -60,11 +34,11 @@ final class RecipesState extends Equatable {
     this.mutationStatus = RecipesMutationStatus.initial,
     this.libraries = const [],
     this.recipes = const [],
+    this.ingredientLibraries = const [],
     this.ingredients = const [],
     this.activeLibraryId = '',
     this.searchTerm = '',
     this.activeTags = const {},
-    this.ingredientsImported = false,
     this.movedFieldId,
   });
 
@@ -84,8 +58,11 @@ final class RecipesState extends Equatable {
   /// render a list.
   final List<Recipe> recipes;
 
-  /// Every catalog entry that exists, across all libraries. Read
-  /// [libraryIngredients] and [otherLibraryIngredients] to offer them.
+  /// Every ingredient library that exists, in creation order.
+  final List<IngredientLibrary> ingredientLibraries;
+
+  /// Every catalog entry that exists, across all ingredient libraries. Read
+  /// [ingredientsIn] to offer them.
   final List<CatalogIngredient> ingredients;
 
   /// The id of the library being browsed. Blank until the first snapshot
@@ -97,10 +74,6 @@ final class RecipesState extends Equatable {
 
   /// The tags the list is filtered by. Selected tags are OR'd together.
   final Set<String> activeTags;
-
-  /// Whether the one-time import of ingredient names from saved recipes has
-  /// run. Once it has, [importableIngredients] offers nothing.
-  final bool ingredientsImported;
 
   /// The id of the field the latest [RecipesMutation.fieldMoved] emission
   /// reports on, or null before any move.
@@ -142,16 +115,6 @@ final class RecipesState extends Equatable {
   /// deleting it takes with it.
   int recipeCountIn(String libraryId) =>
       recipes.where((recipe) => recipe.libraryId == libraryId).length;
-
-  /// How many catalog entries are visible in the library carrying [libraryId]
-  /// and nowhere else — the ones deleting it has to move.
-  int ingredientCountOnlyIn(String libraryId) => ingredients
-      .where(
-        (entry) =>
-            entry.libraryIds.length == 1 &&
-            entry.libraryIds.contains(libraryId),
-      )
-      .length;
 
   /// How many recipes in the library carrying [libraryId] hold a value for
   /// the field carrying [fieldId] — the ones deleting the field clears.
@@ -215,26 +178,24 @@ final class RecipesState extends Equatable {
         .expand((recipe) => recipe.tags),
   )..sort(compareCaseInsensitive);
 
-  /// Catalog entries visible in the active library, ordered case-insensitively.
-  List<CatalogIngredient> get libraryIngredients => _sortedIngredients(
-    (entry) => entry.libraryIds.contains(activeLibraryId),
-  );
-
-  /// Catalog entries not visible in the active library — the picker's second
-  /// section.
-  List<CatalogIngredient> get otherLibraryIngredients => _sortedIngredients(
-    (entry) => !entry.libraryIds.contains(activeLibraryId),
-  );
+  /// The catalog entries in the ingredient library carrying
+  /// [ingredientLibraryId], ordered case-insensitively.
+  List<CatalogIngredient> ingredientsIn(String ingredientLibraryId) =>
+      ingredients
+          .where((entry) => entry.ingredientLibraryId == ingredientLibraryId)
+          .toList()
+        ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
 
   /// How many recipes reference each entry, keyed by catalog id. Absent means
   /// zero.
   ///
-  /// Counts distinct recipes across every library, because deleting an entry
-  /// is global. This recomputes on each read, so read it once per build.
+  /// Counts distinct recipes across every library, because several libraries
+  /// can share an ingredient library. This recomputes on each read, so read it
+  /// once per build.
   Map<String, int> get ingredientUsage {
     final usage = <String, int>{};
     for (final recipe in recipes) {
-      final ids = {for (final row in recipe.ingredients) ?row.catalogId};
+      final ids = {for (final row in recipe.ingredients) row.catalogId};
       for (final id in ids) {
         usage[id] = (usage[id] ?? 0) + 1;
       }
@@ -242,75 +203,55 @@ final class RecipesState extends Equatable {
     return usage;
   }
 
-  /// The ids of the libraries holding a recipe that references the entry
-  /// carrying [ingredientId] — where a refused delete sends the user to look.
+  /// The recipes referencing the entry carrying [ingredientId], ordered by
+  /// their library's creation order and then by name — the ones an edit to
+  /// that entry reaches.
   ///
-  /// Read from the recipes rather than the entry's own libraries, which can
-  /// lag behind its use.
-  Set<String> libraryIdsUsingIngredient(String ingredientId) => {
-    for (final recipe in recipes)
-      if (recipe.ingredients.any((row) => row.catalogId == ingredientId))
-        recipe.libraryId,
-  };
-
-  /// The entries the import would create: one per ingredient name used in a
-  /// saved recipe that no catalog entry claims, ordered case-insensitively.
-  /// Empty once [ingredientsImported], so the import is offered only once.
-  ///
-  /// Names fold case-insensitively, keeping the first spelling seen. A row
-  /// whose link resolves is already claimed, whatever name it stored, and a
-  /// recipe whose library no longer exists contributes nothing, since an entry
-  /// scoped only to it could never be picked. Each entry is scoped to every
-  /// library using its name, and its default unit is the spelling used most
-  /// often, with the first seen winning a tie.
-  List<ImportableIngredient> get importableIngredients {
-    if (ingredientsImported) return const [];
-
-    final libraryIds = {for (final library in libraries) library.id};
-    final catalogIds = {for (final entry in ingredients) entry.id};
-    final claimed = {for (final entry in ingredients) _fold(entry.name)};
-    final names = <String, String>{};
-    final scopes = <String, Set<String>>{};
-    final unitCounts = <String, Map<String, int>>{};
-
-    for (final recipe in recipes) {
-      if (!libraryIds.contains(recipe.libraryId)) continue;
-      for (final row in recipe.ingredients) {
-        final key = _fold(row.name);
-        if (claimed.contains(key)) continue;
-        if (catalogIds.contains(row.catalogId)) {
-          continue;
-        }
-
-        names.putIfAbsent(key, () => row.name);
-        (scopes[key] ??= {}).add(recipe.libraryId);
-        final counts = unitCounts[key] ??= {};
-        if (row.unit.isNotEmpty) counts[row.unit] = (counts[row.unit] ?? 0) + 1;
-      }
-    }
-
-    return [
-      for (final MapEntry(:key, value: name) in names.entries)
-        ImportableIngredient(
-          name: name,
-          defaultUnit: _unitFromSpelling(_mostFrequent(unitCounts[key]!)),
-          libraryIds: scopes[key]!,
-        ),
-    ]..sort((a, b) => compareCaseInsensitive(a.name, b.name));
+  /// [exceptLibraryId] leaves out one library's recipes, such as the one the
+  /// user is looking at. A recipe whose library no longer exists is hidden
+  /// everywhere else, so it is left out here too.
+  List<Recipe> recipesUsingIngredient(
+    String ingredientId, {
+    String? exceptLibraryId,
+  }) {
+    final order = {
+      for (final (index, library) in libraries.indexed) library.id: index,
+    };
+    return recipes
+        .where(
+          (recipe) =>
+              recipe.libraryId != exceptLibraryId &&
+              order.containsKey(recipe.libraryId) &&
+              recipe.ingredients.any((row) => row.catalogId == ingredientId),
+        )
+        .toList()
+      ..sort((a, b) {
+        final byLibrary = order[a.libraryId]!.compareTo(order[b.libraryId]!);
+        return byLibrary != 0
+            ? byLibrary
+            : compareCaseInsensitive(a.name, b.name);
+      });
   }
 
-  /// The entry whose name matches [name] without regard to case or
-  /// surrounding whitespace, or null when none does or [name] is blank.
+  /// The entry in the ingredient library carrying [ingredientLibraryId] whose
+  /// name matches [name] without regard to case or surrounding whitespace, or
+  /// null when none does or [name] is blank.
   ///
-  /// Catalog names are unique on that same folding, so at most one entry can
-  /// match. This is the rule that links a saved ingredient row to an entry,
-  /// makes the create sheet reuse an entry rather than add a second, and
-  /// refuses a rename onto another entry's name.
-  CatalogIngredient? ingredientNamed(String name) {
+  /// Names are unique within an ingredient library on that same folding, so
+  /// at most one entry can match. This is the rule that links a recipe row to
+  /// an entry, makes the create sheet reuse an entry rather than add a second,
+  /// and refuses a rename onto another entry's name.
+  CatalogIngredient? ingredientNamed(
+    String name, {
+    required String ingredientLibraryId,
+  }) {
     final folded = _fold(name);
     if (folded.isEmpty) return null;
     for (final entry in ingredients) {
-      if (_fold(entry.name) == folded) return entry;
+      if (entry.ingredientLibraryId == ingredientLibraryId &&
+          _fold(entry.name) == folded) {
+        return entry;
+      }
     }
     return null;
   }
@@ -323,30 +264,30 @@ final class RecipesState extends Equatable {
     return null;
   }
 
-  static String _fold(String name) => name.trim().toLowerCase();
-
-  /// The key counted most often. A map iterates in insertion order and only a
-  /// strictly greater count replaces the leader, so the first seen wins a tie.
-  static String? _mostFrequent(Map<String, int> counts) {
-    String? leader;
-    var most = 0;
-    for (final MapEntry(:key, value: count) in counts.entries) {
-      if (count > most) (leader, most) = (key, count);
+  /// The ingredient library carrying [id], or null when it resolves to
+  /// nothing.
+  IngredientLibrary? ingredientLibraryById(String id) {
+    for (final ingredientLibrary in ingredientLibraries) {
+      if (ingredientLibrary.id == id) return ingredientLibrary;
     }
-    return leader;
+    return null;
   }
 
-  static Unit? _unitFromSpelling(String? spelling) {
-    if (spelling == null) return null;
-    final known = StandardUnit.values.asNameMap()[spelling.toLowerCase()];
-    return known == null ? CustomUnit(spelling) : KnownUnit(known);
+  /// The ingredient library whose name matches [name] without regard to case
+  /// or surrounding whitespace, or null when none does or [name] is blank.
+  ///
+  /// Ingredient library names are unique on that same folding, so at most one
+  /// can match.
+  IngredientLibrary? ingredientLibraryNamed(String name) {
+    final folded = _fold(name);
+    if (folded.isEmpty) return null;
+    for (final ingredientLibrary in ingredientLibraries) {
+      if (_fold(ingredientLibrary.name) == folded) return ingredientLibrary;
+    }
+    return null;
   }
 
-  List<CatalogIngredient> _sortedIngredients(
-    bool Function(CatalogIngredient entry) test,
-  ) =>
-      ingredients.where(test).toList()
-        ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
+  static String _fold(String name) => name.trim().toLowerCase();
 
   RecipesState copyWith({
     RecipesStatus? status,
@@ -354,11 +295,11 @@ final class RecipesState extends Equatable {
     RecipesMutationStatus? mutationStatus,
     List<Library>? libraries,
     List<Recipe>? recipes,
+    List<IngredientLibrary>? ingredientLibraries,
     List<CatalogIngredient>? ingredients,
     String? activeLibraryId,
     String? searchTerm,
     Set<String>? activeTags,
-    bool? ingredientsImported,
     String? movedFieldId,
   }) {
     return RecipesState(
@@ -367,11 +308,11 @@ final class RecipesState extends Equatable {
       mutationStatus: mutationStatus ?? this.mutationStatus,
       libraries: libraries ?? this.libraries,
       recipes: recipes ?? this.recipes,
+      ingredientLibraries: ingredientLibraries ?? this.ingredientLibraries,
       ingredients: ingredients ?? this.ingredients,
       activeLibraryId: activeLibraryId ?? this.activeLibraryId,
       searchTerm: searchTerm ?? this.searchTerm,
       activeTags: activeTags ?? this.activeTags,
-      ingredientsImported: ingredientsImported ?? this.ingredientsImported,
       movedFieldId: movedFieldId ?? this.movedFieldId,
     );
   }
@@ -383,11 +324,11 @@ final class RecipesState extends Equatable {
     mutationStatus,
     libraries,
     recipes,
+    ingredientLibraries,
     ingredients,
     activeLibraryId,
     searchTerm,
     activeTags,
-    ingredientsImported,
     movedFieldId,
   ];
 }

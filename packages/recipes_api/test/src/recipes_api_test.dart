@@ -17,9 +17,6 @@ class _FakeRecipesApi extends RecipesApi {
   Future<void> saveIngredient(CatalogIngredient ingredient) async {}
 
   @override
-  Future<void> importIngredients(List<CatalogIngredient> ingredients) async {}
-
-  @override
   Future<void> deleteIngredient(String id) async {}
 
   @override
@@ -28,6 +25,7 @@ class _FakeRecipesApi extends RecipesApi {
   @override
   Future<void> saveLibrary(
     Library library, {
+    IngredientLibrary? ingredientLibrary,
     Map<String, Map<String, String>> optionRenames = const {},
   }) async {}
 
@@ -47,12 +45,14 @@ void main() {
       await api.saveRecipe(Recipe(libraryId: 'l1', name: 'Negroni'));
       await api.deleteRecipe('r1');
       await api.saveIngredient(
-        CatalogIngredient(name: 'Gin', libraryIds: const {'l1'}),
+        CatalogIngredient(name: 'Gin', ingredientLibraryId: 'il1'),
       );
-      await api.importIngredients(const []);
       await api.deleteIngredient('i1');
       await api.setActiveLibraryId('l1');
-      await api.saveLibrary(Library(name: 'Tea'));
+      await api.saveLibrary(
+        Library(name: 'Tea', ingredientLibraryId: 'il1'),
+        ingredientLibrary: IngredientLibrary(id: 'il1', name: 'Tea'),
+      );
       await api.deleteLibrary('l1', successorId: 'l2');
       await api.close();
     });
@@ -85,13 +85,21 @@ void main() {
     });
   });
 
-  group('IngredientInUseException', () {
-    test('names the id and how many recipes use it', () {
-      const exception = IngredientInUseException('i1', 4);
+  group('IngredientLibraryNotFoundException', () {
+    test('names the id it was thrown for', () {
+      const exception = IngredientLibraryNotFoundException('il1');
 
-      expect(exception.id, equals('i1'));
-      expect(exception.recipeCount, equals(4));
-      expect(exception.toString(), allOf(contains('i1'), contains('4')));
+      expect(exception.id, equals('il1'));
+      expect(exception.toString(), contains('il1'));
+    });
+  });
+
+  group('IngredientLibraryNameTakenException', () {
+    test('names the name that is taken', () {
+      const exception = IngredientLibraryNameTakenException('Cocktails');
+
+      expect(exception.name, equals('Cocktails'));
+      expect(exception.toString(), contains('Cocktails'));
     });
   });
 

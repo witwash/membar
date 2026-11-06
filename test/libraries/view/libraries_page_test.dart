@@ -23,6 +23,7 @@ void main() {
         initialState: RecipesState(
           status: RecipesStatus.success,
           libraries: [cocktailsLibrary],
+          ingredientLibraries: [cocktailsPantry],
           activeLibraryId: cocktailsLibrary.id,
         ),
       );

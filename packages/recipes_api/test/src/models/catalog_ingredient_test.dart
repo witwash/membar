@@ -6,8 +6,8 @@ import 'package:test/test.dart';
 void main() {
   group('CatalogIngredient', () {
     test('generates an id when none is given', () {
-      final first = CatalogIngredient(name: 'Gin', libraryIds: const {'l1'});
-      final second = CatalogIngredient(name: 'Gin', libraryIds: const {'l1'});
+      final first = CatalogIngredient(name: 'Gin', ingredientLibraryId: 'il1');
+      final second = CatalogIngredient(name: 'Gin', ingredientLibraryId: 'il1');
 
       expect(first.id, isNotEmpty);
       expect(first.id, isNot(equals(second.id)));
@@ -15,53 +15,47 @@ void main() {
 
     test('keeps the id it is given', () {
       expect(
-        CatalogIngredient(id: 'i1', name: 'Gin', libraryIds: const {'l1'}).id,
+        CatalogIngredient(id: 'i1', name: 'Gin', ingredientLibraryId: 'il1').id,
         equals('i1'),
       );
     });
 
     test('trims the name', () {
       expect(
-        CatalogIngredient(name: '  Gin ', libraryIds: const {'l1'}).name,
+        CatalogIngredient(name: '  Gin ', ingredientLibraryId: 'il1').name,
         equals('Gin'),
       );
     });
 
     test('asserts on a blank name', () {
       expect(
-        () => CatalogIngredient(name: '  ', libraryIds: const {'l1'}),
+        () => CatalogIngredient(name: '  ', ingredientLibraryId: 'il1'),
         throwsA(isA<AssertionError>()),
       );
     });
 
-    test('asserts on an empty library set', () {
+    test('asserts on a blank ingredient library id', () {
       expect(
-        () => CatalogIngredient(name: 'Gin', libraryIds: const {}),
+        () => CatalogIngredient(name: 'Gin', ingredientLibraryId: ' '),
         throwsA(isA<AssertionError>()),
       );
     });
 
     test('defaults to no unit', () {
       expect(
-        CatalogIngredient(name: 'Ice', libraryIds: const {'l1'}).defaultUnit,
+        CatalogIngredient(name: 'Ice', ingredientLibraryId: 'il1').defaultUnit,
         isNull,
       );
     });
 
-    test('exposes its library set as unmodifiable', () {
-      final libraryIds = {'l1'};
-      final ingredient = CatalogIngredient(name: 'Gin', libraryIds: libraryIds);
-      libraryIds.add('l2');
-
-      expect(ingredient.libraryIds, equals({'l1'}));
-      expect(() => ingredient.libraryIds.add('l2'), throwsUnsupportedError);
-    });
-
     test('supports value equality', () {
-      CatalogIngredient build({Unit? defaultUnit}) => CatalogIngredient(
+      CatalogIngredient build({
+        Unit? defaultUnit,
+        String ingredientLibraryId = 'il1',
+      }) => CatalogIngredient(
         id: 'i1',
         name: 'Gin',
-        libraryIds: const {'l1'},
+        ingredientLibraryId: ingredientLibraryId,
         defaultUnit: defaultUnit,
       );
 
@@ -70,6 +64,7 @@ void main() {
         build(defaultUnit: const KnownUnit(StandardUnit.ml)),
         isNot(equals(build(defaultUnit: CustomUnit('ml')))),
       );
+      expect(build(), isNot(equals(build(ingredientLibraryId: 'il2'))));
     });
 
     group('json', () {
@@ -83,7 +78,7 @@ void main() {
         final ingredient = CatalogIngredient(
           id: 'i1',
           name: 'Ice',
-          libraryIds: const {'l1'},
+          ingredientLibraryId: 'il1',
         );
 
         expect(roundTrip(ingredient), equals(ingredient));
@@ -93,7 +88,7 @@ void main() {
         final ingredient = CatalogIngredient(
           id: 'i1',
           name: 'Gin',
-          libraryIds: const {'l1'},
+          ingredientLibraryId: 'il1',
           defaultUnit: const KnownUnit(StandardUnit.ml),
         );
 
@@ -104,21 +99,11 @@ void main() {
         final ingredient = CatalogIngredient(
           id: 'i1',
           name: 'Mint',
-          libraryIds: const {'l1'},
+          ingredientLibraryId: 'il1',
           defaultUnit: CustomUnit('sprig'),
         );
 
         expect(roundTrip(ingredient), equals(ingredient));
-      });
-
-      test('round-trips a multi-library scope', () {
-        final ingredient = CatalogIngredient(
-          id: 'i1',
-          name: 'Sugar',
-          libraryIds: const {'l1', 'l2'},
-        );
-
-        expect(roundTrip(ingredient).libraryIds, equals({'l1', 'l2'}));
       });
 
       test('serializes every field', () {
@@ -126,14 +111,14 @@ void main() {
           CatalogIngredient(
             id: 'i1',
             name: 'Gin',
-            libraryIds: const {'l1'},
+            ingredientLibraryId: 'il1',
             defaultUnit: const KnownUnit(StandardUnit.ml),
           ).toJson(),
           equals({
             'id': 'i1',
             'name': 'Gin',
             'defaultUnit': {'kind': 'standard', 'unit': 'ml'},
-            'libraryIds': ['l1'],
+            'ingredientLibraryId': 'il1',
           }),
         );
       });

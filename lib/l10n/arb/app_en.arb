@@ -172,6 +172,10 @@
     "@recipeEditorIngredientLabel": {
         "description": "Label of an ingredient row's name field"
     },
+    "recipeEditorIngredientUnknownError": "Pick or create an ingredient.",
+    "@recipeEditorIngredientUnknownError": {
+        "description": "Validation error on an ingredient row whose name matches no ingredient in the library's ingredient library"
+    },
     "recipeEditorAddIngredientLabel": "Add ingredient",
     "@recipeEditorAddIngredientLabel": {
         "description": "Button that appends an empty ingredient row"
@@ -246,10 +250,6 @@
     "@ingredientPickerCreateLabel": {
         "description": "Picker item, always last, that opens the sheet creating a catalog ingredient from what was typed"
     },
-    "ingredientPickerOtherLibrariesLabel": "From other libraries",
-    "@ingredientPickerOtherLibrariesLabel": {
-        "description": "Heading above the picker's catalog ingredients that are not yet used in the library being edited"
-    },
     "ingredientCreateTitle": "New ingredient",
     "@ingredientCreateTitle": {
         "description": "Title of the sheet that adds an ingredient to the catalog"
@@ -278,13 +278,17 @@
     "@defaultUnitCustomFieldLabel": {
         "description": "Label of the field accepting a unit outside the standard list, such as pinch"
     },
-    "ingredientCreateReuseNote": "{ingredient} is already in your catalog, so it will be reused.",
+    "ingredientCreateReuseNote": "{ingredient} is already in {ingredientLibrary}, so it will be reused.",
     "@ingredientCreateReuseNote": {
-        "description": "Shown in the create sheet when the typed name matches an existing catalog ingredient",
+        "description": "Shown in the create sheet when the typed name matches an ingredient already in the ingredient library",
         "placeholders": {
             "ingredient": {
                 "type": "String",
                 "example": "Gin"
+            },
+            "ingredientLibrary": {
+                "type": "String",
+                "example": "Cocktails"
             }
         }
     },
@@ -324,21 +328,7 @@
     },
     "ingredientsEmptyDescription": "Ingredients you add while writing a recipe will show up here.",
     "@ingredientsEmptyDescription": {
-        "description": "Body of the empty state shown when the catalog holds no ingredients"
-    },
-    "ingredientsImportLabel": "{count, plural, =1{Import 1 ingredient from your recipes} other{Import {count} ingredients from your recipes}}",
-    "@ingredientsImportLabel": {
-        "description": "Button that adds the ingredient names used in saved recipes to the catalog",
-        "placeholders": {
-            "count": {
-                "type": "int",
-                "example": "4"
-            }
-        }
-    },
-    "ingredientsImportFailure": "Your ingredients could not be imported.",
-    "@ingredientsImportFailure": {
-        "description": "Shown on the ingredients screen when the import fails to save"
+        "description": "Body of the empty state shown when the ingredient library holds no ingredients"
     },
     "ingredientsDeleteLabel": "Delete {ingredient}",
     "@ingredientsDeleteLabel": {
@@ -394,9 +384,9 @@
             }
         }
     },
-    "ingredientsDeleteDialogDescription": "This ingredient will be removed from your catalog. There is no undo.",
+    "ingredientsDeleteDialogDescription": "This ingredient will be deleted. There is no undo.",
     "@ingredientsDeleteDialogDescription": {
-        "description": "Body of the dialog confirming a catalog ingredient deletion"
+        "description": "Body of the dialog confirming the deletion of an ingredient no recipe uses"
     },
     "ingredientsDeleteDialogConfirm": "Delete",
     "@ingredientsDeleteDialogConfirm": {
@@ -431,14 +421,6 @@
                 "example": "Gin"
             }
         }
-    },
-    "ingredientEditLibrariesLabel": "Libraries",
-    "@ingredientEditLibrariesLabel": {
-        "description": "Label above the libraries whose picker offers the ingredient first"
-    },
-    "ingredientEditLibrariesRequiredError": "Choose at least one library.",
-    "@ingredientEditLibrariesRequiredError": {
-        "description": "Validation error shown when every library is unticked in the edit sheet"
     },
     "ingredientEditSaveLabel": "Save changes",
     "@ingredientEditSaveLabel": {
@@ -544,6 +526,16 @@
             }
         }
     },
+    "libraryEditorIngredientLibraryTakenError": "An ingredient library is already called {ingredientLibrary}.",
+    "@libraryEditorIngredientLibraryTakenError": {
+        "description": "Validation error shown when a new library's name, which its new ingredient library takes too, is one an ingredient library already carries, ignoring case",
+        "placeholders": {
+            "ingredientLibrary": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
     "libraryEditorStartFromLabel": "Start from",
     "@libraryEditorStartFromLabel": {
         "description": "Label of the list of templates a new library can take its fields from"
@@ -596,23 +588,13 @@
             }
         }
     },
-    "libraryDeleteIngredientCount": "{count, plural, =1{1 ingredient belongs only to this library. It will be kept.} other{{count} ingredients belong only to this library. They will be kept.}}",
-    "@libraryDeleteIngredientCount": {
-        "description": "States how many catalog ingredients are visible in no other library and so have to move",
+    "libraryDeleteIngredientLibraryKept": "Its ingredients stay in {ingredientLibrary}.",
+    "@libraryDeleteIngredientLibraryKept": {
+        "description": "States that deleting a library keeps the ingredient library its recipes drew from",
         "placeholders": {
-            "count": {
-                "type": "int",
-                "example": "3"
-            }
-        }
-    },
-    "libraryDeleteSuccessorLabel": "{count, plural, =1{Move it to} other{Move them to}}",
-    "@libraryDeleteSuccessorLabel": {
-        "description": "Label of the list of libraries the deleted library's own ingredients can move to",
-        "placeholders": {
-            "count": {
-                "type": "int",
-                "example": "3"
+            "ingredientLibrary": {
+                "type": "String",
+                "example": "Cocktails"
             }
         }
     },

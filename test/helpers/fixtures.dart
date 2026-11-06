@@ -1,5 +1,17 @@
 import 'package:recipes_repository/recipes_repository.dart';
 
+/// The ingredient library [cocktailsLibrary] draws from.
+final cocktailsPantry = IngredientLibrary(
+  id: 'ingredient-library-cocktails',
+  name: 'Cocktails pantry',
+);
+
+/// The ingredient library [coffeeLibrary] draws from.
+final coffeeShelf = IngredientLibrary(
+  id: 'ingredient-library-coffee',
+  name: 'Coffee shelf',
+);
+
 /// The Select field of [cocktailsLibrary].
 final glasswareField = FieldDefinition(
   id: 'field-glassware',
@@ -19,6 +31,7 @@ final garnishField = FieldDefinition(
 final cocktailsLibrary = Library(
   id: 'library-cocktails',
   name: 'Cocktails',
+  ingredientLibraryId: cocktailsPantry.id,
   fields: [glasswareField, garnishField],
 );
 
@@ -42,29 +55,39 @@ final tastingNotesField = FieldDefinition(
 final coffeeLibrary = Library(
   id: 'library-coffee',
   name: 'Coffee',
+  ingredientLibraryId: coffeeShelf.id,
   fields: [doseField, tastingNotesField],
 );
 
-/// A catalog entry visible only in [cocktailsLibrary], with a standard unit.
+/// An entry in [cocktailsPantry], with a standard unit.
 final ginIngredient = CatalogIngredient(
   id: 'ingredient-gin',
   name: 'Gin',
   defaultUnit: const KnownUnit(StandardUnit.ml),
-  libraryIds: {cocktailsLibrary.id},
+  ingredientLibraryId: cocktailsPantry.id,
 );
 
-/// A catalog entry visible in both [cocktailsLibrary] and [coffeeLibrary].
+/// An entry in [cocktailsPantry] whose name [coffeeSugarIngredient] shares.
 final sugarIngredient = CatalogIngredient(
   id: 'ingredient-sugar',
   name: 'sugar',
   defaultUnit: const KnownUnit(StandardUnit.gram),
-  libraryIds: {cocktailsLibrary.id, coffeeLibrary.id},
+  ingredientLibraryId: cocktailsPantry.id,
 );
 
-/// A catalog entry visible only in [coffeeLibrary], with a custom unit.
+/// An entry in [coffeeShelf] named like [sugarIngredient] but unrelated to
+/// it, because it lives in another ingredient library.
+final coffeeSugarIngredient = CatalogIngredient(
+  id: 'ingredient-coffee-sugar',
+  name: 'sugar',
+  defaultUnit: const KnownUnit(StandardUnit.gram),
+  ingredientLibraryId: coffeeShelf.id,
+);
+
+/// An entry in [coffeeShelf], with a custom unit.
 final cinnamonIngredient = CatalogIngredient(
   id: 'ingredient-cinnamon',
   name: 'Cinnamon',
   defaultUnit: CustomUnit('pinch'),
-  libraryIds: {coffeeLibrary.id},
+  ingredientLibraryId: coffeeShelf.id,
 );

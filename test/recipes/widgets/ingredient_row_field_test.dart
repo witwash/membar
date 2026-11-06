@@ -12,10 +12,20 @@ class _MockRecipesBloc extends MockBloc<RecipesEvent, RecipesState>
 
 void main() {
   group('IngredientRowControllers', () {
-    test('primes each controller from the ingredient it was given', () {
+    final state = RecipesState(
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
+      ingredients: [ginIngredient, sugarIngredient, cinnamonIngredient],
+    );
+
+    test('primes each controller from the ingredient and its entry', () {
       final controllers = IngredientRowControllers(
         0,
-        ingredient: Ingredient(name: 'Gin', quantity: '2', unit: 'oz'),
+        ingredient: Ingredient(
+          catalogId: ginIngredient.id,
+          quantity: '2',
+          unit: 'oz',
+        ),
+        entry: ginIngredient,
       );
       addTearDown(controllers.dispose);
 
@@ -28,11 +38,11 @@ void main() {
     test('shows the current name of the entry the ingredient references', () {
       final controllers = IngredientRowControllers(
         0,
-        ingredient: Ingredient(name: 'Gin', catalogId: ginIngredient.id),
+        ingredient: Ingredient(catalogId: ginIngredient.id),
         entry: CatalogIngredient(
           id: ginIngredient.id,
           name: 'London Dry Gin',
-          libraryIds: ginIngredient.libraryIds,
+          ingredientLibraryId: ginIngredient.ingredientLibraryId,
         ),
       );
       addTearDown(controllers.dispose);
@@ -40,11 +50,34 @@ void main() {
       expect(controllers.name.text, 'London Dry Gin');
     });
 
+    test('opens blank when the entry it references is gone', () {
+      final controllers = IngredientRowControllers(
+        0,
+        ingredient: Ingredient(catalogId: 'ingredient-gone', quantity: '2'),
+      );
+      addTearDown(controllers.dispose);
+
+      expect(controllers.name.text, isEmpty);
+      expect(
+        controllers.ingredientIn(
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
+        isNull,
+      );
+    });
+
     test('starts blank when there is no ingredient yet', () {
       final controllers = IngredientRowControllers(0);
       addTearDown(controllers.dispose);
 
-      expect(controllers.ingredientIn(const RecipesState()), isNull);
+      expect(
+        controllers.ingredientIn(
+          const RecipesState(),
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
+        isNull,
+      );
       expect(controllers.state, ['', '', '']);
     });
 
@@ -56,47 +89,83 @@ void main() {
         controllers.quantity.text = '2';
 
         expect(
-          controllers.ingredientIn(RecipesState(ingredients: [ginIngredient])),
+          controllers.ingredientIn(
+            state,
+            ingredientLibraryId: cocktailsPantry.id,
+          ),
           isNull,
+        );
+        expect(
+          controllers.isUnknownIn(
+            state,
+            ingredientLibraryId: cocktailsPantry.id,
+          ),
+          isFalse,
         );
       },
     );
-
-    test('builds the ingredient the row describes', () {
-      final controllers = IngredientRowControllers(0);
-      addTearDown(controllers.dispose);
-      controllers.name.text = ' Gin ';
-      controllers.quantity.text = '2';
-
-      expect(
-        controllers.ingredientIn(const RecipesState()),
-        Ingredient(name: 'Gin', quantity: '2'),
-      );
-    });
 
     test('links to the entry its name matches, ignoring case', () {
       final controllers = IngredientRowControllers(0);
       addTearDown(controllers.dispose);
       controllers.name.text = ' gIN ';
+      controllers.quantity.text = '2';
 
       expect(
         controllers.ingredientIn(
-          RecipesState(ingredients: [sugarIngredient, ginIngredient]),
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
         ),
-        Ingredient(name: 'gIN', catalogId: ginIngredient.id),
+        Ingredient(catalogId: ginIngredient.id, quantity: '2'),
+      );
+      expect(
+        controllers.isUnknownIn(
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
+        isFalse,
       );
     });
 
-    test('links to nothing when its name matches no entry', () {
+    test('is unknown when its name matches no entry', () {
       final controllers = IngredientRowControllers(0);
       addTearDown(controllers.dispose);
       controllers.name.text = 'Gin and tonic';
 
       expect(
-        controllers
-            .ingredientIn(RecipesState(ingredients: [ginIngredient]))
-            ?.catalogId,
+        controllers.ingredientIn(
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
         isNull,
+      );
+      expect(
+        controllers.isUnknownIn(
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
+        isTrue,
+      );
+    });
+
+    test('is unknown when only another ingredient library holds its name', () {
+      final controllers = IngredientRowControllers(0);
+      addTearDown(controllers.dispose);
+      controllers.name.text = 'Cinnamon';
+
+      expect(
+        controllers.ingredientIn(
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
+        isNull,
+      );
+      expect(
+        controllers.isUnknownIn(
+          state,
+          ingredientLibraryId: cocktailsPantry.id,
+        ),
+        isTrue,
       );
     });
   });
@@ -113,7 +182,12 @@ void main() {
       );
       controllers = IngredientRowControllers(
         0,
-        ingredient: Ingredient(name: 'Gin', quantity: '2', unit: 'oz'),
+        ingredient: Ingredient(
+          catalogId: ginIngredient.id,
+          quantity: '2',
+          unit: 'oz',
+        ),
+        entry: ginIngredient,
       );
       addTearDown(controllers.dispose);
     });
@@ -122,14 +196,30 @@ void main() {
       WidgetTester tester, {
       VoidCallback onRemove = _noop,
     }) => tester.pumpApp(
-      IngredientRowField(controllers: controllers, onRemove: onRemove),
+      IngredientRowField(
+        controllers: controllers,
+        ingredientLibraryId: cocktailsPantry.id,
+        onRemove: onRemove,
+      ),
       recipesBloc: recipesBloc,
     );
 
     testWidgets('renders each controller behind its own label', (tester) async {
       await pumpRow(tester);
 
-      expect(find.byType(IngredientPicker), findsOneWidget);
+      expect(
+        tester
+            .widget<IngredientPicker>(find.byType(IngredientPicker))
+            .ingredientLibraryId,
+        cocktailsPantry.id,
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(controllers.nameKey),
+          matching: find.byType(IngredientPicker),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Ingredient'), findsOneWidget);
       expect(find.text('Quantity'), findsOneWidget);
       expect(find.text('Unit'), findsOneWidget);

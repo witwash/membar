@@ -11,8 +11,9 @@ enum _StartingPoint { blank, cocktails, coffee }
 /// Creates a library, or renames one.
 ///
 /// A new library takes its fields from the chosen template and its name from
-/// what was typed. A rename keeps the library's id and fields, so its recipes
-/// stay where they are.
+/// what was typed, and gets a new ingredient library of the same name. A
+/// rename keeps the library's id, fields and ingredient library, so its
+/// recipes stay where they are.
 class LibraryEditorSheet extends StatefulWidget {
   /// Creates a [LibraryEditorSheet] renaming [library], or creating a library
   /// when it is null.
@@ -147,17 +148,25 @@ class _LibraryEditorSheetState extends State<LibraryEditorSheet> {
   }
 
   /// Refuses a name another library carries before the data layer would, so
-  /// the user sees an error rather than a failed save.
+  /// the user sees an error rather than a failed save. A new library also
+  /// names its new ingredient library, so a name an ingredient library already
+  /// carries is refused too.
   String? _validateName(String? value) {
     final l10n = context.l10n;
     final name = (value ?? '').trim();
     if (name.isEmpty) return l10n.libraryEditorNameRequiredError;
 
-    return switch (context.read<RecipesBloc>().state.libraryNamed(name)) {
-      final other? when other.id != widget.library?.id =>
-        l10n.libraryEditorNameTakenError(other.name),
-      _ => null,
-    };
+    final state = context.read<RecipesBloc>().state;
+    if (state.libraryNamed(name) case final other?
+        when other.id != widget.library?.id) {
+      return l10n.libraryEditorNameTakenError(other.name);
+    }
+    if (widget.library == null) {
+      if (state.ingredientLibraryNamed(name) case final other?) {
+        return l10n.libraryEditorIngredientLibraryTakenError(other.name);
+      }
+    }
+    return null;
   }
 
   void _save() {
@@ -168,23 +177,42 @@ class _LibraryEditorSheetState extends State<LibraryEditorSheet> {
       _saveFailed = false;
       _submitted = true;
     });
-    final library = widget.library;
-    context.read<RecipesBloc>().add(
+    final bloc = context.read<RecipesBloc>();
+    if (widget.library case final library?) {
+      bloc.add(
+        RecipesLibrarySaved(
+          Library(
+            id: library.id,
+            name: _nameController.text,
+            ingredientLibraryId: library.ingredientLibraryId,
+            fields: library.fields,
+          ),
+        ),
+      );
+      return;
+    }
+
+    final ingredientLibrary = IngredientLibrary(name: _nameController.text);
+    bloc.add(
       RecipesLibrarySaved(
         Library(
-          id: library?.id,
           name: _nameController.text,
-          fields: library?.fields ?? _templateFields(),
+          ingredientLibraryId: ingredientLibrary.id,
+          fields: _templateFields(ingredientLibrary.id),
         ),
+        ingredientLibrary: ingredientLibrary,
       ),
     );
   }
 
   /// The chosen template's fields under freshly generated ids. Its name is
   /// left behind: the library is called what the user typed.
-  List<FieldDefinition> _templateFields() => switch (_startingPoint) {
-    _StartingPoint.blank => const [],
-    _StartingPoint.cocktails => _templates.cocktails().fields,
-    _StartingPoint.coffee => _templates.coffee().fields,
-  };
+  List<FieldDefinition> _templateFields(String ingredientLibraryId) =>
+      switch (_startingPoint) {
+        _StartingPoint.blank => const [],
+        _StartingPoint.cocktails =>
+          _templates.cocktails(ingredientLibraryId: ingredientLibraryId).fields,
+        _StartingPoint.coffee =>
+          _templates.coffee(ingredientLibraryId: ingredientLibraryId).fields,
+      };
 }

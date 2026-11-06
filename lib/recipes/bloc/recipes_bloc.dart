@@ -41,14 +41,6 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       _onIngredientDeleted,
       transformer: sequential(),
     );
-    on<RecipesIngredientsImported>(
-      _onIngredientsImported,
-      transformer: sequential(),
-    );
-    on<RecipesIngredientScopeWidened>(
-      _onIngredientScopeWidened,
-      transformer: sequential(),
-    );
     on<RecipesSearchTermChanged>(_onSearchTermChanged);
     on<RecipesTagFilterToggled>(_onTagFilterToggled);
   }
@@ -67,9 +59,9 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         status: RecipesStatus.success,
         libraries: snapshot.libraries,
         recipes: snapshot.recipes,
+        ingredientLibraries: snapshot.ingredientLibraries,
         ingredients: snapshot.ingredients,
         activeLibraryId: snapshot.activeLibraryId,
-        ingredientsImported: snapshot.ingredientsImported,
       ),
       // Handling the error here is what turns a broken stream into a failure
       // state rather than an exception escaping the handler.
@@ -96,6 +88,24 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         state.copyWith(
           mutation: RecipesMutation.recipeSaved,
           mutationStatus: RecipesMutationStatus.success,
+        ),
+      );
+    } on LibraryNotFoundException {
+      // The recipe's library was deleted from another screen while the editor
+      // was open.
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.recipeSaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on IngredientNotFoundException {
+      // A row's entry was deleted from another screen while the editor was
+      // open.
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.recipeSaved,
+          mutationStatus: RecipesMutationStatus.failure,
         ),
       );
     } on RecipesPersistenceException {
@@ -198,6 +208,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     try {
       await _recipesRepository.saveLibrary(
         event.library,
+        ingredientLibrary: event.ingredientLibrary,
         optionRenames: event.optionRenames,
       );
       emit(
@@ -207,6 +218,20 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         ),
       );
     } on LibraryNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.librarySaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on IngredientLibraryNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.librarySaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on IngredientLibraryNotFoundException {
       emit(
         state.copyWith(
           mutation: RecipesMutation.librarySaved,
@@ -303,6 +328,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         Library(
           id: library.id,
           name: library.name,
+          ingredientLibraryId: library.ingredientLibraryId,
           fields: [
             for (final field in library.fields)
               if (field.id != event.fieldId) field,
@@ -377,6 +403,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
         Library(
           id: library.id,
           name: library.name,
+          ingredientLibraryId: library.ingredientLibraryId,
           fields: [...library.fields]
             ..removeAt(index)
             ..insert(target, library.fields[index]),
@@ -434,6 +461,13 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
           mutationStatus: RecipesMutationStatus.failure,
         ),
       );
+    } on IngredientLibraryNotFoundException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.ingredientSaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
     } on RecipesPersistenceException {
       emit(
         state.copyWith(
@@ -470,13 +504,6 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
           mutationStatus: RecipesMutationStatus.failure,
         ),
       );
-    } on IngredientInUseException {
-      emit(
-        state.copyWith(
-          mutation: RecipesMutation.ingredientDeleted,
-          mutationStatus: RecipesMutationStatus.failure,
-        ),
-      );
     } on RecipesPersistenceException {
       emit(
         state.copyWith(
@@ -484,80 +511,6 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
           mutationStatus: RecipesMutationStatus.failure,
         ),
       );
-    }
-  }
-
-  Future<void> _onIngredientsImported(
-    RecipesIngredientsImported event,
-    Emitter<RecipesState> emit,
-  ) async {
-    final importable = state.importableIngredients;
-    if (importable.isEmpty) return;
-
-    emit(
-      state.copyWith(
-        mutation: RecipesMutation.ingredientsImported,
-        mutationStatus: RecipesMutationStatus.loading,
-      ),
-    );
-
-    try {
-      await _recipesRepository.importIngredients([
-        for (final ingredient in importable)
-          CatalogIngredient(
-            name: ingredient.name,
-            defaultUnit: ingredient.defaultUnit,
-            libraryIds: ingredient.libraryIds,
-          ),
-      ]);
-      emit(
-        state.copyWith(
-          mutation: RecipesMutation.ingredientsImported,
-          mutationStatus: RecipesMutationStatus.success,
-        ),
-      );
-    } on IngredientNameTakenException {
-      emit(
-        state.copyWith(
-          mutation: RecipesMutation.ingredientsImported,
-          mutationStatus: RecipesMutationStatus.failure,
-        ),
-      );
-    } on RecipesPersistenceException {
-      emit(
-        state.copyWith(
-          mutation: RecipesMutation.ingredientsImported,
-          mutationStatus: RecipesMutationStatus.failure,
-        ),
-      );
-    }
-  }
-
-  /// Adds the event's library to an entry picked from outside it.
-  ///
-  /// Reports nothing, succeed or fail: the user never asked for this write,
-  /// and the row that triggered it links by name, not by scope. A failed widen
-  /// leaves the entry out of scope until the next pick.
-  Future<void> _onIngredientScopeWidened(
-    RecipesIngredientScopeWidened event,
-    Emitter<RecipesState> emit,
-  ) async {
-    final entry = state.ingredientById(event.ingredientId);
-    if (entry == null || entry.libraryIds.contains(event.libraryId)) return;
-
-    try {
-      await _recipesRepository.saveIngredient(
-        CatalogIngredient(
-          id: entry.id,
-          name: entry.name,
-          defaultUnit: entry.defaultUnit,
-          libraryIds: {...entry.libraryIds, event.libraryId},
-        ),
-      );
-    } on IngredientNameTakenException {
-      // Swallowed; see the doc comment.
-    } on RecipesPersistenceException {
-      // Swallowed; see the doc comment.
     }
   }
 

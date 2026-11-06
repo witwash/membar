@@ -9,8 +9,8 @@ import 'package:membar/recipes/recipes.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
-/// Every catalog entry, with its default unit, its libraries and how many
-/// recipes use it, plus the import of ingredient names from saved recipes.
+/// The catalog entries in the active library's ingredient library, with their
+/// default unit and how many recipes use each.
 class IngredientsView extends StatefulWidget {
   /// Creates an [IngredientsView].
   const IngredientsView({super.key});
@@ -28,100 +28,60 @@ class _IngredientsViewState extends State<IngredientsView> {
     final l10n = context.l10n;
     final state = context.watch<RecipesBloc>().state;
     final usage = state.ingredientUsage;
-    final importable = state.importableIngredients;
-    final importing =
-        state.mutation == RecipesMutation.ingredientsImported &&
-        state.mutationStatus == RecipesMutationStatus.loading;
-    final entries = [...state.ingredients]
-      ..sort((a, b) => compareCaseInsensitive(a.name, b.name));
-    final libraryNames = {
-      for (final library in state.libraries) library.id: library.name,
+    final entries = switch (state.activeLibrary) {
+      final library? => state.ingredientsIn(library.ingredientLibraryId),
+      null => const <CatalogIngredient>[],
     };
 
     return RecipesMutationListener(
       mutation: RecipesMutation.ingredientDeleted,
       onSuccess: (_) {},
       onFailure: () => setState(() => _failure = l10n.ingredientsDeleteFailure),
-      child: RecipesMutationListener(
-        mutation: RecipesMutation.ingredientsImported,
-        onSuccess: (_) {},
-        onFailure: () =>
-            setState(() => _failure = l10n.ingredientsImportFailure),
-        child: FScaffold(
-          header: FHeader.nested(
-            title: Text(l10n.ingredientsTitle),
-            prefixes: [
-              FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_failure case final failure?) FailureBanner(failure),
-              if (importable.isNotEmpty) ...[
-                FButton(
-                  variant: FButtonVariant.outline,
-                  prefix: const Icon(FLucideIcons.import),
-                  onPress: importing ? null : _import,
-                  child: Text(l10n.ingredientsImportLabel(importable.length)),
-                ),
-                const SizedBox(height: AppSpacing.spacing150),
-              ],
-              Expanded(
-                child: entries.isEmpty
-                    ? const _EmptyState()
-                    : FTileGroup.builder(
-                        count: entries.length,
-                        tileBuilder: (context, index) {
-                          final entry = entries[index];
-                          final recipeCount = usage[entry.id] ?? 0;
-                          return FTile(
-                            title: Text(entry.name),
-                            subtitle: Text(
-                              _describe(entry, libraryNames),
+      child: FScaffold(
+        header: FHeader.nested(
+          title: Text(l10n.ingredientsTitle),
+          prefixes: [
+            FHeaderAction.back(onPress: () => Navigator.of(context).pop()),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (_failure case final failure?) FailureBanner(failure),
+            Expanded(
+              child: entries.isEmpty
+                  ? const _EmptyState()
+                  : FTileGroup.builder(
+                      count: entries.length,
+                      tileBuilder: (context, index) {
+                        final entry = entries[index];
+                        final recipeCount = usage[entry.id] ?? 0;
+                        return FTile(
+                          title: Text(entry.name),
+                          subtitle: switch (entry.defaultUnit) {
+                            final unit? => Text(unit.label),
+                            null => null,
+                          },
+                          details: Text(
+                            l10n.ingredientsUsageCount(recipeCount),
+                          ),
+                          suffix: FButton.icon(
+                            variant: FButtonVariant.ghost,
+                            semanticsLabel: l10n.ingredientsDeleteLabel(
+                              entry.name,
                             ),
-                            details: Text(
-                              l10n.ingredientsUsageCount(recipeCount),
-                            ),
-                            suffix: FButton.icon(
-                              variant: FButtonVariant.ghost,
-                              semanticsLabel: l10n.ingredientsDeleteLabel(
-                                entry.name,
-                              ),
-                              onPress: () =>
-                                  unawaited(_delete(entry, recipeCount)),
-                              child: const Icon(FLucideIcons.trash2),
-                            ),
-                            onPress: () => _edit(entry),
-                          );
-                        },
-                      ),
-              ),
-            ],
-          ),
+                            onPress: () => unawaited(_delete(entry)),
+                            child: const Icon(FLucideIcons.trash2),
+                          ),
+                          onPress: () => _edit(entry),
+                        );
+                      },
+                    ),
+            ),
+          ],
         ),
       ),
     );
-  }
-
-  /// The entry's default unit, then its libraries ordered by name. A library
-  /// id that resolves to nothing is left out rather than shown raw.
-  String _describe(
-    CatalogIngredient entry,
-    Map<String, String> libraryNames,
-  ) {
-    final libraries = [
-      for (final id in entry.libraryIds) ?libraryNames[id],
-    ]..sort(compareCaseInsensitive);
-    return [
-      ?entry.defaultUnit?.label,
-      if (libraries.isNotEmpty) libraries.join(', '),
-    ].join(' · ');
-  }
-
-  void _import() {
-    setState(() => _failure = null);
-    context.read<RecipesBloc>().add(const RecipesIngredientsImported());
   }
 
   void _edit(CatalogIngredient entry) {
@@ -131,25 +91,25 @@ class _IngredientsViewState extends State<IngredientsView> {
 
   /// Refuses an entry in use before dispatching, which is how the refusal can
   /// name the count and the libraries to look in: a failed delete cannot say
-  /// why it failed. A library id that resolves to nothing is left out.
-  Future<void> _delete(CatalogIngredient entry, int recipeCount) async {
+  /// why it failed.
+  // A stopgap until a used entry can be deleted through a dialog listing the
+  // recipes it strips.
+  Future<void> _delete(CatalogIngredient entry) async {
     final l10n = context.l10n;
     _refusalToast?.dismiss();
-    if (recipeCount > 0) {
-      final state = context.read<RecipesBloc>().state;
-      final libraries = [
-        for (final id in state.libraryIdsUsingIngredient(entry.id))
-          ?state.libraryById(id)?.name,
-      ]..sort(compareCaseInsensitive);
+    final state = context.read<RecipesBloc>().state;
+    final using = state.recipesUsingIngredient(entry.id);
+    if (using.isNotEmpty) {
+      final libraries = {
+        for (final recipe in using) ?state.libraryById(recipe.libraryId)?.name,
+      };
       _refusalToast = showRefusalToast(
         context,
         title: l10n.ingredientsDeleteRefusalTitle(entry.name),
-        description: libraries.isEmpty
-            ? l10n.ingredientsDeleteRefusalDescriptionNoLibraries(recipeCount)
-            : l10n.ingredientsDeleteRefusalDescription(
-                recipeCount,
-                libraries.join(', '),
-              ),
+        description: l10n.ingredientsDeleteRefusalDescription(
+          using.length,
+          libraries.join(', '),
+        ),
       );
       return;
     }

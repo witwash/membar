@@ -108,10 +108,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
           // Primed with the entry's current name before the snapshot below is
           // taken, so a renamed entry neither loses its link on save nor opens
           // the editor already dirty.
-          entry: switch (ingredient.catalogId) {
-            final id? => state.ingredientById(id),
-            null => null,
-          },
+          entry: state.ingredientById(ingredient.catalogId),
         ),
       );
     }
@@ -226,6 +223,7 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
                     ),
                   _IngredientsSection(
                     rows: _ingredientRows,
+                    ingredientLibraryId: widget.library.ingredientLibraryId,
                     onAdd: _addIngredient,
                     onRemove: _removeIngredient,
                   ),
@@ -337,14 +335,24 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
   /// user experiences.
   void _scrollToFirstInvalid() {
     final l10n = context.l10n;
-    final fields = <(GlobalKey, String?)>[
-      (_nameKey, _validateName(_nameController.text)),
+    final state = context.read<RecipesBloc>().state;
+    final ingredientLibraryId = widget.library.ingredientLibraryId;
+    final fields = <(GlobalKey, bool)>[
+      (_nameKey, _validateName(_nameController.text) != null),
       for (final field in widget.library.fields)
-        (_fieldKeys[field.id]!, _fieldControllers[field.id]!.validate(l10n)),
+        (
+          _fieldKeys[field.id]!,
+          _fieldControllers[field.id]!.validate(l10n) != null,
+        ),
+      for (final row in _ingredientRows)
+        (
+          row.nameKey,
+          row.isUnknownIn(state, ingredientLibraryId: ingredientLibraryId),
+        ),
     ];
 
-    for (final (key, error) in fields) {
-      if (error == null) continue;
+    for (final (key, invalid) in fields) {
+      if (!invalid) continue;
       if (key.currentContext case final target?) {
         Scrollable.ensureVisible(
           target,
@@ -382,7 +390,11 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
       libraryId: widget.library.id,
       name: _nameController.text,
       ingredients: [
-        for (final row in _ingredientRows) ?row.ingredientIn(state),
+        for (final row in _ingredientRows)
+          ?row.ingredientIn(
+            state,
+            ingredientLibraryId: widget.library.ingredientLibraryId,
+          ),
       ],
       steps: [for (final row in _stepRows) ?row.step],
       tags: _tagsController.value.toList(),
@@ -414,11 +426,13 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
 class _IngredientsSection extends StatelessWidget {
   const _IngredientsSection({
     required this.rows,
+    required this.ingredientLibraryId,
     required this.onAdd,
     required this.onRemove,
   });
 
   final List<IngredientRowControllers> rows;
+  final String ingredientLibraryId;
   final VoidCallback onAdd;
   final void Function(int index) onRemove;
 
@@ -435,6 +449,7 @@ class _IngredientsSection extends StatelessWidget {
           IngredientRowField(
             key: ValueKey(row.id),
             controllers: row,
+            ingredientLibraryId: ingredientLibraryId,
             onRemove: () => onRemove(index),
           ),
         FButton(

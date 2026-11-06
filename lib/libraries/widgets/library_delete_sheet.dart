@@ -6,14 +6,11 @@ import 'package:membar/recipes/recipes.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
-/// Confirms deleting a library, stating what goes with it and asking where
-/// the ingredients that belong to no other library should move.
-///
-/// It is a sheet rather than a confirm dialog because it can carry that
-/// choice.
+/// Confirms deleting a library, stating what goes with it and what stays.
 class LibraryDeleteSheet extends StatefulWidget {
   /// Creates a [LibraryDeleteSheet] deleting [library], which must not be the
-  /// only library: the deletion needs another one to hand over to.
+  /// only library: the deletion needs another one to become the active
+  /// library.
   const LibraryDeleteSheet({required this.library, super.key});
 
   /// Opens the sheet on [library], completing once it closes.
@@ -42,9 +39,8 @@ class LibraryDeleteSheet extends StatefulWidget {
 
 class _LibraryDeleteSheetState extends State<LibraryDeleteSheet> {
   late final int _recipeCount;
-  late final int _ingredientCount;
-  late final List<Library> _others;
-  String? _successorId;
+  late final String? _ingredientLibraryName;
+  late final String _successorId;
   var _submitted = false;
   var _deleteFailed = false;
 
@@ -57,11 +53,10 @@ class _LibraryDeleteSheetState extends State<LibraryDeleteSheet> {
     final state = context.read<RecipesBloc>().state;
     final id = widget.library.id;
     _recipeCount = state.recipeCountIn(id);
-    _ingredientCount = state.ingredientCountOnlyIn(id);
-    _others = [
-      for (final library in state.libraries)
-        if (library.id != id) library,
-    ];
+    _ingredientLibraryName = state
+        .ingredientLibraryById(widget.library.ingredientLibraryId)
+        ?.name;
+    _successorId = state.libraries.firstWhere((library) => library.id != id).id;
   }
 
   @override
@@ -98,23 +93,8 @@ class _LibraryDeleteSheetState extends State<LibraryDeleteSheet> {
               ),
               if (_deleteFailed) FailureBanner(l10n.libraryDeleteFailure),
               Text(l10n.libraryDeleteRecipeCount(_recipeCount)),
-              // Shown even with a single other library, so the destination is
-              // always stated and there is one code path.
-              if (_ingredientCount > 0) ...[
-                Text(l10n.libraryDeleteIngredientCount(_ingredientCount)),
-                FSelect<String>(
-                  label: Text(
-                    l10n.libraryDeleteSuccessorLabel(_ingredientCount),
-                  ),
-                  items: {
-                    for (final library in _others) library.name: library.id,
-                  },
-                  control: FSelectControl.lifted(
-                    value: _successor,
-                    onChange: (id) => setState(() => _successorId = id),
-                  ),
-                ),
-              ],
+              if (_ingredientLibraryName case final name?)
+                Text(l10n.libraryDeleteIngredientLibraryKept(name)),
               FButton(
                 variant: FButtonVariant.destructive,
                 onPress: deleting ? null : _delete,
@@ -132,17 +112,13 @@ class _LibraryDeleteSheetState extends State<LibraryDeleteSheet> {
     );
   }
 
-  /// The chosen library, or the first other one until a choice is made —
-  /// which is also the answer when no choice was offered.
-  String get _successor => _successorId ?? _others.first.id;
-
   void _delete() {
     setState(() {
       _deleteFailed = false;
       _submitted = true;
     });
     context.read<RecipesBloc>().add(
-      RecipesLibraryDeleted(widget.library.id, successorId: _successor),
+      RecipesLibraryDeleted(widget.library.id, successorId: _successorId),
     );
   }
 }

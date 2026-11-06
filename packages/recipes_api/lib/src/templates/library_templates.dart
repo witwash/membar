@@ -9,7 +9,9 @@ String _uuidV4() => const Uuid().v4();
 /// leaves its name behind.
 ///
 /// Each call builds a [Library] with freshly generated ids, so a seeded
-/// library is indistinguishable from a hand-built one once it exists.
+/// library is indistinguishable from a hand-built one once it exists. A
+/// template names no ingredients: the [IngredientLibrary] it points at is
+/// supplied by the caller and starts empty.
 ///
 /// Template names and field labels are deliberately not localized: they become
 /// the user's own data the moment they are seeded, so resolving them per locale
@@ -25,10 +27,12 @@ class LibraryTemplates {
   /// Generates every id a template needs.
   final String Function() idBuilder;
 
-  /// A library for cocktail recipes, with `Glassware` and `Garnish` fields.
-  Library cocktails() => Library(
+  /// A library for cocktail recipes, with `Glassware` and `Garnish` fields,
+  /// whose rows draw from [ingredientLibraryId].
+  Library cocktails({required String ingredientLibraryId}) => Library(
     id: idBuilder(),
     name: 'Cocktails',
+    ingredientLibraryId: ingredientLibraryId,
     fields: [
       FieldDefinition(
         id: idBuilder(),
@@ -54,10 +58,12 @@ class LibraryTemplates {
   );
 
   /// A library for coffee recipes, with brew method, dose, water temperature,
-  /// grind and tasting-note fields.
-  Library coffee() => Library(
+  /// grind and tasting-note fields, whose rows draw from
+  /// [ingredientLibraryId].
+  Library coffee({required String ingredientLibraryId}) => Library(
     id: idBuilder(),
     name: 'Coffee',
+    ingredientLibraryId: ingredientLibraryId,
     fields: [
       FieldDefinition(
         id: idBuilder(),
@@ -97,7 +103,22 @@ class LibraryTemplates {
     ],
   );
 
-  /// Every template, in the order a fresh install seeds them. The first one is
-  /// the library the app opens on.
-  List<Library> all() => [cocktails(), coffee()];
+  /// Every template, in the order a fresh install seeds them, each paired with
+  /// a same-named [IngredientLibrary] it points at. The first one is the
+  /// library the app opens on.
+  List<(Library, IngredientLibrary)> all() => [
+    _paired('Cocktails', cocktails),
+    _paired('Coffee', coffee),
+  ];
+
+  (Library, IngredientLibrary) _paired(
+    String name,
+    Library Function({required String ingredientLibraryId}) template,
+  ) {
+    final ingredientLibrary = IngredientLibrary(id: idBuilder(), name: name);
+    return (
+      template(ingredientLibraryId: ingredientLibrary.id),
+      ingredientLibrary,
+    );
+  }
 }

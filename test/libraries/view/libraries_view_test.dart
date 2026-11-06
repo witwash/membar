@@ -28,6 +28,7 @@ void main() {
     final loaded = RecipesState(
       status: RecipesStatus.success,
       libraries: [coffeeLibrary, cocktailsLibrary],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
       recipes: [
         recipeIn(cocktailsLibrary, 'Negroni'),
         recipeIn(cocktailsLibrary, 'Martini'),
@@ -90,8 +91,17 @@ void main() {
     testWidgets('states how many fields and recipes each library has', (
       tester,
     ) async {
-      final tea = Library(id: 'library-tea', name: 'Tea', fields: [doseField]);
-      final blank = Library(id: 'library-blank', name: 'Blank');
+      final tea = Library(
+        id: 'library-tea',
+        name: 'Tea',
+        ingredientLibraryId: cocktailsPantry.id,
+        fields: [doseField],
+      );
+      final blank = Library(
+        id: 'library-blank',
+        name: 'Blank',
+        ingredientLibraryId: cocktailsPantry.id,
+      );
       await pumpView(
         tester,
         loaded.copyWith(
@@ -138,7 +148,11 @@ void main() {
         loaded.copyWith(
           libraries: [
             ...loaded.libraries,
-            Library(id: 'library-tea', name: 'Tea'),
+            Library(
+              id: 'library-tea',
+              name: 'Tea',
+              ingredientLibraryId: cocktailsPantry.id,
+            ),
           ],
         ),
       );

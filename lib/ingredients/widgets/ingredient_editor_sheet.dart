@@ -6,8 +6,7 @@ import 'package:membar/recipes/recipes.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
-/// Changes a catalog entry: its name, its default unit, and the libraries
-/// whose picker offers it first.
+/// Changes a catalog entry: its name and its default unit.
 ///
 /// A rename reaches every recipe referencing the entry, because rows link by
 /// id and render the entry's current name.
@@ -49,7 +48,6 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
   late final _unitController = DefaultUnitController(
     widget.entry.defaultUnit,
   );
-  late final Set<String> _libraryIds = {...widget.entry.libraryIds};
   var _submitted = false;
   var _saveFailed = false;
 
@@ -69,11 +67,6 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
           bloc.state.mutation == RecipesMutation.ingredientSaved &&
           bloc.state.mutationStatus == RecipesMutationStatus.loading,
     );
-    final libraries = [
-      ...context.select<RecipesBloc, List<Library>>(
-        (bloc) => bloc.state.libraries,
-      ),
-    ]..sort((a, b) => compareCaseInsensitive(a.name, b.name));
 
     return RecipesMutationListener(
       mutation: RecipesMutation.ingredientSaved,
@@ -109,35 +102,6 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
                   validator: _validateName,
                 ),
                 DefaultUnitField(controller: _unitController),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: AppSpacing.spacing100,
-                  children: [
-                    Text(
-                      l10n.ingredientEditLibrariesLabel,
-                      style: theme.typography.body.sm.copyWith(
-                        color: theme.colors.mutedForeground,
-                      ),
-                    ),
-                    for (final library in libraries)
-                      FCheckbox(
-                        label: Text(library.name),
-                        value: _libraryIds.contains(library.id),
-                        onChange: (checked) => setState(
-                          () => checked
-                              ? _libraryIds.add(library.id)
-                              : _libraryIds.remove(library.id),
-                        ),
-                      ),
-                    if (_libraryIds.isEmpty)
-                      Text(
-                        l10n.ingredientEditLibrariesRequiredError,
-                        style: theme.typography.body.sm.copyWith(
-                          color: theme.colors.error,
-                        ),
-                      ),
-                  ],
-                ),
                 FButton(
                   onPress: saving ? null : _save,
                   child: Text(l10n.ingredientEditSaveLabel),
@@ -162,7 +126,11 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
     final name = (value ?? '').trim();
     if (name.isEmpty) return l10n.ingredientEditNameRequiredError;
 
-    return switch (context.read<RecipesBloc>().state.ingredientNamed(name)) {
+    final other = context.read<RecipesBloc>().state.ingredientNamed(
+      name,
+      ingredientLibraryId: widget.entry.ingredientLibraryId,
+    );
+    return switch (other) {
       final other? when other.id != widget.entry.id =>
         l10n.ingredientEditNameTakenError(other.name),
       _ => null,
@@ -170,8 +138,7 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
   }
 
   void _save() {
-    final valid = _formKey.currentState?.validate() ?? false;
-    if (!valid || _libraryIds.isEmpty) return;
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     setState(() {
       _saveFailed = false;
@@ -183,7 +150,7 @@ class _IngredientEditorSheetState extends State<IngredientEditorSheet> {
           id: widget.entry.id,
           name: _nameController.text,
           defaultUnit: _unitController.unit,
-          libraryIds: _libraryIds,
+          ingredientLibraryId: widget.entry.ingredientLibraryId,
         ),
       ),
     );

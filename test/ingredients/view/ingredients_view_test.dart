@@ -32,20 +32,33 @@ void main() {
       ingredients: ingredients,
     );
 
+    /// An entry in [cocktailsPantry] with no default unit, which no recipe
+    /// uses.
+    final ice = CatalogIngredient(
+      id: 'ingredient-ice',
+      name: 'Ice',
+      ingredientLibraryId: cocktailsPantry.id,
+    );
+
     final loaded = RecipesState(
       status: RecipesStatus.success,
       libraries: [cocktailsLibrary, coffeeLibrary],
-      ingredients: [ginIngredient, sugarIngredient, cinnamonIngredient],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
+      ingredients: [
+        ginIngredient,
+        sugarIngredient,
+        ice,
+        coffeeSugarIngredient,
+        cinnamonIngredient,
+      ],
       recipes: [
-        recipeUsing('Negroni', [
-          Ingredient(name: 'Gin', catalogId: ginIngredient.id),
-        ]),
+        recipeUsing('Negroni', [Ingredient(catalogId: ginIngredient.id)]),
         recipeUsing('Martini', [
-          Ingredient(name: 'Gin', catalogId: ginIngredient.id),
-          Ingredient(name: 'Gin', catalogId: ginIngredient.id),
+          Ingredient(catalogId: ginIngredient.id),
+          Ingredient(catalogId: ginIngredient.id),
         ]),
         recipeUsing('Old Fashioned', [
-          Ingredient(name: 'sugar', catalogId: sugarIngredient.id),
+          Ingredient(catalogId: sugarIngredient.id),
         ]),
       ],
       activeLibraryId: cocktailsLibrary.id,
@@ -80,43 +93,60 @@ void main() {
     Finder tileOf(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(FTile));
 
-    testWidgets('lists every entry by name with its unit and libraries', (
-      tester,
-    ) async {
-      await pumpView(tester, loaded);
+    List<String?> tileNames(WidgetTester tester) => tester
+        .widgetList<FTile>(find.byType(FTile))
+        .map(
+          (tile) => tester
+              .widget<Text>(
+                find
+                    .descendant(
+                      of: find.byWidget(tile),
+                      matching: find.byType(Text),
+                    )
+                    .first,
+              )
+              .data,
+        )
+        .toList();
 
-      expect(find.text('Ingredients'), findsOneWidget);
-      final names = tester
-          .widgetList<FTile>(find.byType(FTile))
-          .map(
-            (tile) => tester
-                .widget<Text>(
-                  find
-                      .descendant(
-                        of: find.byWidget(tile),
-                        matching: find.byType(Text),
-                      )
-                      .first,
-                )
-                .data,
-          );
-      expect(names, ['Cinnamon', 'Gin', 'sugar']);
-      expect(find.text('pinch · Coffee'), findsOneWidget);
-      expect(find.text('ml · Cocktails'), findsOneWidget);
-      expect(find.text('gram · Cocktails, Coffee'), findsOneWidget);
-    });
+    testWidgets(
+      "lists the active library's ingredient library by name with its unit",
+      (tester) async {
+        await pumpView(tester, loaded);
 
-    testWidgets('leaves out a missing unit and an unknown library', (
-      tester,
-    ) async {
-      final ice = CatalogIngredient(
-        id: 'ingredient-ice',
-        name: 'Ice',
-        libraryIds: {coffeeLibrary.id, 'library-gone'},
-      );
+        expect(find.text('Ingredients'), findsOneWidget);
+        expect(tileNames(tester), ['Gin', 'Ice', 'sugar']);
+        expect(
+          find.descendant(of: tileOf('Gin'), matching: find.text('ml')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: tileOf('sugar'), matching: find.text('gram')),
+          findsOneWidget,
+        );
+        expect(find.text('Cinnamon'), findsNothing);
+      },
+    );
+
+    testWidgets('shows no unit for an entry without one', (tester) async {
       await pumpView(tester, loaded.copyWith(ingredients: [ice]));
 
-      expect(find.text('Coffee'), findsOneWidget);
+      expect(
+        find.descendant(of: tileOf('Ice'), matching: find.byType(Text)),
+        findsNWidgets(2),
+      );
+    });
+
+    testWidgets("follows the active library's ingredient library", (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        loaded.copyWith(activeLibraryId: coffeeLibrary.id),
+      );
+
+      expect(tileNames(tester), ['Cinnamon', 'sugar']);
+      expect(find.text('pinch'), findsOneWidget);
     });
 
     testWidgets('counts the distinct recipes using each entry', (
@@ -133,16 +163,48 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(
-          of: tileOf('Cinnamon'),
-          matching: find.text('Not used'),
-        ),
+        find.descendant(of: tileOf('Ice'), matching: find.text('Not used')),
         findsOneWidget,
       );
     });
 
-    testWidgets('renders an empty state for an empty catalog', (tester) async {
-      await pumpView(tester, loaded.copyWith(ingredients: const []));
+    testWidgets('does not count a same-named entry in another library', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        loaded.copyWith(
+          recipes: [
+            ...loaded.recipes,
+            recipeUsing('Latte', [
+              Ingredient(catalogId: coffeeSugarIngredient.id),
+            ], libraryId: coffeeLibrary.id),
+          ],
+        ),
+      );
+
+      expect(
+        find.descendant(of: tileOf('sugar'), matching: find.text('1 recipe')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('renders an empty state for an empty ingredient library', (
+      tester,
+    ) async {
+      await pumpView(
+        tester,
+        loaded.copyWith(ingredients: [cinnamonIngredient]),
+      );
+
+      expect(find.text('No ingredients yet'), findsOneWidget);
+      expect(find.byType(FTile), findsNothing);
+    });
+
+    testWidgets('renders an empty state before a library is active', (
+      tester,
+    ) async {
+      await pumpView(tester, const RecipesState());
 
       expect(find.text('No ingredients yet'), findsOneWidget);
       expect(find.byType(FTile), findsNothing);
@@ -196,156 +258,15 @@ void main() {
       await tapDelete(tester, 'Gin');
       expect(find.byType(FToast), findsOneWidget);
 
-      await tester.tap(find.text('Cinnamon'));
+      await tester.tap(find.text('Ice'));
       await tester.pumpAndSettle();
 
       expect(find.byType(IngredientEditorSheet), findsOneWidget);
       expect(find.byType(FToast), findsNothing);
     });
 
-    group('import', () {
-      final withFreeText = loaded.copyWith(
-        recipes: [
-          ...loaded.recipes,
-          recipeUsing('Daiquiri', [
-            Ingredient(name: 'Rum'),
-            Ingredient(name: 'Lime'),
-          ]),
-        ],
-      );
-
-      testWidgets('is not offered when there is nothing to import', (
-        tester,
-      ) async {
-        await pumpView(tester, loaded);
-
-        expect(find.textContaining('Import'), findsNothing);
-      });
-
-      testWidgets('is not offered again once it has run', (tester) async {
-        await pumpView(
-          tester,
-          withFreeText.copyWith(ingredientsImported: true),
-        );
-
-        expect(find.textContaining('Import'), findsNothing);
-      });
-
-      testWidgets('is offered with its count above a non-empty list', (
-        tester,
-      ) async {
-        await pumpView(tester, withFreeText);
-
-        expect(
-          find.text('Import 2 ingredients from your recipes'),
-          findsOneWidget,
-        );
-        expect(find.byType(FTile), findsNWidgets(3));
-      });
-
-      testWidgets('is offered on the empty state', (tester) async {
-        await pumpView(
-          tester,
-          withFreeText.copyWith(
-            ingredients: const [],
-            recipes: [
-              recipeUsing('Daiquiri', [Ingredient(name: 'Rum')]),
-            ],
-          ),
-        );
-
-        expect(
-          find.text('Import 1 ingredient from your recipes'),
-          findsOneWidget,
-        );
-        expect(find.text('No ingredients yet'), findsOneWidget);
-      });
-
-      testWidgets('dispatches the import', (tester) async {
-        await pumpView(tester, withFreeText);
-
-        await tester.tap(find.text('Import 2 ingredients from your recipes'));
-        await tester.pumpAndSettle();
-
-        verify(
-          () => recipesBloc.add(const RecipesIngredientsImported()),
-        ).called(1);
-      });
-
-      testWidgets('is disabled while the import is in flight', (tester) async {
-        await pumpView(
-          tester,
-          withFreeText.copyWith(
-            mutation: RecipesMutation.ingredientsImported,
-            mutationStatus: RecipesMutationStatus.loading,
-          ),
-        );
-
-        final button = tester.widget<FButton>(
-          find.ancestor(
-            of: find.text('Import 2 ingredients from your recipes'),
-            matching: find.byType(FButton),
-          ),
-        );
-        expect(button.onPress, isNull);
-      });
-
-      testWidgets('reports a failed import', (tester) async {
-        await pumpView(tester, withFreeText);
-
-        await emit(
-          tester,
-          withFreeText.copyWith(
-            mutation: RecipesMutation.ingredientsImported,
-            mutationStatus: RecipesMutationStatus.failure,
-          ),
-        );
-
-        expect(
-          find.text('Your ingredients could not be imported.'),
-          findsOneWidget,
-        );
-      });
-
-      testWidgets('clears the banner when the import is retried', (
-        tester,
-      ) async {
-        await pumpView(tester, withFreeText);
-        await emit(
-          tester,
-          withFreeText.copyWith(
-            mutation: RecipesMutation.ingredientsImported,
-            mutationStatus: RecipesMutationStatus.failure,
-          ),
-        );
-
-        await tester.tap(find.text('Import 2 ingredients from your recipes'));
-        await tester.pumpAndSettle();
-
-        expect(
-          find.text('Your ingredients could not be imported.'),
-          findsNothing,
-        );
-      });
-
-      testWidgets('reports nothing when the import succeeds', (tester) async {
-        await pumpView(tester, withFreeText);
-
-        await emit(
-          tester,
-          loaded.copyWith(
-            mutation: RecipesMutation.ingredientsImported,
-            mutationStatus: RecipesMutationStatus.success,
-          ),
-        );
-
-        expect(find.byType(FailureBanner), findsNothing);
-      });
-    });
-
     group('delete', () {
-      Ingredient sugarRow() =>
-          Ingredient(name: 'sugar', catalogId: sugarIngredient.id);
+      Ingredient sugarRow() => Ingredient(catalogId: sugarIngredient.id);
 
       testWidgets('is refused for an entry in use, naming the count and the '
           'library, without dispatching', (tester) async {
@@ -363,14 +284,42 @@ void main() {
         verifyNever(() => recipesBloc.add(any()));
       });
 
-      testWidgets('names every library using the entry, ordered by name', (
+      testWidgets('names every library using the entry, in library order', (
         tester,
       ) async {
+        // Two libraries can share an ingredient library, so an entry can be
+        // used from both.
+        final tikiLibrary = Library(
+          id: 'library-tiki',
+          name: 'Tiki',
+          ingredientLibraryId: cocktailsPantry.id,
+        );
+        await pumpView(
+          tester,
+          loaded.copyWith(
+            libraries: [tikiLibrary, cocktailsLibrary, coffeeLibrary],
+            recipes: [
+              recipeUsing('Old Fashioned', [sugarRow()]),
+              recipeUsing('Mai Tai', [sugarRow()], libraryId: tikiLibrary.id),
+              recipeUsing('Zombie', [sugarRow()], libraryId: tikiLibrary.id),
+            ],
+          ),
+        );
+
+        await tapDelete(tester, 'sugar');
+
+        expect(
+          inToast('Used in 3 recipes. Libraries: Tiki, Cocktails.'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('leaves out a recipe whose library is gone', (tester) async {
         await pumpView(
           tester,
           loaded.copyWith(
             recipes: [
-              recipeUsing('Latte', [sugarRow()], libraryId: coffeeLibrary.id),
+              recipeUsing('Orphan', [sugarRow()], libraryId: 'library-gone'),
               recipeUsing('Old Fashioned', [sugarRow()]),
             ],
           ),
@@ -379,31 +328,12 @@ void main() {
         await tapDelete(tester, 'sugar');
 
         expect(
-          inToast('Used in 2 recipes. Libraries: Cocktails, Coffee.'),
+          inToast('Used in 1 recipe. Libraries: Cocktails.'),
           findsOneWidget,
         );
       });
 
-      testWidgets('leaves out a library that is gone', (tester) async {
-        await pumpView(
-          tester,
-          loaded.copyWith(
-            recipes: [
-              recipeUsing('Orphan', [sugarRow()], libraryId: 'library-gone'),
-              recipeUsing('Latte', [sugarRow()], libraryId: coffeeLibrary.id),
-            ],
-          ),
-        );
-
-        await tapDelete(tester, 'sugar');
-
-        expect(
-          inToast('Used in 2 recipes. Libraries: Coffee.'),
-          findsOneWidget,
-        );
-      });
-
-      testWidgets('names the count alone when no library can be named', (
+      testWidgets('confirms an entry used only in a library that is gone', (
         tester,
       ) async {
         await pumpView(
@@ -417,8 +347,8 @@ void main() {
 
         await tapDelete(tester, 'sugar');
 
-        expect(inToast('sugar cannot be deleted'), findsOneWidget);
-        expect(inToast('Used in 1 recipe.'), findsOneWidget);
+        expect(find.byType(FToast), findsNothing);
+        expect(find.text('Delete sugar?'), findsOneWidget);
       });
 
       testWidgets('leaves one toast when it is refused twice', (tester) async {
@@ -436,14 +366,13 @@ void main() {
       ) async {
         await pumpView(tester, loaded);
 
-        await tapDelete(tester, 'Cinnamon');
-        expect(find.text('Delete Cinnamon?'), findsOneWidget);
+        await tapDelete(tester, 'Ice');
+        expect(find.text('Delete Ice?'), findsOneWidget);
         await tester.tap(find.text('Delete'));
         await tester.pumpAndSettle();
 
         verify(
-          () =>
-              recipesBloc.add(RecipesIngredientDeleted(cinnamonIngredient.id)),
+          () => recipesBloc.add(RecipesIngredientDeleted(ice.id)),
         ).called(1);
       });
 
@@ -454,7 +383,7 @@ void main() {
         await tapDelete(tester, 'Gin');
         expect(find.byType(FToast), findsOneWidget);
 
-        await tapDelete(tester, 'Cinnamon');
+        await tapDelete(tester, 'Ice');
 
         expect(find.byType(FDialog), findsOneWidget);
         expect(find.byType(FToast), findsNothing);
@@ -465,7 +394,7 @@ void main() {
       ) async {
         await pumpView(tester, loaded);
 
-        await tapDelete(tester, 'Cinnamon');
+        await tapDelete(tester, 'Ice');
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
 
@@ -501,7 +430,7 @@ void main() {
           ),
         );
 
-        expect(find.text('Cinnamon'), findsNothing);
+        expect(find.text('Ice'), findsNothing);
         expect(find.byType(FailureBanner), findsNothing);
       });
     });

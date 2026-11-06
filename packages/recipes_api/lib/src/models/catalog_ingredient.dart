@@ -8,28 +8,27 @@ part 'catalog_ingredient.g.dart';
 /// {@template catalog_ingredient}
 /// An ingredient the user has entered once and can reuse across recipes.
 ///
-/// Recipe rows reference it through [Ingredient.catalogId], so renaming an
-/// entry renames it everywhere it is used.
+/// It belongs to exactly one [IngredientLibrary]. Recipe rows reference it
+/// through [Ingredient.catalogId], so renaming an entry renames it everywhere
+/// it is used.
 /// {@endtemplate}
 @JsonSerializable()
 class CatalogIngredient extends Equatable {
   /// {@macro catalog_ingredient}
   ///
-  /// [id] is generated when omitted. [libraryIds] must not be empty: an entry
-  /// visible in no library could never be picked.
+  /// [id] is generated when omitted.
   CatalogIngredient({
     required String name,
-    required Set<String> libraryIds,
+    required this.ingredientLibraryId,
     String? id,
     this.defaultUnit,
   }) : assert(name.trim().isNotEmpty, 'An ingredient name must not be blank.'),
        assert(
-         libraryIds.isNotEmpty,
-         'An ingredient must be visible in at least one library.',
+         ingredientLibraryId.trim().isNotEmpty,
+         'An ingredient must belong to an ingredient library.',
        ),
        id = id ?? const Uuid().v4(),
-       name = name.trim(),
-       libraryIds = Set.unmodifiable(libraryIds);
+       name = name.trim();
 
   /// Converts a JSON [Map] into a [CatalogIngredient].
   factory CatalogIngredient.fromJson(Map<String, dynamic> json) =>
@@ -38,8 +37,8 @@ class CatalogIngredient extends Equatable {
   /// The unique identifier of this entry. Recipe rows reference it by this id.
   final String id;
 
-  /// What the ingredient is called, such as `Gin`. Unique across the catalog
-  /// without regard to case.
+  /// What the ingredient is called, such as `Gin`. Unique within its
+  /// ingredient library without regard to case.
   final String name;
 
   /// The unit a recipe row is prefilled with when this entry is picked, or
@@ -47,14 +46,14 @@ class CatalogIngredient extends Equatable {
   @JsonKey(fromJson: _unitFromJson, toJson: _unitToJson)
   final Unit? defaultUnit;
 
-  /// The ids of the libraries whose picker offers this entry first.
-  final Set<String> libraryIds;
+  /// The id of the [IngredientLibrary] this entry belongs to.
+  final String ingredientLibraryId;
 
   /// Converts this [CatalogIngredient] into a JSON [Map].
   Map<String, dynamic> toJson() => _$CatalogIngredientToJson(this);
 
   @override
-  List<Object?> get props => [id, name, defaultUnit, libraryIds];
+  List<Object?> get props => [id, name, defaultUnit, ingredientLibraryId];
 }
 
 // A converter is not invoked for a null value, so the nullable field bridges

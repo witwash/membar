@@ -11,12 +11,12 @@ void _reportRecoveryError(String message) => debugPrint(message);
 /// {@template local_storage_recipes_api}
 /// A [RecipesApi] backed by `shared_preferences`.
 ///
-/// Libraries, recipes, catalog entries and the active library id are stored
-/// under separate keys, each rewritten in full on every mutation. That is O(n)
-/// per save, which is the ceiling that motivates a real database once a library
-/// grows past personal scale.
+/// Libraries, recipes, ingredient libraries, catalog entries and the active
+/// library id are stored under separate keys, each rewritten in full on every
+/// mutation. That is O(n) per save, which is the ceiling that motivates a real
+/// database once a library grows past personal scale.
 ///
-/// A fresh install — one with no stored schema version — is seeded from
+/// A fresh install — or one stored below [kSchemaVersion] — is seeded from
 /// [LibraryTemplates]. Seeding is driven by the schema version rather than by
 /// "the libraries list is empty" so that a deliberately emptied library list
 /// stays empty instead of resurrecting on the next launch.
@@ -55,32 +55,24 @@ class LocalStorageRecipesApi extends RecipesApi {
   @visibleForTesting
   static const kRecipesKey = '__recipes_key__';
 
+  /// The key the encoded list of ingredient libraries is stored under.
+  @visibleForTesting
+  static const kIngredientLibrariesKey = '__ingredient_libraries_key__';
+
   /// The key the encoded list of catalog entries is stored under.
   @visibleForTesting
   static const kIngredientsKey = '__ingredients_key__';
-
-  /// The key the version of the completed ingredient import is stored under.
-  /// Absent until the import has run.
-  @visibleForTesting
-  static const kIngredientsImportVersionKey =
-      '__ingredients_import_version_key__';
 
   /// The key the id of the library being browsed is stored under.
   @visibleForTesting
   static const kActiveLibraryIdKey = '__active_library_id_key__';
 
-  /// The schema version a fresh install is seeded at, and the one an older
-  /// install is migrated to.
+  /// The schema version a fresh install is seeded at.
   ///
-  /// Version 2 added [kIngredientsKey]. Migrating to it writes an empty
-  /// catalog and leaves recipes and libraries untouched.
+  /// Version 3 added [kIngredientLibrariesKey]. An install stored below it is
+  /// not migrated: every key is re-seeded, discarding what it held.
   @visibleForTesting
-  static const kSchemaVersion = 2;
-
-  /// The version [importIngredients] records. An install whose stored version
-  /// is lower has not run this import, so it is offered again.
-  @visibleForTesting
-  static const kIngredientsImportVersion = 1;
+  static const kSchemaVersion = 3;
 
   final SharedPreferences _plugin;
   final LibraryTemplates _templates;
@@ -104,7 +96,22 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   @override
   Future<void> saveRecipe(Recipe recipe) => _serialized(() async {
-    final recipes = [..._subject.value.recipes];
+    final current = _subject.value;
+    final library = current.libraries
+        .where((stored) => stored.id == recipe.libraryId)
+        .firstOrNull;
+    if (library == null) throw LibraryNotFoundException(recipe.libraryId);
+    final offered = {
+      for (final entry in current.ingredients)
+        if (entry.ingredientLibraryId == library.ingredientLibraryId) entry.id,
+    };
+    for (final row in recipe.ingredients) {
+      if (!offered.contains(row.catalogId)) {
+        throw IngredientNotFoundException(row.catalogId);
+      }
+    }
+
+    final recipes = [...current.recipes];
     final index = recipes.indexWhere((stored) => stored.id == recipe.id);
     if (index == -1) {
       recipes.add(recipe);
@@ -130,30 +137,19 @@ class LocalStorageRecipesApi extends RecipesApi {
   @override
   Future<void> saveIngredient(CatalogIngredient ingredient) =>
       _serialized(() async {
-        final catalog = _merged(_subject.value.ingredients, [ingredient]);
+        final current = _subject.value;
+        final libraryExists = current.ingredientLibraries.any(
+          (stored) => stored.id == ingredient.ingredientLibraryId,
+        );
+        if (!libraryExists) {
+          throw IngredientLibraryNotFoundException(
+            ingredient.ingredientLibraryId,
+          );
+        }
+        final catalog = _merged(current.ingredients, ingredient);
 
         await _write(kIngredientsKey, _encodeIngredients(catalog));
         _emit(ingredients: catalog);
-      });
-
-  @override
-  Future<void> importIngredients(List<CatalogIngredient> ingredients) =>
-      _serialized(() async {
-        final current = _subject.value;
-        final catalog = _merged(current.ingredients, ingredients);
-        final recipes = _linked(current.recipes, catalog);
-
-        // Catalog first, so no write can link a row to an entry that was never
-        // stored; the version last, so a failure part-way leaves the import on
-        // offer rather than recorded as done.
-        await _write(kIngredientsKey, _encodeIngredients(catalog));
-        await _write(kRecipesKey, _encodeRecipes(recipes));
-        await _write(kIngredientsImportVersionKey, kIngredientsImportVersion);
-        _emit(
-          recipes: recipes,
-          ingredients: catalog,
-          ingredientsImported: true,
-        );
       });
 
   @override
@@ -162,19 +158,17 @@ class LocalStorageRecipesApi extends RecipesApi {
     final ingredients = [...current.ingredients];
     final index = ingredients.indexWhere((stored) => stored.id == id);
     if (index == -1) throw IngredientNotFoundException(id);
-
-    final recipeCount = current.recipes
-        .where(
-          (recipe) => recipe.ingredients.any(
-            (ingredient) => ingredient.catalogId == id,
-          ),
-        )
-        .length;
-    if (recipeCount > 0) throw IngredientInUseException(id, recipeCount);
     ingredients.removeAt(index);
+    final recipes = _stripped(current.recipes, id);
 
+    // Recipes first: a failure after it leaves the entry in place with no
+    // rows using it, which renders. The reverse would leave rows referencing
+    // an entry that is gone.
+    if (!listEquals(recipes, current.recipes)) {
+      await _write(kRecipesKey, _encodeRecipes(recipes));
+    }
     await _write(kIngredientsKey, _encodeIngredients(ingredients));
-    _emit(ingredients: ingredients);
+    _emit(recipes: recipes, ingredients: ingredients);
   });
 
   @override
@@ -186,6 +180,7 @@ class LocalStorageRecipesApi extends RecipesApi {
   @override
   Future<void> saveLibrary(
     Library library, {
+    IngredientLibrary? ingredientLibrary,
     Map<String, Map<String, String>> optionRenames = const {},
   }) => _serialized(() async {
     final current = _subject.value;
@@ -195,6 +190,24 @@ class LocalStorageRecipesApi extends RecipesApi {
           compareCaseInsensitive(stored.name, library.name) == 0,
     );
     if (taken) throw LibraryNameTakenException(library.name);
+
+    final ingredientLibraries = [...current.ingredientLibraries];
+    if (ingredientLibrary != null) {
+      final ingredientLibraryTaken = ingredientLibraries.any(
+        (stored) =>
+            compareCaseInsensitive(stored.name, ingredientLibrary.name) == 0,
+      );
+      if (ingredientLibraryTaken) {
+        throw IngredientLibraryNameTakenException(ingredientLibrary.name);
+      }
+      ingredientLibraries.add(ingredientLibrary);
+    }
+    final resolves = ingredientLibraries.any(
+      (stored) => stored.id == library.ingredientLibraryId,
+    );
+    if (!resolves) {
+      throw IngredientLibraryNotFoundException(library.ingredientLibraryId);
+    }
 
     final libraries = [...current.libraries];
     final index = libraries.indexWhere((stored) => stored.id == library.id);
@@ -206,14 +219,26 @@ class LocalStorageRecipesApi extends RecipesApi {
       libraries[index] = library;
     }
 
-    // Recipes first: a failure after it leaves values cleared under a schema
-    // that still declares them, which renders. The reverse would leave values
-    // keyed to a field nothing declares, which is invisible.
+    // The ingredient library first, so no write can point a library at one
+    // that was never stored. Then recipes: a failure after it leaves values
+    // cleared under a schema that still declares them, which renders. The
+    // reverse would leave values keyed to a field nothing declares, which is
+    // invisible.
+    if (ingredientLibrary != null) {
+      await _write(
+        kIngredientLibrariesKey,
+        _encodeIngredientLibraries(ingredientLibraries),
+      );
+    }
     if (!listEquals(recipes, current.recipes)) {
       await _write(kRecipesKey, _encodeRecipes(recipes));
     }
     await _write(kLibrariesKey, _encodeLibraries(libraries));
-    _emit(libraries: libraries, recipes: recipes);
+    _emit(
+      libraries: libraries,
+      recipes: recipes,
+      ingredientLibraries: ingredientLibraries,
+    );
   });
 
   @override
@@ -230,13 +255,6 @@ class LocalStorageRecipesApi extends RecipesApi {
           throw LibraryNotFoundException(successorId);
         }
 
-        final ingredients = [
-          for (final entry in current.ingredients)
-            if (entry.libraryIds.contains(id))
-              _withoutLibrary(entry, id, successorId: successorId)
-            else
-              entry,
-        ];
         final recipes = [
           for (final recipe in current.recipes)
             if (recipe.libraryId != id) recipe,
@@ -246,9 +264,6 @@ class LocalStorageRecipesApi extends RecipesApi {
         // Children before parents: every prefix of this sequence is a state
         // the app renders, ending with an emptied library that still exists.
         // The reverse would leave recipes pointing at a library that is gone.
-        if (!listEquals(ingredients, current.ingredients)) {
-          await _write(kIngredientsKey, _encodeIngredients(ingredients));
-        }
         if (wasActive) await _write(kActiveLibraryIdKey, successorId);
         if (recipes.length != current.recipes.length) {
           await _write(kRecipesKey, _encodeRecipes(recipes));
@@ -259,7 +274,6 @@ class LocalStorageRecipesApi extends RecipesApi {
         _emit(
           libraries: libraries,
           recipes: recipes,
-          ingredients: ingredients,
           activeLibraryId: wasActive ? successorId : null,
         );
       });
@@ -267,73 +281,54 @@ class LocalStorageRecipesApi extends RecipesApi {
   @override
   Future<void> close() => _subject.close();
 
-  /// [catalog] with [ingredients] merged in, each replacing any entry that
-  /// carries its id.
+  /// [catalog] with [ingredient] merged in, replacing any entry that carries
+  /// its id.
   ///
-  /// Each entry is checked against the ones merged before it, so two entries
-  /// in one batch cannot fold onto each other either.
+  /// Names only clash within one ingredient library: the same name in two of
+  /// them names two unrelated entries.
   static List<CatalogIngredient> _merged(
     List<CatalogIngredient> catalog,
-    List<CatalogIngredient> ingredients,
+    CatalogIngredient ingredient,
   ) {
-    final merged = [...catalog];
-    for (final ingredient in ingredients) {
-      final taken = merged.any(
-        (stored) =>
-            stored.id != ingredient.id &&
-            compareCaseInsensitive(stored.name, ingredient.name) == 0,
-      );
-      if (taken) throw IngredientNameTakenException(ingredient.name);
+    final taken = catalog.any(
+      (stored) =>
+          stored.id != ingredient.id &&
+          stored.ingredientLibraryId == ingredient.ingredientLibraryId &&
+          compareCaseInsensitive(stored.name, ingredient.name) == 0,
+    );
+    if (taken) throw IngredientNameTakenException(ingredient.name);
 
-      final index = merged.indexWhere((stored) => stored.id == ingredient.id);
-      if (index == -1) {
-        merged.add(ingredient);
-      } else {
-        merged[index] = ingredient;
-      }
+    final merged = [...catalog];
+    final index = merged.indexWhere((stored) => stored.id == ingredient.id);
+    if (index == -1) {
+      merged.add(ingredient);
+    } else {
+      merged[index] = ingredient;
     }
     return merged;
   }
 
-  /// [recipes] with every row whose link does not resolve pointed at the
-  /// [catalog] entry its name matches.
-  ///
-  /// A row whose link already resolves keeps it, and a row matching nothing
-  /// keeps whatever it stored — a dangling link is reported, never rewritten.
-  static List<Recipe> _linked(
-    List<Recipe> recipes,
-    List<CatalogIngredient> catalog,
-  ) {
-    final ids = {for (final entry in catalog) entry.id};
-    final idsByName = {
-      for (final entry in catalog) entry.name.toLowerCase(): entry.id,
-    };
-
-    return [
-      for (final recipe in recipes)
+  /// [recipes] without the rows referencing [ingredientId]. A recipe with no
+  /// such row is returned as it was.
+  static List<Recipe> _stripped(List<Recipe> recipes, String ingredientId) => [
+    for (final recipe in recipes)
+      if (!recipe.ingredients.any((row) => row.catalogId == ingredientId))
+        recipe
+      else
         Recipe(
           id: recipe.id,
           libraryId: recipe.libraryId,
           name: recipe.name,
           ingredients: [
             for (final row in recipe.ingredients)
-              if (ids.contains(row.catalogId))
-                row
-              else
-                Ingredient(
-                  name: row.name,
-                  quantity: row.quantity,
-                  unit: row.unit,
-                  catalogId: idsByName[row.name.toLowerCase()] ?? row.catalogId,
-                ),
+              if (row.catalogId != ingredientId) row,
           ],
           steps: recipe.steps,
           tags: recipe.tags,
           notes: recipe.notes,
           fieldValues: recipe.fieldValues,
         ),
-    ];
-  }
+  ];
 
   /// [recipes] with the field values of those in the [stored] library brought
   /// in line with its [replacement].
@@ -394,22 +389,6 @@ class LocalStorageRecipesApi extends RecipesApi {
     ];
   }
 
-  /// [entry] without [libraryId], or scoped to [successorId] alone when that
-  /// would leave it visible in no library.
-  static CatalogIngredient _withoutLibrary(
-    CatalogIngredient entry,
-    String libraryId, {
-    required String successorId,
-  }) {
-    final remaining = {...entry.libraryIds}..remove(libraryId);
-    return CatalogIngredient(
-      id: entry.id,
-      name: entry.name,
-      defaultUnit: entry.defaultUnit,
-      libraryIds: remaining.isEmpty ? {successorId} : remaining,
-    );
-  }
-
   /// Runs [mutation] after every mutation already queued.
   ///
   /// Two overlapping callers would otherwise each compute a list from the same
@@ -431,18 +410,18 @@ class LocalStorageRecipesApi extends RecipesApi {
   void _emit({
     List<Library>? libraries,
     List<Recipe>? recipes,
+    List<IngredientLibrary>? ingredientLibraries,
     List<CatalogIngredient>? ingredients,
     String? activeLibraryId,
-    bool? ingredientsImported,
   }) {
     final current = _subject.value;
     _subject.add(
       RecipesSnapshot(
         libraries: libraries ?? current.libraries,
         recipes: recipes ?? current.recipes,
+        ingredientLibraries: ingredientLibraries ?? current.ingredientLibraries,
         ingredients: ingredients ?? current.ingredients,
         activeLibraryId: activeLibraryId ?? current.activeLibraryId,
-        ingredientsImported: ingredientsImported ?? current.ingredientsImported,
       ),
     );
   }
@@ -450,63 +429,115 @@ class LocalStorageRecipesApi extends RecipesApi {
   /// Composes the snapshot to start from, plus whatever has to be written back
   /// to bring storage in line with it.
   ({RecipesSnapshot snapshot, Map<String, Object> writes}) _restore() {
+    final storedVersion = _plugin.getInt(kSchemaVersionKey);
+    if (storedVersion == null || storedVersion < kSchemaVersion) {
+      return _seeded();
+    }
+
     // The insertion order of this map is the order the writes land in.
     final writes = <String, Object>{};
 
-    final storedVersion = _plugin.getInt(kSchemaVersionKey);
-    var libraries = storedVersion == null ? null : _readLibraries();
+    var libraries = _readLibraries();
     if (libraries == null) {
-      // Either a fresh install, or a libraries blob that cannot be read. The
-      // app always has at least one library — deleting one needs a successor —
-      // so re-seed rather than start from a state nothing else can produce.
-      libraries = _templates.all();
+      // A libraries blob that cannot be read. The app always has at least one
+      // library — deleting one needs a successor — so re-seed rather than
+      // start from a state nothing else can produce. The ingredient libraries
+      // the templates point at are recreated below, like any other missing
+      // one.
+      libraries = [for (final (library, _) in _templates.all()) library];
       writes[kLibrariesKey] = _encodeLibraries(libraries);
     }
 
     final recipes = _readRecipes();
     final ingredients = _readIngredients();
+    final ingredientLibraries = _readIngredientLibraries();
+
+    // Every library resolves its ingredient library: one that resolves to
+    // nothing is recreated under the same id, so the entries still pointing
+    // at it stay reachable and no library is rewritten. Names are unique on
+    // save, not here, so a clashing name is tolerated until renamed.
+    final ingredientLibraryIds = {
+      for (final ingredientLibrary in ingredientLibraries) ingredientLibrary.id,
+    };
+    final recreated = [
+      for (final library in libraries)
+        if (ingredientLibraryIds.add(library.ingredientLibraryId))
+          IngredientLibrary(
+            id: library.ingredientLibraryId,
+            name: library.name,
+          ),
+    ];
+    if (recreated.isNotEmpty) {
+      ingredientLibraries.addAll(recreated);
+      writes[kIngredientLibrariesKey] = _encodeIngredientLibraries(
+        ingredientLibraries,
+      );
+      _onRecoveryError(
+        '${recreated.length} ingredient library(ies) were missing; recreated '
+        'under their ids, named after the library using each.',
+      );
+    }
 
     final storedActiveId = _plugin.getString(kActiveLibraryIdKey);
     final String activeLibraryId;
     if (libraries.any((library) => library.id == storedActiveId)) {
       activeLibraryId = storedActiveId!;
     } else if (libraries.isNotEmpty) {
-      // A fresh install, a partial write, or a library that no longer exists:
-      // fall back to the first library and rewrite the preference. This rule
-      // lives here alone, so no layer above needs a second one.
+      // A partial write, or a library that no longer exists: fall back to the
+      // first library and rewrite the preference. This rule lives here alone,
+      // so no layer above needs a second one.
       activeLibraryId = libraries.first.id;
       writes[kActiveLibraryIdKey] = activeLibraryId;
     } else {
       activeLibraryId = storedActiveId ?? '';
     }
 
-    // Decided apart from the re-seed above, so a v1 install with unreadable
-    // libraries still gains its catalog. Written only when absent: a migration
-    // re-run after a failed version write must not wipe a catalog the user has
-    // built since.
-    if (!_plugin.containsKey(kIngredientsKey)) {
-      writes[kIngredientsKey] = _encodeIngredients(const []);
-    }
-    // Last, so a partial failure leaves an older install that already has its
-    // catalog rather than a current one without it.
-    if (storedVersion == null || storedVersion < kSchemaVersion) {
-      writes[kSchemaVersionKey] = kSchemaVersion;
-    }
-
     _reportDanglingRecipes(libraries, recipes);
+    _reportDanglingIngredients(ingredientLibraryIds, ingredients);
     _reportDanglingIngredientRefs(ingredients, recipes);
 
     return (
       snapshot: RecipesSnapshot(
         libraries: libraries,
         recipes: recipes,
+        ingredientLibraries: ingredientLibraries,
         ingredients: ingredients,
         activeLibraryId: activeLibraryId,
-        ingredientsImported:
-            (_plugin.getInt(kIngredientsImportVersionKey) ?? 0) >=
-            kIngredientsImportVersion,
       ),
       writes: writes,
+    );
+  }
+
+  /// Every template paired with its own ingredient library, no recipes and no
+  /// ingredients, opening on the first template.
+  ({RecipesSnapshot snapshot, Map<String, Object> writes}) _seeded() {
+    final pairs = _templates.all();
+    final libraries = [for (final (library, _) in pairs) library];
+    final ingredientLibraries = [
+      for (final (_, ingredientLibrary) in pairs) ingredientLibrary,
+    ];
+    final activeLibraryId = libraries.first.id;
+
+    return (
+      snapshot: RecipesSnapshot(
+        libraries: libraries,
+        recipes: const [],
+        ingredientLibraries: ingredientLibraries,
+        ingredients: const [],
+        activeLibraryId: activeLibraryId,
+      ),
+      // Children before parents, and the version last, so a failure part-way
+      // re-seeds on the next launch instead of opening a half-written store.
+      writes: {
+        kIngredientLibrariesKey: _encodeIngredientLibraries(
+          ingredientLibraries,
+        ),
+        kIngredientsKey: _encodeIngredients(const []),
+        kRecipesKey: _encodeRecipes(const []),
+        kLibrariesKey: _encodeLibraries(libraries),
+        kActiveLibraryIdKey: activeLibraryId,
+        kSchemaVersionKey: kSchemaVersion,
+      },
     );
   }
 
@@ -550,6 +581,23 @@ class LocalStorageRecipesApi extends RecipesApi {
     }
   }
 
+  /// Reads the stored ingredient libraries, recovering as an empty list rather
+  /// than throwing. The libraries pointing at them recreate what was lost.
+  List<IngredientLibrary> _readIngredientLibraries() {
+    final stored = _plugin.getString(kIngredientLibrariesKey);
+    if (stored == null) return [];
+
+    try {
+      return _decodeList(stored, IngredientLibrary.fromJson);
+    } on Object catch (error) {
+      _onRecoveryError(
+        'The stored ingredient libraries could not be read ($error); '
+        'recovering as an empty list.',
+      );
+      return [];
+    }
+  }
+
   /// Reads the stored catalog, recovering as an empty list rather than
   /// throwing — a bad catalog must not cost the user their recipes.
   List<CatalogIngredient> _readIngredients() {
@@ -582,6 +630,23 @@ class LocalStorageRecipesApi extends RecipesApi {
     );
   }
 
+  void _reportDanglingIngredients(
+    Set<String> ingredientLibraryIds,
+    List<CatalogIngredient> ingredients,
+  ) {
+    final dangling = ingredients
+        .where(
+          (entry) => !ingredientLibraryIds.contains(entry.ingredientLibraryId),
+        )
+        .length;
+    if (dangling == 0) return;
+
+    _onRecoveryError(
+      '$dangling ingredient(s) belong to an ingredient library that no longer '
+      'exists; they are hidden but kept.',
+    );
+  }
+
   void _reportDanglingIngredientRefs(
     List<CatalogIngredient> ingredients,
     List<Recipe> recipes,
@@ -589,18 +654,15 @@ class LocalStorageRecipesApi extends RecipesApi {
     final ingredientIds = {for (final entry in ingredients) entry.id};
     final dangling = recipes
         .expand((recipe) => recipe.ingredients)
-        .where(
-          (row) =>
-              row.catalogId != null && !ingredientIds.contains(row.catalogId),
-        )
+        .where((row) => !ingredientIds.contains(row.catalogId))
         .length;
     if (dangling == 0) return;
 
-    // Reported, never rewritten: a row whose entry is gone still renders the
-    // name it was saved with.
+    // Reported, never rewritten here: a row whose entry is gone has no name
+    // to render, so it is hidden until the recipe is next saved.
     _onRecoveryError(
       '$dangling ingredient row(s) reference a catalog entry that no longer '
-      'exists; they are shown as typed.',
+      'exists; they are hidden.',
     );
   }
 
@@ -650,6 +712,13 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   static String _encodeRecipes(List<Recipe> recipes) =>
       jsonEncode([for (final recipe in recipes) recipe.toJson()]);
+
+  static String _encodeIngredientLibraries(
+    List<IngredientLibrary> ingredientLibraries,
+  ) => jsonEncode([
+    for (final ingredientLibrary in ingredientLibraries)
+      ingredientLibrary.toJson(),
+  ]);
 
   static String _encodeIngredients(List<CatalogIngredient> ingredients) =>
       jsonEncode([for (final ingredient in ingredients) ingredient.toJson()]);

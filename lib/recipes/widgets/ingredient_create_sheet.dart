@@ -6,14 +6,18 @@ import 'package:membar/recipes/recipes.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
-/// Adds an ingredient to the catalog from inside the recipe editor: a name and
-/// a default unit, scoped to the library being browsed.
+/// Adds an ingredient from inside the recipe editor: a name and a default
+/// unit, in the ingredient library the recipe's rows draw from.
 ///
 /// A sheet rather than a pushed page, so the editor underneath keeps its
 /// controllers and its dirty check untouched.
 class IngredientCreateSheet extends StatefulWidget {
   /// Creates an [IngredientCreateSheet] whose name field starts as [name].
-  const IngredientCreateSheet({required this.name, super.key});
+  const IngredientCreateSheet({
+    required this.name,
+    required this.ingredientLibraryId,
+    super.key,
+  });
 
   /// Opens the sheet with its name field prefilled with [name].
   ///
@@ -23,6 +27,7 @@ class IngredientCreateSheet extends StatefulWidget {
   static Future<CatalogIngredient?> show(
     BuildContext context, {
     required String name,
+    required String ingredientLibraryId,
   }) {
     final bloc = context.read<RecipesBloc>();
     return showFSheet<CatalogIngredient>(
@@ -32,13 +37,19 @@ class IngredientCreateSheet extends StatefulWidget {
       mainAxisMaxRatio: null,
       builder: (_) => BlocProvider.value(
         value: bloc,
-        child: IngredientCreateSheet(name: name),
+        child: IngredientCreateSheet(
+          name: name,
+          ingredientLibraryId: ingredientLibraryId,
+        ),
       ),
     );
   }
 
   /// What the name field starts as: whatever was typed into the row.
   final String name;
+
+  /// The id of the ingredient library the entry is reused from or created in.
+  final String ingredientLibraryId;
 
   @override
   State<IngredientCreateSheet> createState() => _IngredientCreateSheetState();
@@ -107,10 +118,20 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
                 ListenableBuilder(
                   listenable: _nameController,
                   builder: (context, _) {
-                    final existing = context
-                        .select<RecipesBloc, CatalogIngredient?>(
-                          (bloc) =>
-                              bloc.state.ingredientNamed(_nameController.text),
+                    final (existing, ingredientLibraryName) = context
+                        .select<RecipesBloc, (CatalogIngredient?, String)>(
+                          (bloc) => (
+                            bloc.state.ingredientNamed(
+                              _nameController.text,
+                              ingredientLibraryId: widget.ingredientLibraryId,
+                            ),
+                            bloc.state
+                                    .ingredientLibraryById(
+                                      widget.ingredientLibraryId,
+                                    )
+                                    ?.name ??
+                                '',
+                          ),
                         );
                     // While the typed name matches an entry, the unit shows
                     // that entry's and cannot change, so the user sees what
@@ -121,7 +142,10 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
                       children: [
                         if (existing != null)
                           Text(
-                            l10n.ingredientCreateReuseNote(existing.name),
+                            l10n.ingredientCreateReuseNote(
+                              existing.name,
+                              ingredientLibraryName,
+                            ),
                             style: theme.typography.body.sm,
                           ),
                         DefaultUnitField(
@@ -154,15 +178,13 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final bloc = context.read<RecipesBloc>();
-    final libraryId = bloc.state.activeLibraryId;
-    final existing = bloc.state.ingredientNamed(_nameController.text);
+    final existing = bloc.state.ingredientNamed(
+      _nameController.text,
+      ingredientLibraryId: widget.ingredientLibraryId,
+    );
 
-    // Reusing an existing entry is the same act as picking it from the list,
-    // and saving its own id is what keeps it clear of the uniqueness guard.
+    // Reusing an existing entry is the same act as picking it from the list.
     if (existing != null) {
-      if (!existing.libraryIds.contains(libraryId)) {
-        bloc.add(RecipesIngredientScopeWidened(existing.id, libraryId));
-      }
       Navigator.of(context).pop(existing);
       return;
     }
@@ -170,7 +192,7 @@ class _IngredientCreateSheetState extends State<IngredientCreateSheet> {
     final entry = CatalogIngredient(
       name: _nameController.text,
       defaultUnit: _unitController.unit,
-      libraryIds: {libraryId},
+      ingredientLibraryId: widget.ingredientLibraryId,
     );
     setState(() {
       _saveFailed = false;

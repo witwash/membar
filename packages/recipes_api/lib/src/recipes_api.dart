@@ -11,8 +11,8 @@ abstract class RecipesApi {
   /// {@macro recipes_api}
   const RecipesApi();
 
-  /// Emits a [RecipesSnapshot] whenever libraries, recipes, catalog entries,
-  /// or the active library change.
+  /// Emits a [RecipesSnapshot] whenever libraries, recipes, ingredient
+  /// libraries, catalog entries, or the active library change.
   ///
   /// Whether the current snapshot is replayed to a late subscriber is an
   /// implementation detail, not part of this contract.
@@ -20,7 +20,11 @@ abstract class RecipesApi {
 
   /// Stores [recipe], replacing any recipe that already carries its id.
   ///
-  /// Throws a [RecipesPersistenceException] when the write fails.
+  /// Every row must reference a catalog entry in the ingredient library of
+  /// the recipe's library. Throws a [LibraryNotFoundException] when that
+  /// library does not exist, an [IngredientNotFoundException] when a row
+  /// references an entry that does not exist or belongs to another ingredient
+  /// library, and a [RecipesPersistenceException] when the write fails.
   Future<void> saveRecipe(Recipe recipe);
 
   /// Removes the recipe carrying [id].
@@ -32,29 +36,22 @@ abstract class RecipesApi {
   /// Stores [ingredient] in the catalog, replacing any entry that already
   /// carries its id.
   ///
-  /// Throws an [IngredientNameTakenException] when a different entry already
-  /// carries the same name without regard to case, and a
-  /// [RecipesPersistenceException] when the write fails.
+  /// Precondition: an entry that already exists keeps its
+  /// `ingredientLibraryId`. Re-homing one would bypass the row removal a move
+  /// performs.
+  ///
+  /// Throws an [IngredientLibraryNotFoundException] when its ingredient
+  /// library does not exist, an [IngredientNameTakenException] when a
+  /// different entry in the same ingredient library already carries the same
+  /// name without regard to case, and a [RecipesPersistenceException] when
+  /// the write fails.
   Future<void> saveIngredient(CatalogIngredient ingredient);
 
-  /// Runs the one-time import of ingredient names from saved recipes: stores
-  /// [ingredients] in the catalog, links every recipe row whose name matches a
-  /// catalog entry without regard to case, and records the import as done.
+  /// Removes the catalog entry carrying [id], along with every recipe row in
+  /// every library that references it.
   ///
-  /// Linking the rows is what lets a later rename reach those recipes, and
-  /// what makes the usage guard count them.
-  ///
-  /// Nothing is stored when any entry is refused. Throws an
-  /// [IngredientNameTakenException] when an entry's name, without regard to
-  /// case, belongs to a different entry — stored or earlier in [ingredients] —
-  /// and a [RecipesPersistenceException] when a write fails.
-  Future<void> importIngredients(List<CatalogIngredient> ingredients);
-
-  /// Removes the catalog entry carrying [id].
-  ///
-  /// Throws an [IngredientNotFoundException] when no such entry exists, an
-  /// [IngredientInUseException] when any recipe in any library still
-  /// references it, and a [RecipesPersistenceException] when the write fails.
+  /// Throws an [IngredientNotFoundException] when no such entry exists, and a
+  /// [RecipesPersistenceException] when a write fails.
   Future<void> deleteIngredient(String id);
 
   /// Marks the library carrying [id] as the one being browsed.
@@ -64,24 +61,35 @@ abstract class RecipesApi {
 
   /// Stores [library], replacing any library that already carries its id.
   ///
+  /// A given [ingredientLibrary] is created alongside [library], which must
+  /// point at it. Nothing is stored when either is refused.
+  ///
   /// Replacing a library rewrites its recipes to match: a value whose field
   /// [library] no longer declares is dropped, a Select value equal to a key of
   /// `optionRenames[fieldId]` becomes that key's value, and a Select value
   /// naming an option the field no longer offers is dropped.
   ///
+  /// Precondition: a replace keeps the stored `ingredientLibraryId` and
+  /// passes no [ingredientLibrary].
+  ///
   /// Throws a [LibraryNameTakenException] when a different library already
-  /// carries the same name without regard to case, and a
-  /// [RecipesPersistenceException] when a write fails.
+  /// carries the same name without regard to case, an
+  /// [IngredientLibraryNameTakenException] when an ingredient library already
+  /// carries [ingredientLibrary]'s name without regard to case, an
+  /// [IngredientLibraryNotFoundException] when the library's
+  /// `ingredientLibraryId` resolves to neither a stored ingredient library nor
+  /// [ingredientLibrary], and a [RecipesPersistenceException] when a write
+  /// fails.
   Future<void> saveLibrary(
     Library library, {
+    IngredientLibrary? ingredientLibrary,
     Map<String, Map<String, String>> optionRenames = const {},
   });
 
   /// Removes the library carrying [id] along with every recipe in it.
   ///
-  /// [successorId] names the library that inherits what cannot go with it:
-  /// catalog entries visible only in [id] move there, and it becomes the
-  /// active library when [id] was.
+  /// [successorId] names the library that becomes the active one when [id]
+  /// was. The library's ingredient library and its entries stay.
   ///
   /// Throws a [LibraryNotFoundException] when [id] matches no library or
   /// [successorId] matches no *other* library, and a
@@ -123,7 +131,7 @@ class IngredientNotFoundException implements Exception {
 
 /// {@template ingredient_name_taken_exception}
 /// Thrown when saving a catalog entry whose name, without regard to case,
-/// already belongs to a different entry.
+/// already belongs to a different entry in the same ingredient library.
 /// {@endtemplate}
 class IngredientNameTakenException implements Exception {
   /// {@macro ingredient_name_taken_exception}
@@ -134,26 +142,41 @@ class IngredientNameTakenException implements Exception {
 
   @override
   String toString() =>
-      'IngredientNameTakenException: "$name" is already in the catalog.';
+      'IngredientNameTakenException: "$name" is already in the ingredient '
+      'library.';
 }
 
-/// {@template ingredient_in_use_exception}
-/// Thrown when deleting a catalog entry that recipes still reference.
+/// {@template ingredient_library_not_found_exception}
+/// Thrown when an ingredient library the caller asked for does not exist.
 /// {@endtemplate}
-class IngredientInUseException implements Exception {
-  /// {@macro ingredient_in_use_exception}
-  const IngredientInUseException(this.id, this.recipeCount);
+class IngredientLibraryNotFoundException implements Exception {
+  /// {@macro ingredient_library_not_found_exception}
+  const IngredientLibraryNotFoundException(this.id);
 
-  /// The id of the entry that could not be deleted.
+  /// The id no ingredient library was found for.
   final String id;
-
-  /// How many recipes, across all libraries, reference the entry.
-  final int recipeCount;
 
   @override
   String toString() =>
-      'IngredientInUseException: catalog entry "$id" is used in '
-      '$recipeCount recipe(s).';
+      'IngredientLibraryNotFoundException: no ingredient library with id '
+      '"$id".';
+}
+
+/// {@template ingredient_library_name_taken_exception}
+/// Thrown when saving an ingredient library whose name, without regard to
+/// case, already belongs to a different ingredient library.
+/// {@endtemplate}
+class IngredientLibraryNameTakenException implements Exception {
+  /// {@macro ingredient_library_name_taken_exception}
+  const IngredientLibraryNameTakenException(this.name);
+
+  /// The name another ingredient library already carries.
+  final String name;
+
+  @override
+  String toString() =>
+      'IngredientLibraryNameTakenException: an ingredient library named '
+      '"$name" already exists.';
 }
 
 /// {@template library_name_taken_exception}

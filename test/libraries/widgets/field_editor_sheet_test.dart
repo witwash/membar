@@ -31,6 +31,7 @@ void main() {
     final initialState = RecipesState(
       status: RecipesStatus.success,
       libraries: [cocktailsLibrary, coffeeLibrary],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
       activeLibraryId: cocktailsLibrary.id,
     );
 
@@ -448,6 +449,7 @@ void main() {
           library: Library(
             id: 'library-wine',
             name: 'Wine',
+            ingredientLibraryId: cocktailsPantry.id,
             fields: [abvField],
           ),
           field: abvField,
@@ -472,6 +474,7 @@ void main() {
             Library(
               id: cocktailsLibrary.id,
               name: cocktailsLibrary.name,
+              ingredientLibraryId: cocktailsPantry.id,
               fields: [
                 FieldDefinition(
                   id: glasswareField.id,

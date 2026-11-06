@@ -5,15 +5,19 @@ void main() {
   group('RecipesSnapshot', () {
     RecipesSnapshot buildSnapshot({
       String activeLibraryId = 'l1',
-      bool ingredientsImported = false,
+      String ingredientLibraryName = 'Cocktails',
     }) => RecipesSnapshot(
-      libraries: [Library(id: 'l1', name: 'Cocktails')],
+      libraries: [
+        Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1'),
+      ],
       recipes: [Recipe(id: 'r1', libraryId: 'l1', name: 'Negroni')],
+      ingredientLibraries: [
+        IngredientLibrary(id: 'il1', name: ingredientLibraryName),
+      ],
       ingredients: [
-        CatalogIngredient(id: 'i1', name: 'Gin', libraryIds: const {'l1'}),
+        CatalogIngredient(id: 'i1', name: 'Gin', ingredientLibraryId: 'il1'),
       ],
       activeLibraryId: activeLibraryId,
-      ingredientsImported: ingredientsImported,
     );
 
     test('exposes what it was built with', () {
@@ -21,9 +25,9 @@ void main() {
 
       expect(snapshot.libraries.single.name, equals('Cocktails'));
       expect(snapshot.recipes.single.name, equals('Negroni'));
+      expect(snapshot.ingredientLibraries.single.name, equals('Cocktails'));
       expect(snapshot.ingredients.single.name, equals('Gin'));
       expect(snapshot.activeLibraryId, equals('l1'));
-      expect(snapshot.ingredientsImported, isFalse);
     });
 
     test('supports value equality', () {
@@ -34,7 +38,7 @@ void main() {
       );
       expect(
         buildSnapshot(),
-        isNot(equals(buildSnapshot(ingredientsImported: true))),
+        isNot(equals(buildSnapshot(ingredientLibraryName: 'Bar'))),
       );
     });
   });

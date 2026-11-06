@@ -13,14 +13,11 @@ class _MockRecipesBloc extends MockBloc<RecipesEvent, RecipesState>
 
 void main() {
   group('IngredientOption', () {
-    test('a catalog option is equal by entry and scope', () {
+    test('a catalog option is equal by entry', () {
+      expect(CatalogOption(ginIngredient), CatalogOption(ginIngredient));
       expect(
-        CatalogOption(ginIngredient, inScope: true),
-        CatalogOption(ginIngredient, inScope: true),
-      );
-      expect(
-        CatalogOption(ginIngredient, inScope: true),
-        isNot(CatalogOption(ginIngredient, inScope: false)),
+        CatalogOption(ginIngredient),
+        isNot(CatalogOption(sugarIngredient)),
       );
     });
 
@@ -38,7 +35,7 @@ void main() {
     final ice = CatalogIngredient(
       id: 'ingredient-ice',
       name: 'Ice',
-      libraryIds: {cocktailsLibrary.id},
+      ingredientLibraryId: cocktailsPantry.id,
     );
 
     setUpAll(
@@ -53,9 +50,11 @@ void main() {
         initialState: RecipesState(
           status: RecipesStatus.success,
           libraries: [cocktailsLibrary, coffeeLibrary],
+          ingredientLibraries: [cocktailsPantry, coffeeShelf],
           ingredients: [
             ginIngredient,
             sugarIngredient,
+            coffeeSugarIngredient,
             cinnamonIngredient,
             ice,
           ],
@@ -71,7 +70,11 @@ void main() {
     Future<void> pumpPicker(WidgetTester tester) => tester.pumpApp(
       Column(
         children: [
-          IngredientPicker(name: name, unit: unit),
+          IngredientPicker(
+            name: name,
+            unit: unit,
+            ingredientLibraryId: cocktailsPantry.id,
+          ),
         ],
       ),
       recipesBloc: recipesBloc,
@@ -91,7 +94,7 @@ void main() {
         tester.getTopLeft(find.text(text)).dy;
 
     testWidgets(
-      'lists entries in the library first, then the others under a heading',
+      'lists only its ingredient library, sorted, then the create action',
       (tester) async {
         await pumpPicker(tester);
 
@@ -101,54 +104,35 @@ void main() {
         expect(top(tester, 'Ice'), lessThan(top(tester, 'sugar')));
         expect(
           top(tester, 'sugar'),
-          lessThan(top(tester, 'From other libraries')),
-        );
-        expect(
-          top(tester, 'From other libraries'),
-          lessThan(top(tester, 'Cinnamon')),
-        );
-        expect(
-          top(tester, 'Cinnamon'),
           lessThan(top(tester, 'New ingredient')),
         );
+        expect(find.text('sugar'), findsOneWidget);
+        expect(find.text('Cinnamon'), findsNothing);
         expect(find.text('ml'), findsOneWidget);
       },
     );
 
-    testWidgets('shows no heading when every entry is in the library', (
+    testWidgets('matches anywhere in a name, ignoring case', (tester) async {
+      await pumpPicker(tester);
+
+      await tester.enterText(find.byType(EditableText), 'UGA');
+      await tester.pumpAndSettle();
+
+      expect(find.text('sugar'), findsOneWidget);
+      expect(find.text('Gin'), findsNothing);
+      expect(find.text('Ice'), findsNothing);
+    });
+
+    testWidgets('offers the create action when its library is empty', (
       tester,
     ) async {
       when(() => recipesBloc.state).thenReturn(
         RecipesState(
-          ingredients: [ginIngredient],
+          ingredientLibraries: [cocktailsPantry, coffeeShelf],
+          ingredients: [cinnamonIngredient],
           activeLibraryId: cocktailsLibrary.id,
         ),
       );
-      await pumpPicker(tester);
-
-      await openPicker(tester);
-
-      expect(find.text('Gin'), findsOneWidget);
-      expect(find.text('From other libraries'), findsNothing);
-    });
-
-    testWidgets('matches anywhere in a name, ignoring case', (tester) async {
-      await pumpPicker(tester);
-
-      await tester.enterText(find.byType(EditableText), 'NAMO');
-      await tester.pumpAndSettle();
-
-      expect(find.text('Cinnamon'), findsOneWidget);
-      expect(find.text('Gin'), findsNothing);
-      expect(find.text('sugar'), findsNothing);
-    });
-
-    testWidgets('offers the create action when the catalog is empty', (
-      tester,
-    ) async {
-      when(
-        () => recipesBloc.state,
-      ).thenReturn(RecipesState(activeLibraryId: cocktailsLibrary.id));
       await pumpPicker(tester);
 
       await openPicker(tester);
@@ -157,7 +141,7 @@ void main() {
       expect(find.text('No matches found.'), findsNothing);
     });
 
-    testWidgets('picking an entry in the library fills the name and unit', (
+    testWidgets('picking an entry fills the name and unit', (
       tester,
     ) async {
       await pumpPicker(tester);
@@ -167,32 +151,8 @@ void main() {
 
       expect(name.text, 'Gin');
       expect(unit.text, 'ml');
-      verifyNever(
-        () => recipesBloc.add(any(that: isA<RecipesIngredientScopeWidened>())),
-      );
+      verifyNever(() => recipesBloc.add(any()));
     });
-
-    testWidgets(
-      'picking an entry from another library widens it into this one',
-      (tester) async {
-        await pumpPicker(tester);
-
-        await openPicker(tester);
-        await pick(tester, 'Cinnamon');
-
-        verify(
-          () => recipesBloc.add(
-            RecipesIngredientScopeWidened(
-              cinnamonIngredient.id,
-              cocktailsLibrary.id,
-            ),
-          ),
-        ).called(1);
-        // The widen reports nothing, so whether it lands changes nothing here.
-        expect(name.text, 'Cinnamon');
-        expect(unit.text, 'pinch');
-      },
-    );
 
     testWidgets('keeps a unit the user typed', (tester) async {
       unit.text = 'oz';
@@ -243,7 +203,14 @@ void main() {
         await pick(tester, 'New ingredient');
 
         expect(name.text, 'Bourbon');
-        expect(find.byType(IngredientCreateSheet), findsOneWidget);
+        expect(
+          tester
+              .widget<IngredientCreateSheet>(
+                find.byType(IngredientCreateSheet),
+              )
+              .ingredientLibraryId,
+          cocktailsPantry.id,
+        );
         expect(
           find.descendant(
             of: find.byType(IngredientCreateSheet),
@@ -273,7 +240,7 @@ void main() {
       ) async {
         await pumpPicker(tester);
 
-        // A name the catalog already holds comes straight back as a reuse.
+        // A name its library already holds comes straight back as a reuse.
         await tester.enterText(find.byType(EditableText), 'gin');
         await tester.pumpAndSettle();
         await pick(tester, 'New ingredient');
@@ -285,14 +252,70 @@ void main() {
       });
     });
 
-    testWidgets('parses nothing out of the typed text', (tester) async {
+    group('validation', () {
+      late GlobalKey<FormState> formKey;
+
+      setUp(() => formKey = GlobalKey<FormState>());
+
+      Future<bool> validate(WidgetTester tester, String text) async {
+        await tester.pumpApp(
+          Form(
+            key: formKey,
+            child: Column(
+              children: [
+                IngredientPicker(
+                  name: name,
+                  unit: unit,
+                  ingredientLibraryId: cocktailsPantry.id,
+                ),
+              ],
+            ),
+          ),
+          recipesBloc: recipesBloc,
+        );
+        name.text = text;
+        final valid = formKey.currentState!.validate();
+        await tester.pumpAndSettle();
+        return valid;
+      }
+
+      testWidgets('accepts a name its library holds, ignoring case', (
+        tester,
+      ) async {
+        expect(await validate(tester, ' GIN '), isTrue);
+        expect(find.text('Pick or create an ingredient.'), findsNothing);
+      });
+
+      testWidgets('accepts a blank name', (tester) async {
+        expect(await validate(tester, '  '), isTrue);
+      });
+
+      testWidgets('refuses a name only another library holds', (
+        tester,
+      ) async {
+        expect(await validate(tester, 'Cinnamon'), isFalse);
+        expect(find.text('Pick or create an ingredient.'), findsOneWidget);
+      });
+
+      testWidgets('refuses a name no library holds', (tester) async {
+        expect(await validate(tester, 'Bourbon'), isFalse);
+        expect(find.text('Pick or create an ingredient.'), findsOneWidget);
+      });
+    });
+
+    testWidgets('parses the entry a name matches, or the create action', (
+      tester,
+    ) async {
       await pumpPicker(tester);
 
       final field = tester.widget<FAutocomplete<IngredientOption>>(
         find.byType(FAutocomplete<IngredientOption>),
       );
 
-      expect(field.parse('Gin'), isNull);
+      expect(field.parse('gin'), CatalogOption(ginIngredient));
+      expect(field.parse('Cinnamon'), const CreateOption('Cinnamon'));
+      expect(field.parse(' '), isNull);
+      expect(field.parse(null), isNull);
     });
   });
 }

@@ -24,7 +24,13 @@ void main() {
     final initialState = RecipesState(
       status: RecipesStatus.success,
       libraries: [coffeeLibrary, cocktailsLibrary],
-      ingredients: [ginIngredient, sugarIngredient, cinnamonIngredient],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
+      ingredients: [
+        ginIngredient,
+        sugarIngredient,
+        coffeeSugarIngredient,
+        cinnamonIngredient,
+      ],
       activeLibraryId: cocktailsLibrary.id,
     );
 
@@ -105,11 +111,7 @@ void main() {
       expect(find.text('Edit ingredient'), findsOneWidget);
       expect(find.text('Gin'), findsOneWidget);
       expect(find.text('ml'), findsOneWidget);
-      final checkboxes = tester.widgetList<FCheckbox>(find.byType(FCheckbox));
-      expect(
-        [for (final box in checkboxes) ((box.label! as Text).data, box.value)],
-        [('Cocktails', true), ('Coffee', false)],
-      );
+      expect(find.byType(FCheckbox), findsNothing);
     });
 
     testWidgets('starts a custom unit in the custom field', (tester) async {
@@ -131,7 +133,7 @@ void main() {
           id: ginIngredient.id,
           name: 'London Dry Gin',
           defaultUnit: ginIngredient.defaultUnit,
-          libraryIds: ginIngredient.libraryIds,
+          ingredientLibraryId: ginIngredient.ingredientLibraryId,
         ),
       );
     });
@@ -145,7 +147,7 @@ void main() {
       expect(savedEntry().name, 'GIN');
     });
 
-    testWidgets('refuses a rename onto another entry, ignoring case', (
+    testWidgets('refuses a rename onto another entry in its library', (
       tester,
     ) async {
       await openSheet(tester);
@@ -158,6 +160,17 @@ void main() {
         findsOneWidget,
       );
       expectNothingSaved();
+    });
+
+    testWidgets('accepts a name only another ingredient library holds', (
+      tester,
+    ) async {
+      await openSheet(tester);
+
+      await tester.enterText(fieldNamed('Name'), 'Cinnamon');
+      await tap(tester, 'Save changes');
+
+      expect(savedEntry().name, 'Cinnamon');
     });
 
     testWidgets('refuses a blank name', (tester) async {
@@ -212,29 +225,6 @@ void main() {
       await tap(tester, 'Save changes');
 
       expect(savedEntry().defaultUnit, isNull);
-    });
-
-    testWidgets('saves an edited library set', (tester) async {
-      await openSheet(tester);
-
-      await tap(tester, 'Coffee');
-      await tap(tester, 'Save changes');
-
-      expect(savedEntry().libraryIds, {
-        cocktailsLibrary.id,
-        coffeeLibrary.id,
-      });
-    });
-
-    testWidgets('refuses an empty library set', (tester) async {
-      await openSheet(tester);
-
-      await tap(tester, 'Cocktails');
-      expect(find.text('Choose at least one library.'), findsOneWidget);
-      await tap(tester, 'Save changes');
-
-      expectNothingSaved();
-      expect(find.byType(IngredientEditorSheet), findsOneWidget);
     });
 
     group('save outcome', () {

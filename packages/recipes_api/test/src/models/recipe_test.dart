@@ -51,7 +51,7 @@ void main() {
       expect(() => recipe.tags.add('bitter'), throwsUnsupportedError);
       expect(() => recipe.fieldValues['f1'] = 'x', throwsUnsupportedError);
       expect(
-        () => recipe.ingredients.add(Ingredient(name: 'Gin')),
+        () => recipe.ingredients.add(Ingredient(catalogId: 'i1')),
         throwsUnsupportedError,
       );
     });
@@ -204,7 +204,7 @@ void main() {
         id: 'r1',
         libraryId: 'l1',
         name: 'Negroni',
-        ingredients: [Ingredient(name: 'Gin')],
+        ingredients: [Ingredient(catalogId: 'i1')],
         steps: const ['Stir'],
         tags: const ['bitter'],
         notes: 'Classic',
@@ -224,8 +224,8 @@ void main() {
         libraryId: 'l1',
         name: 'Negroni',
         ingredients: [
-          Ingredient(name: 'Gin', quantity: '1', unit: 'oz'),
-          Ingredient(name: 'Campari'),
+          Ingredient(catalogId: 'i1', quantity: '1', unit: 'oz'),
+          Ingredient(catalogId: 'i2'),
         ],
         steps: const ['Stir with ice', 'Strain'],
         tags: const ['bitter', 'stirred'],
@@ -247,8 +247,8 @@ void main() {
         expect(
           buildRecipe().toJson()['ingredients'],
           equals([
-            {'name': 'Gin', 'quantity': '1', 'unit': 'oz'},
-            {'name': 'Campari', 'quantity': '', 'unit': ''},
+            {'catalogId': 'i1', 'quantity': '1', 'unit': 'oz'},
+            {'catalogId': 'i2', 'quantity': '', 'unit': ''},
           ]),
         );
       });

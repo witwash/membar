@@ -25,7 +25,9 @@ void main() {
       id: 'recipe-negroni',
       libraryId: cocktailsLibrary.id,
       name: 'Negroni',
-      ingredients: [Ingredient(name: 'Gin', quantity: '1', unit: 'oz')],
+      ingredients: [
+        Ingredient(catalogId: ginIngredient.id, quantity: '1', unit: 'oz'),
+      ],
       steps: const ['Stir with ice.'],
       tags: const ['Bitter'],
       notes: 'Equal parts.',
@@ -50,6 +52,8 @@ void main() {
           status: RecipesStatus.success,
           libraries: [cocktailsLibrary],
           recipes: [negroni],
+          ingredientLibraries: [cocktailsPantry],
+          ingredients: [ginIngredient],
           activeLibraryId: cocktailsLibrary.id,
         ),
       );
@@ -212,6 +216,7 @@ void main() {
       final requiredLibrary = Library(
         id: cocktailsLibrary.id,
         name: 'Cocktails',
+        ingredientLibraryId: cocktailsPantry.id,
         fields: [requiredGarnish],
       );
 
@@ -327,7 +332,7 @@ void main() {
 
         final recipe = savedRecipe();
         expect(recipe.ingredients, [
-          Ingredient(name: 'Gin', quantity: '2', unit: 'oz'),
+          Ingredient(catalogId: ginIngredient.id, quantity: '2', unit: 'oz'),
         ]);
         expect(recipe.steps, ['Stir.']);
       });
@@ -352,8 +357,14 @@ void main() {
     group('catalog links', () {
       final catalogState = RecipesState(
         status: RecipesStatus.success,
-        libraries: [cocktailsLibrary],
-        ingredients: [ginIngredient, sugarIngredient],
+        libraries: [cocktailsLibrary, coffeeLibrary],
+        ingredientLibraries: [cocktailsPantry, coffeeShelf],
+        ingredients: [
+          ginIngredient,
+          sugarIngredient,
+          coffeeSugarIngredient,
+          cinnamonIngredient,
+        ],
         activeLibraryId: cocktailsLibrary.id,
       );
 
@@ -384,7 +395,7 @@ void main() {
         await tapSave(tester);
 
         expect(savedRecipe().ingredients, [
-          Ingredient(name: 'Gin', unit: 'ml', catalogId: ginIngredient.id),
+          Ingredient(catalogId: ginIngredient.id, unit: 'ml'),
         ]);
       });
 
@@ -414,11 +425,28 @@ void main() {
 
         expect(
           savedRecipe().ingredients.single,
-          Ingredient(name: 'Gin', catalogId: ginIngredient.id),
+          Ingredient(catalogId: ginIngredient.id),
         );
       });
 
-      testWidgets('drops the link when a picked name is edited', (
+      testWidgets(
+        "links a name to its own ingredient library's entry",
+        (tester) async {
+          await pumpEditor(tester, library: coffeeLibrary);
+
+          await fillName(tester);
+          await addRow(tester);
+          await tester.enterText(ingredientField(0), 'Sugar');
+          await tapSave(tester);
+
+          expect(
+            savedRecipe().ingredients.single.catalogId,
+            coffeeSugarIngredient.id,
+          );
+        },
+      );
+
+      testWidgets('blocks the save when an edited name matches no entry', (
         tester,
       ) async {
         await pumpEditor(
@@ -427,14 +455,33 @@ void main() {
             id: negroni.id,
             libraryId: cocktailsLibrary.id,
             name: 'Negroni',
-            ingredients: [Ingredient(name: 'Gin', catalogId: ginIngredient.id)],
+            ingredients: [Ingredient(catalogId: ginIngredient.id)],
           ),
         );
 
         await tester.enterText(ingredientField(0), 'Gin fizz');
         await tapSave(tester);
 
-        expect(savedRecipe().ingredients.single.catalogId, isNull);
+        expect(find.text('Pick or create an ingredient.'), findsOneWidget);
+        verifyNever(
+          () => recipesBloc.add(any(that: isA<RecipesRecipeSaved>())),
+        );
+      });
+
+      testWidgets('blocks a name only another ingredient library holds', (
+        tester,
+      ) async {
+        await pumpEditor(tester);
+
+        await fillName(tester);
+        await addRow(tester);
+        await tester.enterText(ingredientField(0), 'Cinnamon');
+        await tapSave(tester);
+
+        expect(find.text('Pick or create an ingredient.'), findsOneWidget);
+        verifyNever(
+          () => recipesBloc.add(any(that: isA<RecipesRecipeSaved>())),
+        );
       });
 
       testWidgets('links the same entry from two rows', (tester) async {
@@ -453,7 +500,7 @@ void main() {
         );
       });
 
-      testWidgets('saves a pick as free text once its entry is deleted', (
+      testWidgets('blocks the save once a typed entry is deleted', (
         tester,
       ) async {
         await pushEditor(tester);
@@ -465,21 +512,60 @@ void main() {
         await tester.pumpAndSettle();
         await tapSave(tester);
 
-        expect(savedRecipe().ingredients, [Ingredient(name: 'Gin')]);
+        expect(find.text('Pick or create an ingredient.'), findsOneWidget);
+        verifyNever(
+          () => recipesBloc.add(any(that: isA<RecipesRecipeSaved>())),
+        );
+      });
+
+      testWidgets('opens a row whose entry is gone blank, and drops it', (
+        tester,
+      ) async {
+        await pushEditor(
+          tester,
+          recipe: Recipe(
+            id: negroni.id,
+            libraryId: cocktailsLibrary.id,
+            name: 'Negroni',
+            ingredients: [
+              Ingredient(catalogId: 'ingredient-gone', quantity: '3'),
+              Ingredient(catalogId: ginIngredient.id, quantity: '2'),
+            ],
+          ),
+        );
+
+        expect(
+          tester.widgetList(find.byType(IngredientRowField)),
+          hasLength(2),
+        );
+        expect(
+          tester
+              .widgetList<IngredientRowField>(find.byType(IngredientRowField))
+              .first
+              .controllers
+              .name
+              .text,
+          isEmpty,
+        );
+        await tapSave(tester);
+
+        expect(savedRecipe().ingredients, [
+          Ingredient(catalogId: ginIngredient.id, quantity: '2'),
+        ]);
       });
 
       group('a renamed entry', () {
         final renamedGin = CatalogIngredient(
           id: ginIngredient.id,
           name: 'London Dry Gin',
-          libraryIds: ginIngredient.libraryIds,
+          ingredientLibraryId: ginIngredient.ingredientLibraryId,
         );
         final martini = Recipe(
           id: 'recipe-martini',
           libraryId: cocktailsLibrary.id,
           name: 'Martini',
           ingredients: [
-            Ingredient(name: 'Gin', quantity: '2', catalogId: ginIngredient.id),
+            Ingredient(catalogId: ginIngredient.id, quantity: '2'),
           ],
         );
 
@@ -501,11 +587,7 @@ void main() {
 
           expect(
             savedRecipe().ingredients.single,
-            Ingredient(
-              name: 'London Dry Gin',
-              quantity: '2',
-              catalogId: ginIngredient.id,
-            ),
+            Ingredient(catalogId: ginIngredient.id, quantity: '2'),
           );
         });
 
@@ -610,6 +692,7 @@ void main() {
       final tallLibrary = Library(
         id: cocktailsLibrary.id,
         name: 'Cocktails',
+        ingredientLibraryId: cocktailsPantry.id,
         fields: [
           for (var i = 1; i <= 10; i++)
             FieldDefinition(
@@ -642,6 +725,42 @@ void main() {
 
         expect(tester.getTopLeft(find.text('Field 10 *')).dy, lessThan(600.0));
         expect(find.text('This field is required.'), findsOneWidget);
+      });
+
+      testWidgets('scrolls an ingredient row matching no entry into view', (
+        tester,
+      ) async {
+        await pumpEditor(
+          tester,
+          library: tallLibrary,
+          recipe: Recipe(
+            id: 'recipe-negroni',
+            libraryId: cocktailsLibrary.id,
+            name: 'Negroni',
+            ingredients: [Ingredient(catalogId: ginIngredient.id)],
+            fieldValues: const {'field-10': 'Filled'},
+          ),
+        );
+        expect(tester.getTopLeft(find.text('Gin')).dy, greaterThan(600.0));
+        // Its entry is deleted while the editor is open, so the row's name
+        // now matches nothing.
+        states.add(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            ingredientLibraries: [cocktailsPantry],
+            activeLibraryId: cocktailsLibrary.id,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tapSave(tester);
+
+        expect(tester.getTopLeft(find.text('Gin')).dy, lessThan(600.0));
+        expect(find.text('Pick or create an ingredient.'), findsOneWidget);
+        verifyNever(
+          () => recipesBloc.add(any(that: isA<RecipesRecipeSaved>())),
+        );
       });
     });
 

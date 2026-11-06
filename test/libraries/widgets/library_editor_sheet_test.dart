@@ -24,8 +24,14 @@ void main() {
     final initialState = RecipesState(
       status: RecipesStatus.success,
       libraries: [cocktailsLibrary, coffeeLibrary],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
       activeLibraryId: cocktailsLibrary.id,
     );
+
+    // Template fields do not depend on the ingredient library they are made
+    // for, so any id reads the same labels.
+    const templates = LibraryTemplates();
+    const anyIngredientLibraryId = 'ingredient-library-any';
 
     setUpAll(
       () => registerFallbackValue(const RecipesSubscriptionRequested()),
@@ -149,6 +155,20 @@ void main() {
         expectNothingSaved();
       });
 
+      testWidgets('refuses a name an ingredient library carries, ignoring '
+          'case', (tester) async {
+        await openSheet(tester);
+
+        await tester.enterText(nameField, ' COFFEE SHELF ');
+        await tap(tester, 'Create library');
+
+        expect(
+          find.text('An ingredient library is already called Coffee shelf.'),
+          findsOneWidget,
+        );
+        expectNothingSaved();
+      });
+
       testWidgets('creates a library with no fields from the blank template', (
         tester,
       ) async {
@@ -167,6 +187,24 @@ void main() {
         );
       });
 
+      testWidgets('creates a new ingredient library of the same name', (
+        tester,
+      ) async {
+        await openSheet(tester);
+
+        await tester.enterText(nameField, ' Tea ');
+        await tap(tester, 'Create library');
+
+        final event = savedEvent();
+        final ingredientLibrary = event.ingredientLibrary!;
+        expect(ingredientLibrary.name, 'Tea');
+        expect(event.library.ingredientLibraryId, ingredientLibrary.id);
+        expect(
+          initialState.ingredientLibraries.map((library) => library.id),
+          isNot(contains(ingredientLibrary.id)),
+        );
+      });
+
       testWidgets("creates a library with the coffee template's fields under "
           'the typed name', (tester) async {
         await openSheet(tester);
@@ -177,7 +215,12 @@ void main() {
 
         final library = savedEvent().library;
         expect(library.name, 'Tea');
-        expect(labelsOf(library), labelsOf(const LibraryTemplates().coffee()));
+        expect(
+          labelsOf(library),
+          labelsOf(
+            templates.coffee(ingredientLibraryId: anyIngredientLibraryId),
+          ),
+        );
       });
 
       testWidgets("creates a library with the cocktails template's fields "
@@ -192,7 +235,9 @@ void main() {
         expect(library.name, 'Mocktails');
         expect(
           labelsOf(library),
-          labelsOf(const LibraryTemplates().cocktails()),
+          labelsOf(
+            templates.cocktails(ingredientLibraryId: anyIngredientLibraryId),
+          ),
         );
       });
     });
@@ -211,7 +256,8 @@ void main() {
         expect(templateSelect, findsNothing);
       });
 
-      testWidgets('saves the new name under the same id and fields', (
+      testWidgets('saves the new name under the same id, fields and '
+          'ingredient library', (
         tester,
       ) async {
         await openSheet(tester, library: cocktailsLibrary);
@@ -225,6 +271,7 @@ void main() {
             Library(
               id: cocktailsLibrary.id,
               name: 'Drinks',
+              ingredientLibraryId: cocktailsLibrary.ingredientLibraryId,
               fields: cocktailsLibrary.fields,
             ),
           ),
@@ -238,6 +285,17 @@ void main() {
         await tap(tester, 'Save changes');
 
         expect(savedEvent().library.name, 'COCKTAILS');
+      });
+
+      testWidgets("accepts an ingredient library's name", (tester) async {
+        await openSheet(tester, library: cocktailsLibrary);
+
+        await tester.enterText(nameField, 'Coffee shelf');
+        await tap(tester, 'Save changes');
+
+        final event = savedEvent();
+        expect(event.library.name, 'Coffee shelf');
+        expect(event.ingredientLibrary, isNull);
       });
 
       testWidgets('refuses a rename onto another library', (tester) async {

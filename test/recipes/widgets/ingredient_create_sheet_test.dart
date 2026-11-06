@@ -23,6 +23,7 @@ void main() {
     final initialState = RecipesState(
       status: RecipesStatus.success,
       libraries: [cocktailsLibrary, coffeeLibrary],
+      ingredientLibraries: [cocktailsPantry, coffeeShelf],
       ingredients: [ginIngredient, cinnamonIngredient],
       activeLibraryId: cocktailsLibrary.id,
     );
@@ -43,13 +44,17 @@ void main() {
     Future<CatalogIngredient? Function()> openSheet(
       WidgetTester tester, {
       String name = 'Bourbon',
+      String? ingredientLibraryId,
     }) async {
       CatalogIngredient? result;
       await tester.pumpApp(
         Builder(
           builder: (context) => FButton(
-            onPress: () async =>
-                result = await IngredientCreateSheet.show(context, name: name),
+            onPress: () async => result = await IngredientCreateSheet.show(
+              context,
+              name: name,
+              ingredientLibraryId: ingredientLibraryId ?? cocktailsPantry.id,
+            ),
             child: const Text('Open'),
           ),
         ),
@@ -115,7 +120,7 @@ void main() {
       );
     });
 
-    testWidgets('saves an entry scoped to the library being browsed', (
+    testWidgets('saves an entry in its ingredient library', (
       tester,
     ) async {
       await openSheet(tester);
@@ -125,7 +130,7 @@ void main() {
       final entry = savedEntry();
       expect(entry.name, 'Bourbon');
       expect(entry.defaultUnit, isNull);
-      expect(entry.libraryIds, {cocktailsLibrary.id});
+      expect(entry.ingredientLibraryId, cocktailsPantry.id);
     });
 
     testWidgets('saves the standard unit picked from the list', (
@@ -233,14 +238,16 @@ void main() {
       });
     });
 
-    group('a name the catalog already holds', () {
+    group('a name its ingredient library already holds', () {
       testWidgets('shows the existing entry and its unit before saving', (
         tester,
       ) async {
         await openSheet(tester, name: 'gin');
 
         expect(
-          find.text('Gin is already in your catalog, so it will be reused.'),
+          find.text(
+            'Gin is already in Cocktails pantry, so it will be reused.',
+          ),
           findsOneWidget,
         );
         expect(find.text('ml'), findsOneWidget);
@@ -253,7 +260,11 @@ void main() {
       testWidgets('switches the unit as the name is typed onto an entry', (
         tester,
       ) async {
-        await openSheet(tester, name: 'Cinnamon stick');
+        await openSheet(
+          tester,
+          name: 'Cinnamon stick',
+          ingredientLibraryId: coffeeShelf.id,
+        );
         expect(find.text('pinch'), findsNothing);
 
         await tester.enterText(fieldNamed('Name'), 'cinnamon');
@@ -263,7 +274,7 @@ void main() {
         expect(find.text('Custom unit'), findsOneWidget);
       });
 
-      testWidgets('reuses an entry in this library without saving', (
+      testWidgets('reuses the entry without saving', (
         tester,
       ) async {
         final result = await openSheet(tester, name: 'GIN');
@@ -273,27 +284,24 @@ void main() {
         expect(result(), ginIngredient);
         verifyNever(() => recipesBloc.add(any()));
       });
+    });
 
-      testWidgets('reuses an entry from another library and widens it', (
-        tester,
-      ) async {
-        final result = await openSheet(tester, name: 'cinnamon');
+    testWidgets('creates its own entry for a name only another library holds', (
+      tester,
+    ) async {
+      await openSheet(tester, name: 'cinnamon');
 
-        await tap(tester, 'Save ingredient');
+      expect(find.textContaining('so it will be reused'), findsNothing);
+      expect(
+        tester.widget<FSelect<StandardUnit>>(standardUnitSelect).enabled,
+        isTrue,
+      );
+      await tap(tester, 'Save ingredient');
 
-        expect(result(), cinnamonIngredient);
-        verify(
-          () => recipesBloc.add(
-            RecipesIngredientScopeWidened(
-              cinnamonIngredient.id,
-              cocktailsLibrary.id,
-            ),
-          ),
-        ).called(1);
-        verifyNever(
-          () => recipesBloc.add(any(that: isA<RecipesIngredientSaved>())),
-        );
-      });
+      final entry = savedEntry();
+      expect(entry.id, isNot(cinnamonIngredient.id));
+      expect(entry.name, 'cinnamon');
+      expect(entry.ingredientLibraryId, cocktailsPantry.id);
     });
 
     testWidgets('returns nothing when cancelled', (tester) async {

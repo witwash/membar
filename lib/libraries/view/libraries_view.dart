@@ -98,8 +98,8 @@ class _LibrariesViewState extends State<LibrariesView> {
   }
 
   /// Refuses the only library here rather than in the sheet: a deletion needs
-  /// a successor to take the ingredients, and with one library there is none
-  /// to offer.
+  /// a successor to become the active library, and with one library there is
+  /// none to offer.
   void _delete(Library library) {
     _refusalToast?.dismiss();
     if (context.read<RecipesBloc>().state.libraries.length == 1) {

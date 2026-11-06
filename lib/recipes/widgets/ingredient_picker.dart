@@ -16,16 +16,13 @@ sealed class IngredientOption extends Equatable {
 /// A catalog entry the picker offers.
 final class CatalogOption extends IngredientOption {
   /// Creates a [CatalogOption] for [entry].
-  const CatalogOption(this.entry, {required this.inScope});
+  const CatalogOption(this.entry);
 
   /// The entry picking this option fills the row from.
   final CatalogIngredient entry;
 
-  /// Whether [entry] is already visible in the library being edited.
-  final bool inScope;
-
   @override
-  List<Object?> get props => [entry, inScope];
+  List<Object?> get props => [entry];
 }
 
 /// The action that creates a catalog entry from what the user typed.
@@ -40,22 +37,31 @@ final class CreateOption extends IngredientOption {
   List<Object?> get props => [query];
 }
 
-/// An ingredient row's name field: free text, with the catalog offered as
-/// suggestions over it.
+/// An ingredient row's name field, offering the entries of one ingredient
+/// library as suggestions.
 ///
 /// Picking a suggestion fills in the name and, where it can, the unit. It
 /// never stores which entry was picked: the editor links a row to an entry by
 /// its name when the recipe is saved, so a hand-edited name cannot keep a
-/// stale link.
+/// stale link. A name matching no entry fails validation, so it can never be
+/// saved.
 class IngredientPicker extends StatefulWidget {
   /// Creates an [IngredientPicker] editing [name], prefilling [unit].
-  const IngredientPicker({required this.name, required this.unit, super.key});
+  const IngredientPicker({
+    required this.name,
+    required this.unit,
+    required this.ingredientLibraryId,
+    super.key,
+  });
 
   /// The row's name, which this field edits.
   final FAutocompleteController name;
 
   /// The row's unit, which picking an entry prefills.
   final TextEditingController unit;
+
+  /// The id of the ingredient library whose entries are offered.
+  final String ingredientLibraryId;
 
   @override
   State<IngredientPicker> createState() => _IngredientPickerState();
@@ -73,9 +79,11 @@ class _IngredientPickerState extends State<IngredientPicker> {
       control: FAutocompleteControl.managed(controller: widget.name),
       filter: _filter,
       format: _format,
-      // Only a validator or onSaved would consult this, and the field has
-      // neither: whatever is typed stays plain text.
-      parse: (_) => null,
+      // Only the validator consults this.
+      parse: _parse,
+      validator: (option) => option is CreateOption
+          ? context.l10n.recipeEditorIngredientUnknownError
+          : null,
       contentBuilder: _content,
       onItemPress: (option) => unawaited(_onItemPress(option)),
     );
@@ -87,15 +95,23 @@ class _IngredientPickerState extends State<IngredientPicker> {
   Iterable<IngredientOption> _filter(String query) {
     final state = context.read<RecipesBloc>().state;
     final term = query.trim().toLowerCase();
-    bool matches(CatalogIngredient entry) =>
-        entry.name.toLowerCase().contains(term);
 
     return [
-      for (final entry in state.libraryIngredients)
-        if (matches(entry)) CatalogOption(entry, inScope: true),
-      for (final entry in state.otherLibraryIngredients)
-        if (matches(entry)) CatalogOption(entry, inScope: false),
+      for (final entry in state.ingredientsIn(widget.ingredientLibraryId))
+        if (entry.name.toLowerCase().contains(term)) CatalogOption(entry),
     ];
+  }
+
+  /// The entry [text] names, the create action for a name matching none, or
+  /// null for a blank row, which the editor drops.
+  IngredientOption? _parse(String? text) {
+    final entry = context.read<RecipesBloc>().state.ingredientNamed(
+      text ?? '',
+      ingredientLibraryId: widget.ingredientLibraryId,
+    );
+    if (entry != null) return CatalogOption(entry);
+    if ((text ?? '').trim().isEmpty) return null;
+    return CreateOption(text!);
   }
 
   /// Maps the create action back to what was typed, so pressing it leaves the
@@ -114,8 +130,9 @@ class _IngredientPickerState extends State<IngredientPicker> {
     Iterable<IngredientOption> values,
   ) {
     final l10n = context.l10n;
-    final options = values.whereType<CatalogOption>();
-    FAutocompleteItem<IngredientOption> item(CatalogOption option) =>
+
+    return [
+      for (final option in values.whereType<CatalogOption>())
         FAutocompleteItem(
           value: option,
           title: Text(option.entry.name),
@@ -123,19 +140,6 @@ class _IngredientPickerState extends State<IngredientPicker> {
             final unit? => Text(unit.label),
             null => null,
           },
-        );
-    final others = [
-      for (final option in options)
-        if (!option.inScope) item(option),
-    ];
-
-    return [
-      for (final option in options)
-        if (option.inScope) item(option),
-      if (others.isNotEmpty)
-        FAutocompleteSection.rich(
-          label: Text(l10n.ingredientPickerOtherLibrariesLabel),
-          children: others,
         ),
       FAutocompleteItem.raw(
         value: CreateOption(query),
@@ -147,16 +151,14 @@ class _IngredientPickerState extends State<IngredientPicker> {
 
   Future<void> _onItemPress(IngredientOption option) async {
     switch (option) {
-      case CatalogOption(:final entry, :final inScope):
-        if (!inScope) {
-          final bloc = context.read<RecipesBloc>();
-          bloc.add(
-            RecipesIngredientScopeWidened(entry.id, bloc.state.activeLibraryId),
-          );
-        }
+      case CatalogOption(:final entry):
         _prefillUnit(entry);
       case CreateOption(:final query):
-        final entry = await IngredientCreateSheet.show(context, name: query);
+        final entry = await IngredientCreateSheet.show(
+          context,
+          name: query,
+          ingredientLibraryId: widget.ingredientLibraryId,
+        );
         if (entry == null || !mounted) return;
         widget.name.text = entry.name;
         _prefillUnit(entry);

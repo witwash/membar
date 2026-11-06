@@ -45,20 +45,28 @@ final class RecipesLibrarySelected extends RecipesEvent {
 /// Stores [library], replacing any library that already carries its id and
 /// rewriting its recipes to match.
 final class RecipesLibrarySaved extends RecipesEvent {
-  const RecipesLibrarySaved(this.library, {this.optionRenames = const {}});
+  const RecipesLibrarySaved(
+    this.library, {
+    this.ingredientLibrary,
+    this.optionRenames = const {},
+  });
 
   final Library library;
+
+  /// A new ingredient library created alongside [library], which points at
+  /// it, or null when [library] points at one that already exists.
+  final IngredientLibrary? ingredientLibrary;
 
   /// The Select options retyped by this save, keyed by field id and then by
   /// the option's stored text.
   final Map<String, Map<String, String>> optionRenames;
 
   @override
-  List<Object?> get props => [library, optionRenames];
+  List<Object?> get props => [library, ingredientLibrary, optionRenames];
 }
 
-/// Removes the library carrying [id] and its recipes, handing what cannot go
-/// with it to the library carrying [successorId].
+/// Removes the library carrying [id] and its recipes, making the library
+/// carrying [successorId] the active one when [id] was.
 final class RecipesLibraryDeleted extends RecipesEvent {
   const RecipesLibraryDeleted(this.id, {required this.successorId});
 
@@ -114,7 +122,8 @@ final class RecipesIngredientSaved extends RecipesEvent {
   List<Object?> get props => [ingredient];
 }
 
-/// Removes the catalog entry carrying [id].
+/// Removes the catalog entry carrying [id], along with every recipe row
+/// referencing it.
 final class RecipesIngredientDeleted extends RecipesEvent {
   const RecipesIngredientDeleted(this.id);
 
@@ -122,25 +131,6 @@ final class RecipesIngredientDeleted extends RecipesEvent {
 
   @override
   List<Object?> get props => [id];
-}
-
-/// Adds every entry in [RecipesState.importableIngredients] to the catalog,
-/// links the recipe rows using them, and records the import as done.
-final class RecipesIngredientsImported extends RecipesEvent {
-  const RecipesIngredientsImported();
-}
-
-/// Makes the catalog entry carrying [ingredientId] visible in the library
-/// carrying [libraryId], because it was picked from there.
-final class RecipesIngredientScopeWidened extends RecipesEvent {
-  const RecipesIngredientScopeWidened(this.ingredientId, this.libraryId);
-
-  final String ingredientId;
-
-  final String libraryId;
-
-  @override
-  List<Object?> get props => [ingredientId, libraryId];
 }
 
 /// Narrows the visible recipes to those whose name contains [term].

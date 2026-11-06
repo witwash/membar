@@ -14,20 +14,22 @@ class IngredientRowControllers {
   /// not renumber the keys of the rows below it.
   ///
   /// [entry] is the catalog entry [ingredient] references, when it still
-  /// exists. Its current name is shown in place of the stored one, so a
-  /// renamed entry keeps its link when the recipe is saved again.
+  /// exists. Its current name is what the row shows. A row whose entry is gone
+  /// opens blank, so saving the recipe again drops it.
   IngredientRowControllers(
     this.id, {
     Ingredient? ingredient,
     CatalogIngredient? entry,
-  }) : name = FAutocompleteController(
-         text: entry?.name ?? ingredient?.name ?? '',
-       ),
+  }) : name = FAutocompleteController(text: entry?.name ?? ''),
        quantity = TextEditingController(text: ingredient?.quantity ?? ''),
        unit = TextEditingController(text: ingredient?.unit ?? '');
 
   /// Identifies this row among the editor's rows.
   final int id;
+
+  /// Wraps the name field, so the editor can scroll to a row whose name
+  /// matches nothing.
+  final GlobalKey nameKey = GlobalKey();
 
   /// What the ingredient is. The only part a saved ingredient needs.
   final FAutocompleteController name;
@@ -38,21 +40,39 @@ class IngredientRowControllers {
   /// The unit the quantity is expressed in. Free text.
   final TextEditingController unit;
 
-  /// The ingredient this row describes, or null when it is blank.
+  /// The ingredient this row describes, or null when its name is blank or
+  /// matches no entry in the ingredient library carrying
+  /// [ingredientLibraryId].
   ///
   /// A row with no name is not an ingredient, whatever else was typed into it.
-  /// It links to the catalog entry in [state] its name matches, and to
-  /// nothing otherwise — so picking an entry, typing its name, and editing a
-  /// picked name back into free text all resolve without the row tracking a
-  /// link.
-  Ingredient? ingredientIn(RecipesState state) => name.text.trim().isEmpty
-      ? null
-      : Ingredient(
-          name: name.text,
-          quantity: quantity.text,
-          unit: unit.text,
-          catalogId: state.ingredientNamed(name.text)?.id,
-        );
+  /// It links to the entry its name matches, so picking an entry and typing
+  /// its name resolve alike without the row tracking a link. A name matching
+  /// nothing has already been refused by [isUnknownIn].
+  Ingredient? ingredientIn(
+    RecipesState state, {
+    required String ingredientLibraryId,
+  }) => switch (state.ingredientNamed(
+    name.text,
+    ingredientLibraryId: ingredientLibraryId,
+  )) {
+    final entry? => Ingredient(
+      catalogId: entry.id,
+      quantity: quantity.text,
+      unit: unit.text,
+    ),
+    null => null,
+  };
+
+  /// Whether the row's name is filled in but matches no entry in the
+  /// ingredient library carrying [ingredientLibraryId] — the row the
+  /// picker's validator refuses.
+  bool isUnknownIn(RecipesState state, {required String ingredientLibraryId}) =>
+      name.text.trim().isNotEmpty &&
+      state.ingredientNamed(
+            name.text,
+            ingredientLibraryId: ingredientLibraryId,
+          ) ==
+          null;
 
   /// What the row holds, for telling a touched editor from an untouched one.
   List<String> get state => [
@@ -79,12 +99,16 @@ class IngredientRowField extends StatelessWidget {
   /// Creates an [IngredientRowField] bound to [controllers].
   const IngredientRowField({
     required this.controllers,
+    required this.ingredientLibraryId,
     required this.onRemove,
     super.key,
   });
 
   /// The controllers this row edits.
   final IngredientRowControllers controllers;
+
+  /// The id of the ingredient library the row picks from.
+  final String ingredientLibraryId;
 
   /// Called when the row's remove action is tapped.
   final VoidCallback onRemove;
@@ -102,9 +126,13 @@ class IngredientRowField extends StatelessWidget {
           spacing: 8,
           children: [
             Expanded(
-              child: IngredientPicker(
-                name: controllers.name,
-                unit: controllers.unit,
+              child: KeyedSubtree(
+                key: controllers.nameKey,
+                child: IngredientPicker(
+                  name: controllers.name,
+                  unit: controllers.unit,
+                  ingredientLibraryId: ingredientLibraryId,
+                ),
               ),
             ),
             FButton.icon(
