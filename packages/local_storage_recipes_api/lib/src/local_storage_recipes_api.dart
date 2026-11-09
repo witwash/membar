@@ -69,10 +69,11 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   /// The schema version a fresh install is seeded at.
   ///
-  /// Version 3 added [kIngredientLibrariesKey]. An install stored below it is
-  /// not migrated: every key is re-seeded, discarding what it held.
+  /// Version 3 added [kIngredientLibrariesKey], and version 4 added Cocktails
+  /// glassware options. An install stored below it is not migrated: every key
+  /// is re-seeded, discarding what it held.
   @visibleForTesting
-  static const kSchemaVersion = 3;
+  static const kSchemaVersion = 4;
 
   final SharedPreferences _plugin;
   final LibraryTemplates _templates;

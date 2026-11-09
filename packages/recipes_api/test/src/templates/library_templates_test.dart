@@ -44,7 +44,22 @@ void main() {
           equals(['Glassware', 'Garnish']),
         );
         expect(cocktails.fields.first.type, equals(FieldType.select));
-        expect(cocktails.fields.first.options, isNotEmpty);
+        expect(
+          cocktails.fields.first.options,
+          equals([
+            'Coupe',
+            'Rocks',
+            'Highball',
+            'Collins',
+            'Martini',
+            'Nick and Nora',
+            'Flute',
+            'Wine',
+            'Julep cup',
+            'Tiki',
+            'Mug',
+          ]),
+        );
         expect(cocktails.fields.last.type, equals(FieldType.text));
       });
 

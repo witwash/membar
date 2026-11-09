@@ -232,13 +232,13 @@ void main() {
         expect(snapshot.activeLibraryId, equals(cocktails.id));
         expect(
           plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
-          equals(3),
+          equals(4),
         );
         expect(reported, isEmpty);
       }
 
       test(
-        'a fresh install writes every key, the version last, at 3',
+        'a fresh install writes every key, the version last, at 4',
         () async {
           final store = await setUpRecordingPrefs({});
 
@@ -294,7 +294,22 @@ void main() {
         },
       );
 
-      test('a version 3 install writes nothing', () async {
+      test('a version 3 install is discarded and reseeded', () async {
+        final store = await setUpRecordingPrefs({
+          ...seededPrefs(
+            recipes: [Recipe(libraryId: cocktails.id, name: 'Negroni')],
+          ),
+          LocalStorageRecipesApi.kSchemaVersionKey: 3,
+        });
+
+        api = buildApi();
+        await api.initialWrite;
+
+        expect(store.writtenKeys, equals(reseededKeys));
+        await expectReseeded();
+      });
+
+      test('a version 4 install writes nothing', () async {
         final store = await setUpRecordingPrefs(seededPrefs());
 
         api = buildApi();

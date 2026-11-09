@@ -1,0 +1,6 @@
+[
+  {"key": "coffee_beans", "name": "Coffee beans", "defaultUnit": "gram"},
+  {"key": "water", "name": "Water", "defaultUnit": "ml"},
+  {"key": "milk", "name": "Milk", "defaultUnit": "ml"},
+  {"key": "chocolate_sauce", "name": "Chocolate sauce", "defaultUnit": "ml"}
+]

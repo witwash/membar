@@ -1,0 +1,16 @@
+targets:
+  $default:
+    builders:
+      json_serializable:
+        options:
+          # Nested models serialize to plain maps, so `toJson()` returns real
+          # JSON rather than a map holding model instances.
+          explicit_to_json: true
+      source_gen:combining_builder:
+        options:
+          # Generated part files are excluded from coverage here rather than by
+          # hand-editing them: `build_runner build --delete-conflicting-outputs`
+          # rewrites those files wholesale and would erase a hand-added comment.
+          header: |
+            // GENERATED CODE - DO NOT MODIFY BY HAND
+            // coverage:ignore-file

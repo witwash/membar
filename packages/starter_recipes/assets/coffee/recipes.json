@@ -1,0 +1,186 @@
+[
+  {
+    "key": "espresso",
+    "name": "Espresso",
+    "tags": ["espresso"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"}
+    ],
+    "steps": [
+      "Grind the beans and distribute them evenly in the basket.",
+      "Tamp level and firm.",
+      "Pull a double shot, about 36 g in 25 to 30 seconds."
+    ]
+  },
+  {
+    "key": "americano",
+    "name": "Americano",
+    "tags": ["espresso"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"},
+      {"ingredient": "water", "quantity": "120", "unit": "ml"}
+    ],
+    "steps": [
+      "Pour the hot water into the cup.",
+      "Pull a double shot over it, about 36 g in 25 to 30 seconds."
+    ]
+  },
+  {
+    "key": "cappuccino",
+    "name": "Cappuccino",
+    "tags": ["espresso", "milk"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"},
+      {"ingredient": "milk", "quantity": "100", "unit": "ml"}
+    ],
+    "steps": [
+      "Pull a double shot, about 36 g in 25 to 30 seconds.",
+      "Steam the milk to a thick, airy foam.",
+      "Pour it over the espresso, finishing with a cap of foam."
+    ]
+  },
+  {
+    "key": "latte",
+    "name": "Latte",
+    "tags": ["espresso", "milk"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"},
+      {"ingredient": "milk", "quantity": "200", "unit": "ml"}
+    ],
+    "steps": [
+      "Pull a double shot, about 36 g in 25 to 30 seconds.",
+      "Steam the milk with only a little foam.",
+      "Pour it into the espresso."
+    ]
+  },
+  {
+    "key": "flat_white",
+    "name": "Flat white",
+    "tags": ["espresso", "milk"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"},
+      {"ingredient": "milk", "quantity": "120", "unit": "ml"}
+    ],
+    "steps": [
+      "Pull a double shot, about 36 g in 25 to 30 seconds.",
+      "Steam the milk to a thin, glossy microfoam.",
+      "Pour it into the espresso in a steady stream."
+    ]
+  },
+  {
+    "key": "cortado",
+    "name": "Cortado",
+    "tags": ["espresso", "milk"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"},
+      {"ingredient": "milk", "quantity": "40", "unit": "ml"}
+    ],
+    "steps": [
+      "Pull a double shot, about 36 g in 25 to 30 seconds.",
+      "Warm the milk with almost no foam.",
+      "Add it to the espresso in about equal measure."
+    ]
+  },
+  {
+    "key": "mocha",
+    "name": "Mocha",
+    "tags": ["espresso", "milk"],
+    "fields": {"Brew method": "Espresso", "Dose": 18, "Water temp": 93, "Grind": "Fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "18", "unit": "gram"},
+      {"ingredient": "milk", "quantity": "180", "unit": "ml"},
+      {"ingredient": "chocolate_sauce", "quantity": "20", "unit": "ml"}
+    ],
+    "steps": [
+      "Put the chocolate sauce in the cup.",
+      "Pull a double shot over it, about 36 g in 25 to 30 seconds. Stir to combine.",
+      "Steam the milk and pour it in."
+    ]
+  },
+  {
+    "key": "pour_over_v60",
+    "name": "Pour over (V60)",
+    "tags": ["filter"],
+    "fields": {"Brew method": "Pour over", "Dose": 15, "Water temp": 94, "Grind": "Medium-fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "15", "unit": "gram"},
+      {"ingredient": "water", "quantity": "250", "unit": "ml"}
+    ],
+    "steps": [
+      "Rinse the paper filter with hot water and discard the water.",
+      "Add the ground coffee and pour about 40 ml of water to bloom for 30 seconds.",
+      "Pour the rest in slow circles, finishing by about 1:45.",
+      "Let it drain; total time is around 3 minutes."
+    ]
+  },
+  {
+    "key": "french_press",
+    "name": "French press",
+    "tags": ["immersion"],
+    "fields": {"Brew method": "French press", "Dose": 20, "Water temp": 94, "Grind": "Coarse"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "20", "unit": "gram"},
+      {"ingredient": "water", "quantity": "300", "unit": "ml"}
+    ],
+    "steps": [
+      "Add the ground coffee and all the water.",
+      "Steep for 4 minutes.",
+      "Break the crust, skim the foam, then press the plunger down slowly.",
+      "Pour it all out so it does not keep brewing."
+    ]
+  },
+  {
+    "key": "aeropress",
+    "name": "Aeropress",
+    "tags": ["immersion"],
+    "fields": {"Brew method": "Aeropress", "Dose": 15, "Water temp": 85, "Grind": "Medium-fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "15", "unit": "gram"},
+      {"ingredient": "water", "quantity": "200", "unit": "ml"}
+    ],
+    "steps": [
+      "Rinse the paper filter and set the Aeropress on a cup.",
+      "Add the ground coffee and all the water, then stir.",
+      "Fit the plunger to hold a seal and steep for 2 minutes.",
+      "Stir once more and press gently for about 30 seconds."
+    ]
+  },
+  {
+    "key": "moka_pot",
+    "name": "Moka pot",
+    "tags": ["stovetop"],
+    "fields": {"Brew method": "Moka pot", "Dose": 16, "Grind": "Medium-fine"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "16", "unit": "gram"},
+      {"ingredient": "water", "quantity": "150", "unit": "ml"}
+    ],
+    "steps": [
+      "Fill the base with just-boiled water up to the valve.",
+      "Fill the basket with ground coffee and level it without tamping.",
+      "Assemble the pot and set it over medium heat with the lid open.",
+      "Take it off the heat as soon as the coffee starts to sputter."
+    ]
+  },
+  {
+    "key": "cold_brew",
+    "name": "Cold brew",
+    "tags": ["immersion", "cold"],
+    "fields": {"Brew method": "Cold brew", "Dose": 100, "Water temp": 20, "Grind": "Coarse"},
+    "rows": [
+      {"ingredient": "coffee_beans", "quantity": "100", "unit": "gram"},
+      {"ingredient": "water", "quantity": "1000", "unit": "ml"}
+    ],
+    "steps": [
+      "Stir the ground coffee into room-temperature water.",
+      "Cover and steep in the fridge for 12 to 18 hours.",
+      "Strain through a paper filter.",
+      "Dilute the concentrate about one to one with water or milk to serve."
+    ]
+  }
+]

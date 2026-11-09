@@ -31,6 +31,9 @@ enum StandardUnit {
 
   /// A whole item, such as one egg or one lemon wedge.
   piece,
+
+  /// A pinch, as of salt.
+  pinch,
 }
 
 /// {@template unit}

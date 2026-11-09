@@ -5,6 +5,12 @@ topic: starter-recipes-import
 
 # Starter Recipes Import
 
+> **Superseded in part.** The recipe counts and the bundle shape below are replaced by
+> `2026-11-06-starter-recipes-content-brainstorm-doc.md` and
+> `docs/plan/2026-11-06-feat-add-starter-recipes-content-plan.md`: 42 cocktails and 12
+> coffees, a keyed ingredient list per set, and coffee in metric only. The rest of this
+> document stands.
+
 ## What We're Building
 
 A bundled catalog of starter recipes, about 20 coffee and 50 cocktail recipes, that the

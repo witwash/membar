@@ -1,0 +1,679 @@
+[
+  {
+    "key": "old_fashioned",
+    "name": "Old Fashioned",
+    "tags": ["stirred", "whiskey"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Orange peel"},
+    "rows": [
+      {"ingredient": "bourbon", "ml": "60", "oz": "2"},
+      {"ingredient": "sugar", "quantity": "1", "unit": "teaspoon"},
+      {"ingredient": "angostura_bitters", "quantity": "2", "unit": "dash"}
+    ],
+    "steps": [
+      "Stir the sugar and bitters with a splash of water in the glass until the sugar dissolves.",
+      "Add the bourbon and a large ice cube.",
+      "Stir briefly to chill, then express the orange peel over the top."
+    ]
+  },
+  {
+    "key": "manhattan",
+    "name": "Manhattan",
+    "tags": ["stirred", "whiskey"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Cocktail cherry"},
+    "rows": [
+      {"ingredient": "rye_whiskey", "ml": "60", "oz": "2"},
+      {"ingredient": "sweet_vermouth", "ml": "30", "oz": "1"},
+      {"ingredient": "angostura_bitters", "quantity": "2", "unit": "dash"}
+    ],
+    "steps": [
+      "Combine everything in a mixing glass.",
+      "Stir with ice until well chilled, about 30 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "dry_martini",
+    "name": "Dry Martini",
+    "tags": ["stirred", "gin"],
+    "fields": {"Glassware": "Martini", "Garnish": "Lemon twist or olive"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "75", "oz": "2.5"},
+      {"ingredient": "dry_vermouth", "ml": "15", "oz": "0.5"},
+      {"ingredient": "orange_bitters", "quantity": "1", "unit": "dash"}
+    ],
+    "steps": [
+      "Combine everything in a mixing glass.",
+      "Stir with ice until well chilled, about 30 seconds.",
+      "Strain into a chilled martini glass."
+    ]
+  },
+  {
+    "key": "negroni",
+    "name": "Negroni",
+    "tags": ["stirred", "gin"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Orange peel"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "30", "oz": "1"},
+      {"ingredient": "campari", "ml": "30", "oz": "1"},
+      {"ingredient": "sweet_vermouth", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Combine everything in a mixing glass.",
+      "Stir with ice until well chilled, about 30 seconds.",
+      "Strain over a large ice cube."
+    ]
+  },
+  {
+    "key": "boulevardier",
+    "name": "Boulevardier",
+    "tags": ["stirred", "whiskey"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Orange peel"},
+    "rows": [
+      {"ingredient": "bourbon", "ml": "45", "oz": "1.5"},
+      {"ingredient": "campari", "ml": "30", "oz": "1"},
+      {"ingredient": "sweet_vermouth", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Combine everything in a mixing glass.",
+      "Stir with ice until well chilled, about 30 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "sazerac",
+    "name": "Sazerac",
+    "tags": ["stirred", "whiskey"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Lemon peel"},
+    "rows": [
+      {"ingredient": "rye_whiskey", "ml": "60", "oz": "2"},
+      {"ingredient": "sugar", "quantity": "1", "unit": "teaspoon"},
+      {"ingredient": "peychauds_bitters", "quantity": "3", "unit": "dash"},
+      {"ingredient": "absinthe", "quantity": "1", "unit": "barspoon"}
+    ],
+    "steps": [
+      "Swirl the absinthe around a chilled glass to coat it, then discard the excess.",
+      "In a mixing glass, stir the sugar and bitters with a splash of water until the sugar dissolves.",
+      "Add the rye and ice, and stir until well chilled.",
+      "Strain into the rinsed glass with no ice, and express the lemon peel over the top."
+    ],
+    "notes": "Early versions were made with cognac instead of rye."
+  },
+  {
+    "key": "vieux_carre",
+    "name": "Vieux Carré",
+    "tags": ["stirred", "whiskey", "brandy"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Lemon peel"},
+    "rows": [
+      {"ingredient": "rye_whiskey", "ml": "30", "oz": "1"},
+      {"ingredient": "cognac", "ml": "30", "oz": "1"},
+      {"ingredient": "sweet_vermouth", "ml": "30", "oz": "1"},
+      {"ingredient": "benedictine", "quantity": "1", "unit": "barspoon"},
+      {"ingredient": "angostura_bitters", "quantity": "2", "unit": "dash"},
+      {"ingredient": "peychauds_bitters", "quantity": "2", "unit": "dash"}
+    ],
+    "steps": [
+      "Combine everything in a mixing glass.",
+      "Stir with ice until well chilled, about 30 seconds.",
+      "Strain over fresh ice."
+    ]
+  },
+  {
+    "key": "martinez",
+    "name": "Martinez",
+    "tags": ["stirred", "gin"],
+    "fields": {"Glassware": "Nick and Nora", "Garnish": "Lemon peel"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "45", "oz": "1.5"},
+      {"ingredient": "sweet_vermouth", "ml": "45", "oz": "1.5"},
+      {"ingredient": "maraschino_liqueur", "quantity": "1", "unit": "barspoon"},
+      {"ingredient": "orange_bitters", "quantity": "2", "unit": "dash"}
+    ],
+    "steps": [
+      "Combine everything in a mixing glass.",
+      "Stir with ice until well chilled, about 30 seconds.",
+      "Strain into a chilled glass."
+    ]
+  },
+  {
+    "key": "americano",
+    "name": "Americano",
+    "tags": ["stirred"],
+    "fields": {"Glassware": "Highball", "Garnish": "Orange slice"},
+    "rows": [
+      {"ingredient": "campari", "ml": "30", "oz": "1"},
+      {"ingredient": "sweet_vermouth", "ml": "30", "oz": "1"},
+      {"ingredient": "soda_water", "ml": "60", "oz": "2"}
+    ],
+    "steps": [
+      "Pour the Campari and vermouth over ice.",
+      "Top with soda water and stir gently."
+    ]
+  },
+  {
+    "key": "daiquiri",
+    "name": "Daiquiri",
+    "tags": ["sour", "rum"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Lime wheel"},
+    "rows": [
+      {"ingredient": "white_rum", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "simple_syrup", "ml": "15", "oz": "0.5"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Double strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "margarita",
+    "name": "Margarita",
+    "tags": ["sour", "tequila"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Salt rim, lime wheel"},
+    "rows": [
+      {"ingredient": "tequila_blanco", "ml": "60", "oz": "2"},
+      {"ingredient": "triple_sec", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "lime_juice", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Salt half the rim of a chilled glass.",
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into the glass."
+    ]
+  },
+  {
+    "key": "tommys_margarita",
+    "name": "Tommy's Margarita",
+    "tags": ["sour", "tequila"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Lime wedge"},
+    "rows": [
+      {"ingredient": "tequila_blanco", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "30", "oz": "1"},
+      {"ingredient": "agave_syrup", "ml": "15", "oz": "0.5"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain over fresh ice."
+    ]
+  },
+  {
+    "key": "whiskey_sour",
+    "name": "Whiskey Sour",
+    "tags": ["sour", "whiskey"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Lemon peel, cocktail cherry"},
+    "rows": [
+      {"ingredient": "bourbon", "ml": "60", "oz": "2"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "simple_syrup", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "egg_white", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake everything without ice to foam the egg white.",
+      "Add ice and shake again until cold.",
+      "Strain over fresh ice."
+    ]
+  },
+  {
+    "key": "pisco_sour",
+    "name": "Pisco Sour",
+    "tags": ["sour", "brandy"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Angostura bitters drops"},
+    "rows": [
+      {"ingredient": "pisco", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "30", "oz": "1"},
+      {"ingredient": "simple_syrup", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "egg_white", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake everything without ice to foam the egg white.",
+      "Add ice and shake again until cold.",
+      "Strain into a chilled coupe and dot the bitters on the foam."
+    ]
+  },
+  {
+    "key": "sidecar",
+    "name": "Sidecar",
+    "tags": ["sour", "brandy"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Orange peel"},
+    "rows": [
+      {"ingredient": "cognac", "ml": "60", "oz": "2"},
+      {"ingredient": "triple_sec", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "gimlet",
+    "name": "Gimlet",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Lime wheel"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "simple_syrup", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "cosmopolitan",
+    "name": "Cosmopolitan",
+    "tags": ["sour", "vodka"],
+    "fields": {"Glassware": "Martini", "Garnish": "Lemon twist"},
+    "rows": [
+      {"ingredient": "vodka", "ml": "45", "oz": "1.5"},
+      {"ingredient": "triple_sec", "ml": "15", "oz": "0.5"},
+      {"ingredient": "lime_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "cranberry_juice", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled martini glass."
+    ]
+  },
+  {
+    "key": "last_word",
+    "name": "Last Word",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Cocktail cherry"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "green_chartreuse", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "maraschino_liqueur", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "lime_juice", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "aviation",
+    "name": "Aviation",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Cocktail cherry"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "60", "oz": "2"},
+      {"ingredient": "maraschino_liqueur", "ml": "15", "oz": "0.5"},
+      {"ingredient": "creme_de_violette", "ml": "7.5", "oz": "0.25"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "clover_club",
+    "name": "Clover Club",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Raspberries"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "45", "oz": "1.5"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "raspberry_syrup", "ml": "15", "oz": "0.5"},
+      {"ingredient": "egg_white", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake everything without ice to foam the egg white.",
+      "Add ice and shake again until cold.",
+      "Double strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "corpse_reviver_2",
+    "name": "Corpse Reviver #2",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Orange peel"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "lillet_blanc", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "triple_sec", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "absinthe", "quantity": "1", "unit": "dash"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "paper_plane",
+    "name": "Paper Plane",
+    "tags": ["sour", "whiskey"],
+    "fields": {"Glassware": "Coupe"},
+    "rows": [
+      {"ingredient": "bourbon", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "aperol", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "amaro_nonino", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "penicillin",
+    "name": "Penicillin",
+    "tags": ["sour", "whiskey"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Candied ginger"},
+    "rows": [
+      {"ingredient": "blended_scotch", "ml": "60", "oz": "2"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "ginger_honey_syrup", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "islay_scotch", "ml": "7.5", "oz": "0.25"}
+    ],
+    "steps": [
+      "Shake the blended Scotch, lemon juice and syrup with ice.",
+      "Strain over fresh ice.",
+      "Float the Islay Scotch over the back of a spoon."
+    ]
+  },
+  {
+    "key": "bees_knees",
+    "name": "Bee's Knees",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Lemon twist"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "60", "oz": "2"},
+      {"ingredient": "lemon_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "honey_syrup", "ml": "22.5", "oz": "0.75"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "southside",
+    "name": "Southside",
+    "tags": ["sour", "gin"],
+    "fields": {"Glassware": "Coupe", "Garnish": "Mint sprig"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "30", "oz": "1"},
+      {"ingredient": "simple_syrup", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "mint_leaves", "quantity": "6", "unit": "piece"}
+    ],
+    "steps": [
+      "Shake everything with ice, mint included.",
+      "Double strain into a chilled coupe."
+    ]
+  },
+  {
+    "key": "mojito",
+    "name": "Mojito",
+    "tags": ["long", "rum"],
+    "fields": {"Glassware": "Highball", "Garnish": "Mint sprig"},
+    "rows": [
+      {"ingredient": "white_rum", "ml": "45", "oz": "1.5"},
+      {"ingredient": "lime_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "sugar", "quantity": "2", "unit": "teaspoon"},
+      {"ingredient": "mint_leaves", "quantity": "8", "unit": "piece"},
+      {"ingredient": "soda_water", "ml": "60", "oz": "2"}
+    ],
+    "steps": [
+      "Gently press the mint with the sugar and lime juice in the glass.",
+      "Add the rum and fill with crushed ice.",
+      "Top with soda water and stir from the bottom."
+    ]
+  },
+  {
+    "key": "caipirinha",
+    "name": "Caipirinha",
+    "tags": ["long", "cachaça"],
+    "fields": {"Glassware": "Rocks"},
+    "rows": [
+      {"ingredient": "cachaca", "ml": "60", "oz": "2"},
+      {"ingredient": "lime", "quantity": "1", "unit": "piece"},
+      {"ingredient": "sugar", "quantity": "2", "unit": "teaspoon"}
+    ],
+    "steps": [
+      "Cut the lime into wedges and muddle them with the sugar in the glass.",
+      "Fill with crushed ice, add the cachaça and stir."
+    ]
+  },
+  {
+    "key": "moscow_mule",
+    "name": "Moscow Mule",
+    "tags": ["long", "vodka"],
+    "fields": {"Glassware": "Mug", "Garnish": "Lime wedge"},
+    "rows": [
+      {"ingredient": "vodka", "ml": "45", "oz": "1.5"},
+      {"ingredient": "lime_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "ginger_beer", "ml": "120", "oz": "4"}
+    ],
+    "steps": [
+      "Pour the vodka and lime juice over ice.",
+      "Top with ginger beer and stir gently."
+    ]
+  },
+  {
+    "key": "tom_collins",
+    "name": "Tom Collins",
+    "tags": ["long", "gin"],
+    "fields": {"Glassware": "Collins", "Garnish": "Lemon slice, cocktail cherry"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "45", "oz": "1.5"},
+      {"ingredient": "lemon_juice", "ml": "30", "oz": "1"},
+      {"ingredient": "simple_syrup", "ml": "15", "oz": "0.5"},
+      {"ingredient": "soda_water", "ml": "60", "oz": "2"}
+    ],
+    "steps": [
+      "Shake the gin, lemon juice and syrup with ice.",
+      "Strain over fresh ice and top with soda water."
+    ]
+  },
+  {
+    "key": "paloma",
+    "name": "Paloma",
+    "tags": ["long", "tequila"],
+    "fields": {"Glassware": "Highball", "Garnish": "Lime wheel"},
+    "rows": [
+      {"ingredient": "tequila_blanco", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "salt", "quantity": "1", "unit": "pinch"},
+      {"ingredient": "grapefruit_soda", "ml": "120", "oz": "4"}
+    ],
+    "steps": [
+      "Stir the tequila, lime juice and salt in the glass.",
+      "Fill with ice, top with grapefruit soda and stir gently."
+    ]
+  },
+  {
+    "key": "cuba_libre",
+    "name": "Cuba Libre",
+    "tags": ["long", "rum"],
+    "fields": {"Glassware": "Highball", "Garnish": "Lime wedge"},
+    "rows": [
+      {"ingredient": "white_rum", "ml": "60", "oz": "2"},
+      {"ingredient": "lime_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "cola", "ml": "120", "oz": "4"}
+    ],
+    "steps": [
+      "Pour the rum and lime juice over ice.",
+      "Top with cola and stir gently."
+    ]
+  },
+  {
+    "key": "gin_and_tonic",
+    "name": "Gin and Tonic",
+    "tags": ["long", "gin"],
+    "fields": {"Glassware": "Highball", "Garnish": "Lime wedge"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "60", "oz": "2"},
+      {"ingredient": "tonic_water", "ml": "120", "oz": "4"}
+    ],
+    "steps": [
+      "Pour the gin over plenty of ice.",
+      "Top with tonic water and stir once."
+    ]
+  },
+  {
+    "key": "bloody_mary",
+    "name": "Bloody Mary",
+    "tags": ["long", "vodka"],
+    "fields": {"Glassware": "Highball", "Garnish": "Celery stalk, lemon wedge"},
+    "rows": [
+      {"ingredient": "vodka", "ml": "45", "oz": "1.5"},
+      {"ingredient": "tomato_juice", "ml": "90", "oz": "3"},
+      {"ingredient": "lemon_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "worcestershire_sauce", "quantity": "2", "unit": "dash"},
+      {"ingredient": "hot_sauce", "quantity": "2", "unit": "dash"},
+      {"ingredient": "salt", "quantity": "1", "unit": "pinch"},
+      {"ingredient": "black_pepper", "quantity": "1", "unit": "pinch"}
+    ],
+    "steps": [
+      "Combine everything in a shaker with ice.",
+      "Roll it gently between two tins rather than shaking, to keep the tomato from foaming.",
+      "Strain over fresh ice."
+    ]
+  },
+  {
+    "key": "aperol_spritz",
+    "name": "Aperol Spritz",
+    "tags": ["sparkling"],
+    "fields": {"Glassware": "Wine", "Garnish": "Orange slice"},
+    "rows": [
+      {"ingredient": "sparkling_wine", "ml": "90", "oz": "3"},
+      {"ingredient": "aperol", "ml": "60", "oz": "2"},
+      {"ingredient": "soda_water", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Fill the glass with ice.",
+      "Add the sparkling wine, then the Aperol, then the soda water.",
+      "Stir once."
+    ]
+  },
+  {
+    "key": "french_75",
+    "name": "French 75",
+    "tags": ["sparkling", "gin"],
+    "fields": {"Glassware": "Flute", "Garnish": "Lemon twist"},
+    "rows": [
+      {"ingredient": "london_dry_gin", "ml": "30", "oz": "1"},
+      {"ingredient": "lemon_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "simple_syrup", "ml": "15", "oz": "0.5"},
+      {"ingredient": "sparkling_wine", "ml": "60", "oz": "2"}
+    ],
+    "steps": [
+      "Shake the gin, lemon juice and syrup with ice.",
+      "Strain into a chilled flute and top with sparkling wine."
+    ]
+  },
+  {
+    "key": "mai_tai",
+    "name": "Mai Tai",
+    "tags": ["tiki", "rum"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Mint sprig, lime shell"},
+    "rows": [
+      {"ingredient": "aged_rum", "ml": "45", "oz": "1.5"},
+      {"ingredient": "dark_rum", "ml": "15", "oz": "0.5"},
+      {"ingredient": "lime_juice", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "triple_sec", "ml": "15", "oz": "0.5"},
+      {"ingredient": "orgeat", "ml": "15", "oz": "0.5"},
+      {"ingredient": "simple_syrup", "ml": "7.5", "oz": "0.25"}
+    ],
+    "steps": [
+      "Shake everything except the dark rum with crushed ice.",
+      "Pour unstrained into the glass.",
+      "Float the dark rum on top."
+    ]
+  },
+  {
+    "key": "pina_colada",
+    "name": "Piña Colada",
+    "tags": ["tiki", "rum"],
+    "fields": {"Glassware": "Tiki", "Garnish": "Pineapple wedge, cocktail cherry"},
+    "rows": [
+      {"ingredient": "white_rum", "ml": "60", "oz": "2"},
+      {"ingredient": "pineapple_juice", "ml": "60", "oz": "2"},
+      {"ingredient": "coconut_cream", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Shake everything hard with ice, or blend with a cup of crushed ice.",
+      "Pour into the glass."
+    ]
+  },
+  {
+    "key": "jungle_bird",
+    "name": "Jungle Bird",
+    "tags": ["tiki", "rum"],
+    "fields": {"Glassware": "Rocks", "Garnish": "Pineapple wedge"},
+    "rows": [
+      {"ingredient": "dark_rum", "ml": "45", "oz": "1.5"},
+      {"ingredient": "campari", "ml": "22.5", "oz": "0.75"},
+      {"ingredient": "pineapple_juice", "ml": "45", "oz": "1.5"},
+      {"ingredient": "lime_juice", "ml": "15", "oz": "0.5"},
+      {"ingredient": "simple_syrup", "ml": "15", "oz": "0.5"}
+    ],
+    "steps": [
+      "Shake hard with ice for 10 to 12 seconds.",
+      "Strain over fresh ice."
+    ]
+  },
+  {
+    "key": "mint_julep",
+    "name": "Mint Julep",
+    "tags": ["whiskey"],
+    "fields": {"Glassware": "Julep cup", "Garnish": "Mint sprig"},
+    "rows": [
+      {"ingredient": "bourbon", "ml": "60", "oz": "2"},
+      {"ingredient": "sugar", "quantity": "1", "unit": "teaspoon"},
+      {"ingredient": "mint_leaves", "quantity": "8", "unit": "piece"}
+    ],
+    "steps": [
+      "Gently press the mint with the sugar and a splash of water in the cup.",
+      "Add the bourbon and pack the cup with crushed ice.",
+      "Stir until the cup frosts, then top with more crushed ice."
+    ]
+  },
+  {
+    "key": "espresso_martini",
+    "name": "Espresso Martini",
+    "tags": ["vodka"],
+    "fields": {"Glassware": "Martini", "Garnish": "Three coffee beans"},
+    "rows": [
+      {"ingredient": "vodka", "ml": "45", "oz": "1.5"},
+      {"ingredient": "coffee_liqueur", "ml": "30", "oz": "1"},
+      {"ingredient": "espresso", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Shake everything hard with ice to build a thick foam.",
+      "Double strain into a chilled martini glass."
+    ]
+  },
+  {
+    "key": "black_russian",
+    "name": "Black Russian",
+    "tags": ["vodka"],
+    "fields": {"Glassware": "Rocks"},
+    "rows": [
+      {"ingredient": "vodka", "ml": "60", "oz": "2"},
+      {"ingredient": "coffee_liqueur", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Pour both over ice and stir."
+    ]
+  },
+  {
+    "key": "white_russian",
+    "name": "White Russian",
+    "tags": ["vodka"],
+    "fields": {"Glassware": "Rocks"},
+    "rows": [
+      {"ingredient": "vodka", "ml": "60", "oz": "2"},
+      {"ingredient": "coffee_liqueur", "ml": "30", "oz": "1"},
+      {"ingredient": "cream", "ml": "30", "oz": "1"}
+    ],
+    "steps": [
+      "Pour the vodka and coffee liqueur over ice and stir.",
+      "Float the cream on top."
+    ]
+  }
+]
