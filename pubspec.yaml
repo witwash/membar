@@ -29,6 +29,8 @@ dependencies:
   recipes_repository:
     path: packages/recipes_repository
   shared_preferences: ^2.5.3
+  starter_recipes_repository:
+    path: packages/starter_recipes_repository
   talker: ^5.1.20
   talker_bloc_logger: ^5.1.20
 dev_dependencies:

@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 extension PumpApp on WidgetTester {
   /// Pumps [widget] inside a tree mirroring the real app's: the forui theme,
@@ -13,6 +14,7 @@ extension PumpApp on WidgetTester {
   Future<void> pumpApp(
     Widget widget, {
     RecipesRepository? recipesRepository,
+    StarterRecipesRepository? starterRecipesRepository,
     RecipesBloc? recipesBloc,
   }) {
     var child = widget;
@@ -21,6 +23,12 @@ extension PumpApp on WidgetTester {
     }
     if (recipesRepository != null) {
       child = RepositoryProvider.value(value: recipesRepository, child: child);
+    }
+    if (starterRecipesRepository != null) {
+      child = RepositoryProvider.value(
+        value: starterRecipesRepository,
+        child: child,
+      );
     }
 
     return pumpWidget(

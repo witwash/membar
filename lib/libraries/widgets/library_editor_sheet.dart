@@ -186,6 +186,7 @@ class _LibraryEditorSheetState extends State<LibraryEditorSheet> {
             name: _nameController.text,
             ingredientLibraryId: library.ingredientLibraryId,
             fields: library.fields,
+            template: library.template,
           ),
         ),
       );
@@ -193,26 +194,31 @@ class _LibraryEditorSheetState extends State<LibraryEditorSheet> {
     }
 
     final ingredientLibrary = IngredientLibrary(name: _nameController.text);
+    final template = _template(ingredientLibrary.id);
     bloc.add(
       RecipesLibrarySaved(
         Library(
           name: _nameController.text,
           ingredientLibraryId: ingredientLibrary.id,
-          fields: _templateFields(ingredientLibrary.id),
+          fields: template?.fields ?? const [],
+          template: template?.template,
         ),
         ingredientLibrary: ingredientLibrary,
       ),
     );
   }
 
-  /// The chosen template's fields under freshly generated ids. Its name is
-  /// left behind: the library is called what the user typed.
-  List<FieldDefinition> _templateFields(String ingredientLibraryId) =>
-      switch (_startingPoint) {
-        _StartingPoint.blank => const [],
-        _StartingPoint.cocktails =>
-          _templates.cocktails(ingredientLibraryId: ingredientLibraryId).fields,
-        _StartingPoint.coffee =>
-          _templates.coffee(ingredientLibraryId: ingredientLibraryId).fields,
-      };
+  /// The chosen template under freshly generated ids, or null for Blank.
+  ///
+  /// Only its fields and template marker are kept. Its name is left behind:
+  /// the library is called what the user typed.
+  Library? _template(String ingredientLibraryId) => switch (_startingPoint) {
+    _StartingPoint.blank => null,
+    _StartingPoint.cocktails => _templates.cocktails(
+      ingredientLibraryId: ingredientLibraryId,
+    ),
+    _StartingPoint.coffee => _templates.coffee(
+      ingredientLibraryId: ingredientLibraryId,
+    ),
+  };
 }

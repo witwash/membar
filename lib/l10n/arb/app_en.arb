@@ -132,6 +132,16 @@
     "@recipeEditorNameRequiredError": {
         "description": "Validation error shown when the recipe name is blank"
     },
+    "recipeEditorNameTakenError": "Another recipe here is already called {recipe}.",
+    "@recipeEditorNameTakenError": {
+        "description": "Validation error shown when the typed name is one another recipe in the same library carries, ignoring case",
+        "placeholders": {
+            "recipe": {
+                "type": "String",
+                "example": "Negroni"
+            }
+        }
+    },
     "recipeEditorRequiredFieldError": "This field is required.",
     "@recipeEditorRequiredFieldError": {
         "description": "Validation error shown when a required schema field is blank"

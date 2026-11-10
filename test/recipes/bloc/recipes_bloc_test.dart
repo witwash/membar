@@ -5,8 +5,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 class _MockRecipesRepository extends Mock implements RecipesRepository {}
+
+class _MockStarterRecipesRepository extends Mock
+    implements StarterRecipesRepository {}
 
 class _FakeRecipe extends Fake implements Recipe {}
 
@@ -26,6 +30,7 @@ void main() {
 
   group('RecipesBloc', () {
     late RecipesRepository repository;
+    late StarterRecipesRepository starterRepository;
 
     final pantry = IngredientLibrary(id: 'il1', name: 'Pantry');
     final shelf = IngredientLibrary(id: 'il2', name: 'Shelf');
@@ -55,10 +60,14 @@ void main() {
       activeLibraryId: 'l1',
     );
 
-    RecipesBloc buildBloc() => RecipesBloc(recipesRepository: repository);
+    RecipesBloc buildBloc() => RecipesBloc(
+      recipesRepository: repository,
+      starterRecipesRepository: starterRepository,
+    );
 
     setUp(() {
       repository = _MockRecipesRepository();
+      starterRepository = _MockStarterRecipesRepository();
     });
 
     test('initial state has nothing loaded', () {
@@ -137,6 +146,7 @@ void main() {
       for (final (reason, exception) in <(String, Exception)>[
         ('its library is gone', const LibraryNotFoundException('l1')),
         ("a row's entry is gone", const IngredientNotFoundException('i1')),
+        ('its name is taken', const RecipeNameTakenException('Negroni')),
         ('the write fails', const RecipesPersistenceException('disk full')),
       ]) {
         blocTest<RecipesBloc, RecipesState>(
@@ -541,6 +551,7 @@ void main() {
             name: 'Cocktails',
             ingredientLibraryId: 'il1',
             fields: [glassware, garnish],
+            template: LibraryTemplate.cocktails,
           ),
           coffee,
         ],
@@ -549,7 +560,7 @@ void main() {
 
       blocTest<RecipesBloc, RecipesState>(
         'emits loading then success and saves the library without the field, '
-        'keeping its ingredient library',
+        'keeping its ingredient library and template',
         setUp: () => when(
           () => repository.saveLibrary(
             any(),
@@ -578,6 +589,7 @@ void main() {
               name: 'Cocktails',
               ingredientLibraryId: 'il1',
               fields: [glassware],
+              template: LibraryTemplate.cocktails,
             ),
           ),
         ).called(1),
@@ -671,6 +683,7 @@ void main() {
         name: 'Cocktails',
         ingredientLibraryId: 'il1',
         fields: fields,
+        template: LibraryTemplate.cocktails,
       );
 
       final loaded = RecipesState(
@@ -687,7 +700,7 @@ void main() {
       ]) {
         blocTest<RecipesBloc, RecipesState>(
           'emits loading then success and saves the library with the field '
-          'one place $direction, keeping its ingredient library',
+          'one place $direction, keeping its ingredient library and template',
           setUp: () => when(
             () => repository.saveLibrary(
               any(),
@@ -978,6 +991,155 @@ void main() {
             ),
             RecipesState(
               mutation: RecipesMutation.ingredientDeleted,
+              mutationStatus: RecipesMutationStatus.failure,
+            ),
+          ],
+        );
+      }
+    });
+
+    group('RecipesStarterRecipesImported', () {
+      const set = StarterSet(
+        ingredients: [
+          StarterIngredient(
+            key: 'lime-juice',
+            name: 'Lime juice',
+            defaultUnit: StandardUnit.ml,
+          ),
+        ],
+        recipes: [
+          StarterRecipe(
+            key: 'gimlet',
+            name: 'Gimlet',
+            rows: [StarterRow(ingredient: 'lime-juice', ml: '30', oz: '1')],
+          ),
+        ],
+      );
+      const names = {'gimlet': 'Gimlet'};
+      final lime = CatalogIngredient(
+        id: 'i2',
+        name: 'Lime juice',
+        ingredientLibraryId: 'il1',
+      );
+      final gimlet = Recipe(
+        id: 'r3',
+        libraryId: 'l1',
+        name: 'Gimlet',
+        ingredients: [Ingredient(catalogId: 'i2', quantity: '1', unit: 'oz')],
+      );
+      final loaded = RecipesState(
+        libraries: [cocktails, coffee],
+        recipes: [negroni, v60],
+        ingredientLibraries: [pantry, shelf],
+        ingredients: [gin],
+        activeLibraryId: 'l1',
+        searchTerm: 'neg',
+        activeTags: const {'sour'},
+      );
+      const imported = RecipesStarterRecipesImported(
+        libraryId: 'l1',
+        set: set,
+        names: names,
+        system: MeasureSystem.imperial,
+      );
+
+      void stubBuild() => when(
+        () => starterRepository.buildImport(
+          set: set,
+          names: names,
+          library: cocktails,
+          entries: [gin],
+          system: MeasureSystem.imperial,
+        ),
+      ).thenReturn((ingredients: [lime], recipes: [gimlet]));
+
+      Future<void> Function() importCall() =>
+          () => repository.importRecipes(
+            libraryId: 'l1',
+            ingredients: [lime],
+            recipes: [gimlet],
+          );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'emits loading then success with the filters cleared, and imports '
+        'what was built against the library and its ingredient library',
+        setUp: () {
+          stubBuild();
+          when(importCall()).thenAnswer((_) async {});
+        },
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) => bloc.add(imported),
+        expect: () => [
+          loaded.copyWith(
+            mutation: RecipesMutation.starterRecipesImported,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          loaded.copyWith(
+            mutation: RecipesMutation.starterRecipesImported,
+            mutationStatus: RecipesMutationStatus.success,
+            searchTerm: '',
+            activeTags: const {},
+          ),
+        ],
+        verify: (_) => verify(importCall()).called(1),
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
+        'emits failure without calling either repository when the library '
+        'is not there',
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) => bloc.add(
+          const RecipesStarterRecipesImported(
+            libraryId: 'gone',
+            set: set,
+            names: names,
+            system: MeasureSystem.metric,
+          ),
+        ),
+        expect: () => [
+          loaded.copyWith(
+            mutation: RecipesMutation.starterRecipesImported,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          loaded.copyWith(
+            mutation: RecipesMutation.starterRecipesImported,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
+        ],
+        verify: (_) {
+          verifyZeroInteractions(starterRepository);
+          verifyZeroInteractions(repository);
+        },
+      );
+
+      for (final (reason, exception) in <(String, Exception)>[
+        ('the library is gone', const LibraryNotFoundException('l1')),
+        (
+          'a new entry name is taken',
+          const IngredientNameTakenException('Lime juice'),
+        ),
+        ("a row's entry is gone", const IngredientNotFoundException('i1')),
+        ('a recipe name is taken', const RecipeNameTakenException('Gimlet')),
+        ('a write fails', const RecipesPersistenceException('disk full')),
+      ]) {
+        blocTest<RecipesBloc, RecipesState>(
+          'emits failure and keeps the filters when $reason',
+          setUp: () {
+            stubBuild();
+            when(importCall()).thenThrow(exception);
+          },
+          build: buildBloc,
+          seed: () => loaded,
+          act: (bloc) => bloc.add(imported),
+          expect: () => [
+            loaded.copyWith(
+              mutation: RecipesMutation.starterRecipesImported,
+              mutationStatus: RecipesMutationStatus.loading,
+            ),
+            loaded.copyWith(
+              mutation: RecipesMutation.starterRecipesImported,
               mutationStatus: RecipesMutationStatus.failure,
             ),
           ],

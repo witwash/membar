@@ -248,6 +248,7 @@ void main() {
         final added = event.library.fields.last;
         expect(event.library.id, cocktailsLibrary.id);
         expect(event.library.name, cocktailsLibrary.name);
+        expect(event.library.template, LibraryTemplate.cocktails);
         expect(event.library.fields, [glasswareField, garnishField, added]);
         expect(event.optionRenames, isEmpty);
         expect(added.label, 'Strength');
@@ -459,9 +460,8 @@ void main() {
         expect(tester.widget<FCheckbox>(find.byType(FCheckbox)).value, isTrue);
       });
 
-      testWidgets("keeps the field's id and position when it is saved", (
-        tester,
-      ) async {
+      testWidgets("keeps the field's id and position, and the library's "
+          'template, when it is saved', (tester) async {
         await openSheet(tester, field: glasswareField);
 
         await enter(tester, 'Label', 'Glass');
@@ -475,6 +475,7 @@ void main() {
               id: cocktailsLibrary.id,
               name: cocktailsLibrary.name,
               ingredientLibraryId: cocktailsPantry.id,
+              template: LibraryTemplate.cocktails,
               fields: [
                 FieldDefinition(
                   id: glasswareField.id,

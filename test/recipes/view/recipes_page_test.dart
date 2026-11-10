@@ -2,10 +2,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 import '../../helpers/helpers.dart';
 
 class _MockRecipesRepository extends Mock implements RecipesRepository {}
+
+class _MockStarterRecipesRepository extends Mock
+    implements StarterRecipesRepository {}
 
 void main() {
   group('RecipesPage', () {
@@ -30,6 +34,7 @@ void main() {
       await tester.pumpApp(
         const RecipesPage(),
         recipesRepository: recipesRepository,
+        starterRecipesRepository: _MockStarterRecipesRepository(),
       );
 
       expect(find.byType(RecipesView), findsOneWidget);
@@ -39,6 +44,7 @@ void main() {
       await tester.pumpApp(
         const RecipesPage(),
         recipesRepository: recipesRepository,
+        starterRecipesRepository: _MockStarterRecipesRepository(),
       );
       await tester.pump();
 

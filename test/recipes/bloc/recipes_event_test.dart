@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 void main() {
   group('RecipesEvent', () {
@@ -160,6 +161,32 @@ void main() {
         const RecipesIngredientDeleted('i1'),
         isNot(const RecipesIngredientDeleted('i2')),
       );
+    });
+
+    test('RecipesStarterRecipesImported carries the library id, set, names '
+        'and system', () {
+      const set = StarterSet(ingredients: [], recipes: []);
+      const otherSet = StarterSet(
+        ingredients: [],
+        recipes: [StarterRecipe(key: 'gimlet', name: 'Gimlet')],
+      );
+      RecipesStarterRecipesImported imported({
+        String libraryId = 'l1',
+        StarterSet set = set,
+        Map<String, String> names = const {'gimlet': 'Gimlet'},
+        MeasureSystem system = MeasureSystem.metric,
+      }) => RecipesStarterRecipesImported(
+        libraryId: libraryId,
+        set: set,
+        names: names,
+        system: system,
+      );
+
+      expect(imported(), imported());
+      expect(imported(), isNot(imported(libraryId: 'l2')));
+      expect(imported(), isNot(imported(set: otherSet)));
+      expect(imported(), isNot(imported(names: const {})));
+      expect(imported(), isNot(imported(system: MeasureSystem.imperial)));
     });
 
     test('RecipesSearchTermChanged carries the term', () {

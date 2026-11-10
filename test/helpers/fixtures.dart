@@ -33,6 +33,7 @@ final cocktailsLibrary = Library(
   name: 'Cocktails',
   ingredientLibraryId: cocktailsPantry.id,
   fields: [glasswareField, garnishField],
+  template: LibraryTemplate.cocktails,
 );
 
 /// The Number field of [coffeeLibrary], carrying a unit.
@@ -57,6 +58,7 @@ final coffeeLibrary = Library(
   name: 'Coffee',
   ingredientLibraryId: coffeeShelf.id,
   fields: [doseField, tastingNotesField],
+  template: LibraryTemplate.coffee,
 );
 
 /// An entry in [cocktailsPantry], with a standard unit.
