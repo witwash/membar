@@ -30,6 +30,13 @@ class _FakeRecipesApi extends RecipesApi {
   }) async {}
 
   @override
+  Future<void> importRecipes({
+    required String libraryId,
+    required List<CatalogIngredient> ingredients,
+    required List<Recipe> recipes,
+  }) async {}
+
+  @override
   Future<void> deleteLibrary(String id, {required String successorId}) async {}
 
   @override
@@ -53,6 +60,11 @@ void main() {
         Library(name: 'Tea', ingredientLibraryId: 'il1'),
         ingredientLibrary: IngredientLibrary(id: 'il1', name: 'Tea'),
       );
+      await api.importRecipes(
+        libraryId: 'l1',
+        ingredients: const [],
+        recipes: const [],
+      );
       await api.deleteLibrary('l1', successorId: 'l2');
       await api.close();
     });
@@ -64,6 +76,15 @@ void main() {
 
       expect(exception.id, equals('r1'));
       expect(exception.toString(), contains('r1'));
+    });
+  });
+
+  group('RecipeNameTakenException', () {
+    test('names the name that is taken', () {
+      const exception = RecipeNameTakenException('Negroni');
+
+      expect(exception.name, equals('Negroni'));
+      expect(exception.toString(), contains('Negroni'));
     });
   });
 

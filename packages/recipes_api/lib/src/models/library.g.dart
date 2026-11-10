@@ -16,6 +16,7 @@ Library _$LibraryFromJson(Map<String, dynamic> json) => Library(
           ?.map((e) => FieldDefinition.fromJson(e as Map<String, dynamic>))
           .toList() ??
       const [],
+  template: $enumDecodeNullable(_$LibraryTemplateEnumMap, json['template']),
 );
 
 Map<String, dynamic> _$LibraryToJson(Library instance) => <String, dynamic>{
@@ -23,4 +24,10 @@ Map<String, dynamic> _$LibraryToJson(Library instance) => <String, dynamic>{
   'name': instance.name,
   'fields': instance.fields.map((e) => e.toJson()).toList(),
   'ingredientLibraryId': instance.ingredientLibraryId,
+  'template': _$LibraryTemplateEnumMap[instance.template],
+};
+
+const _$LibraryTemplateEnumMap = {
+  LibraryTemplate.cocktails: 'cocktails',
+  LibraryTemplate.coffee: 'coffee',
 };

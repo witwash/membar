@@ -1,9 +1,10 @@
 import 'package:equatable/equatable.dart';
+import 'package:recipes_api/recipes_api.dart';
 import 'package:starter_recipes/starter_recipes.dart';
 
 /// {@template starter_set}
-/// The recipes of one [StarterCollection] and the ingredient list their rows
-/// reference.
+/// The recipes bundled for one [LibraryTemplate] and the ingredient list
+/// their rows reference.
 /// {@endtemplate}
 class StarterSet extends Equatable {
   /// {@macro starter_set}

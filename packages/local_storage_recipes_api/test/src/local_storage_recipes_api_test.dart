@@ -232,13 +232,13 @@ void main() {
         expect(snapshot.activeLibraryId, equals(cocktails.id));
         expect(
           plugin.getInt(LocalStorageRecipesApi.kSchemaVersionKey),
-          equals(4),
+          equals(5),
         );
         expect(reported, isEmpty);
       }
 
       test(
-        'a fresh install writes every key, the version last, at 4',
+        'a fresh install writes every key, the version last, at 5',
         () async {
           final store = await setUpRecordingPrefs({});
 
@@ -309,7 +309,40 @@ void main() {
         await expectReseeded();
       });
 
-      test('a version 4 install writes nothing', () async {
+      test(
+        'a version 4 install is reseeded, so seeded libraries carry their '
+        'template',
+        () async {
+          final store = await setUpRecordingPrefs({
+            ...seededPrefs(
+              libraries: [
+                for (final library in [cocktails, coffee])
+                  Library(
+                    id: library.id,
+                    name: library.name,
+                    ingredientLibraryId: library.ingredientLibraryId,
+                    fields: library.fields,
+                  ),
+              ],
+            ),
+            LocalStorageRecipesApi.kSchemaVersionKey: 4,
+          });
+
+          api = buildApi();
+          await api.initialWrite;
+
+          expect(store.writtenKeys, equals(reseededKeys));
+          await expectReseeded();
+          expect(
+            (await api.watch().first).libraries.map(
+              (library) => library.template,
+            ),
+            equals([LibraryTemplate.cocktails, LibraryTemplate.coffee]),
+          );
+        },
+      );
+
+      test('a version 5 install writes nothing', () async {
         final store = await setUpRecordingPrefs(seededPrefs());
 
         api = buildApi();
@@ -799,6 +832,64 @@ void main() {
         );
       }
 
+      test(
+        'throws RecipeNameTakenException for a name another recipe in the '
+        'library carries, ignoring case, storing nothing new',
+        () async {
+          await api.saveRecipe(negroni);
+
+          await expectLater(
+            () => api.saveRecipe(
+              Recipe(id: 'r2', libraryId: cocktails.id, name: ' NEGRONI '),
+            ),
+            throwsA(
+              isA<RecipeNameTakenException>().having(
+                (exception) => exception.name,
+                'name',
+                equals('NEGRONI'),
+              ),
+            ),
+          );
+          expect((await api.watch().first).recipes, equals([negroni]));
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+            equals(jsonEncode([negroni.toJson()])),
+          );
+        },
+      );
+
+      test('accepts a name a recipe in another library carries', () async {
+        await api.saveRecipe(negroni);
+        final coffeeNegroni = Recipe(
+          id: 'r2',
+          libraryId: coffee.id,
+          name: 'negroni',
+        );
+
+        await api.saveRecipe(coffeeNegroni);
+
+        expect(
+          (await api.watch().first).recipes,
+          equals([negroni, coffeeNegroni]),
+        );
+      });
+
+      test(
+        'accepts a recipe renamed to its own name in another case',
+        () async {
+          await api.saveRecipe(negroni);
+          final renamed = Recipe(
+            id: negroni.id,
+            libraryId: cocktails.id,
+            name: 'NEGRONI',
+          );
+
+          await api.saveRecipe(renamed);
+
+          expect((await api.watch().first).recipes, equals([renamed]));
+        },
+      );
+
       test('throws when the write fails', () async {
         SharedPreferencesStorePlatform.instance = _FailingStore();
 
@@ -1193,6 +1284,7 @@ void main() {
         name: cocktails.name,
         ingredientLibraryId: cocktails.ingredientLibraryId,
         fields: fields,
+        template: cocktails.template,
       );
 
       Recipe cocktail(String id, Map<String, Object?> fieldValues) => Recipe(
@@ -1461,6 +1553,24 @@ void main() {
         expect(
           store.writtenKeys,
           equals([LocalStorageRecipesApi.kLibrariesKey]),
+        );
+      });
+
+      test('stores the template a replace carries', () async {
+        await open();
+
+        await api.saveLibrary(cocktailsWith([glassware]));
+
+        expect(
+          (await api.watch().first).libraries.first.template,
+          equals(LibraryTemplate.cocktails),
+        );
+        final stored = jsonDecode(
+          plugin.getString(LocalStorageRecipesApi.kLibrariesKey)!,
+        ) as List<dynamic>;
+        expect(
+          Library.fromJson(stored.first as Map<String, dynamic>).template,
+          equals(LibraryTemplate.cocktails),
         );
       });
 
@@ -1765,6 +1875,325 @@ void main() {
           expect(await valuesOf('r1'), isEmpty);
         },
       );
+    });
+
+    group('importRecipes', () {
+      final gin = CatalogIngredient(
+        id: 'i1',
+        name: 'Gin',
+        ingredientLibraryId: cocktailsIngredients.id,
+      );
+      final milk = CatalogIngredient(
+        id: 'i2',
+        name: 'Milk',
+        ingredientLibraryId: coffeeIngredients.id,
+      );
+      final stored = Recipe(
+        id: 'r0',
+        libraryId: cocktails.id,
+        name: 'Martini',
+        ingredients: [Ingredient(catalogId: gin.id)],
+      );
+      final campari = CatalogIngredient(
+        id: 'n1',
+        name: 'Campari',
+        ingredientLibraryId: cocktailsIngredients.id,
+      );
+      final negroni = Recipe(
+        id: 'r1',
+        libraryId: cocktails.id,
+        name: 'Negroni',
+        ingredients: [
+          Ingredient(catalogId: gin.id, quantity: '30', unit: 'ml'),
+          Ingredient(catalogId: campari.id, quantity: '30', unit: 'ml'),
+        ],
+      );
+      final americano = Recipe(
+        id: 'r2',
+        libraryId: cocktails.id,
+        name: 'Americano',
+        ingredients: [Ingredient(catalogId: campari.id)],
+      );
+
+      late RecipesSnapshot before;
+
+      Future<_RecordingStore> open() async {
+        final store = await setUpRecordingPrefs(
+          seededPrefs(recipes: [stored], ingredients: [gin, milk]),
+        );
+        api = buildApi();
+        await api.initialWrite;
+        before = await api.watch().first;
+        store.writtenKeys.clear();
+        return store;
+      }
+
+      Future<void> expectNothingStored(_RecordingStore store) async {
+        expect(await api.watch().first, equals(before));
+        expect(store.writtenKeys, isEmpty);
+      }
+
+      test(
+        'writes the new entries, then the recipes, and emits one snapshot',
+        () async {
+          final store = await open();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+
+          await api.importRecipes(
+            libraryId: cocktails.id,
+            ingredients: [campari],
+            recipes: [negroni, americano],
+          );
+          await pumpEventQueue();
+
+          expect(
+            store.writtenKeys,
+            equals([
+              LocalStorageRecipesApi.kIngredientsKey,
+              LocalStorageRecipesApi.kRecipesKey,
+            ]),
+          );
+          expect(emitted, hasLength(1));
+          expect(
+            emitted.single.recipes,
+            equals([stored, negroni, americano]),
+          );
+          expect(emitted.single.ingredients, equals([gin, milk, campari]));
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kIngredientsKey),
+            equals(
+              jsonEncode([gin.toJson(), milk.toJson(), campari.toJson()]),
+            ),
+          );
+          expect(
+            plugin.getString(LocalStorageRecipesApi.kRecipesKey),
+            equals(
+              jsonEncode([
+                stored.toJson(),
+                negroni.toJson(),
+                americano.toJson(),
+              ]),
+            ),
+          );
+        },
+      );
+
+      test(
+        'links rows to stored entries, writing only the recipes',
+        () async {
+          final store = await open();
+          final gimlet = Recipe(
+            id: 'r3',
+            libraryId: cocktails.id,
+            name: 'Gimlet',
+            ingredients: [Ingredient(catalogId: gin.id)],
+          );
+
+          await api.importRecipes(
+            libraryId: cocktails.id,
+            ingredients: const [],
+            recipes: [gimlet],
+          );
+
+          final snapshot = await api.watch().first;
+          expect(snapshot.recipes, equals([stored, gimlet]));
+          expect(snapshot.ingredients, equals([gin, milk]));
+          expect(
+            store.writtenKeys,
+            equals([LocalStorageRecipesApi.kRecipesKey]),
+          );
+        },
+      );
+
+      test(
+        'throws LibraryNotFoundException for an unknown library, storing '
+        'nothing',
+        () async {
+          final store = await open();
+
+          await expectLater(
+            () => api.importRecipes(
+              libraryId: 'gone',
+              ingredients: [campari],
+              recipes: [negroni],
+            ),
+            throwsA(
+              isA<LibraryNotFoundException>().having(
+                (exception) => exception.id,
+                'id',
+                equals('gone'),
+              ),
+            ),
+          );
+          await expectNothingStored(store);
+        },
+      );
+
+      for (final (reason, clash) in [
+        (
+          'a stored entry',
+          CatalogIngredient(
+            id: 'n2',
+            name: ' GIN ',
+            ingredientLibraryId: cocktailsIngredients.id,
+          ),
+        ),
+        (
+          'another new entry',
+          CatalogIngredient(
+            id: 'n2',
+            name: 'campari',
+            ingredientLibraryId: cocktailsIngredients.id,
+          ),
+        ),
+      ]) {
+        test(
+          'throws IngredientNameTakenException for a new entry named like '
+          '$reason, storing nothing',
+          () async {
+            final store = await open();
+
+            await expectLater(
+              () => api.importRecipes(
+                libraryId: cocktails.id,
+                ingredients: [campari, clash],
+                recipes: [negroni],
+              ),
+              throwsA(
+                isA<IngredientNameTakenException>().having(
+                  (exception) => exception.name,
+                  'name',
+                  equals(clash.name),
+                ),
+              ),
+            );
+            await expectNothingStored(store);
+          },
+        );
+      }
+
+      for (final (reason, catalogId) in [
+        ("another ingredient library's entry", milk.id),
+        ('an entry that is gone', 'gone'),
+      ]) {
+        test(
+          'throws IngredientNotFoundException for a row referencing $reason, '
+          'storing nothing',
+          () async {
+            final store = await open();
+
+            await expectLater(
+              () => api.importRecipes(
+                libraryId: cocktails.id,
+                ingredients: [campari],
+                recipes: [
+                  negroni,
+                  Recipe(
+                    id: 'r3',
+                    libraryId: cocktails.id,
+                    name: 'Latte',
+                    ingredients: [Ingredient(catalogId: catalogId)],
+                  ),
+                ],
+              ),
+              throwsA(
+                isA<IngredientNotFoundException>().having(
+                  (exception) => exception.id,
+                  'id',
+                  equals(catalogId),
+                ),
+              ),
+            );
+            await expectNothingStored(store);
+          },
+        );
+      }
+
+      for (final (reason, recipes) in [
+        (
+          'a stored recipe',
+          [Recipe(id: 'r3', libraryId: cocktails.id, name: 'martini')],
+        ),
+        (
+          'another imported recipe',
+          [
+            Recipe(id: 'r3', libraryId: cocktails.id, name: 'Gimlet'),
+            Recipe(id: 'r4', libraryId: cocktails.id, name: 'GIMLET'),
+          ],
+        ),
+      ]) {
+        test(
+          'throws RecipeNameTakenException for a recipe named like $reason, '
+          'storing nothing',
+          () async {
+            final store = await open();
+
+            await expectLater(
+              () => api.importRecipes(
+                libraryId: cocktails.id,
+                ingredients: [campari],
+                recipes: recipes,
+              ),
+              throwsA(
+                isA<RecipeNameTakenException>().having(
+                  (exception) => exception.name,
+                  'name',
+                  equals(recipes.last.name),
+                ),
+              ),
+            );
+            await expectNothingStored(store);
+          },
+        );
+      }
+
+      test('accepts a name a recipe in another library carries', () async {
+        await open();
+        final martini = Recipe(id: 'r3', libraryId: coffee.id, name: 'Martini');
+
+        await api.importRecipes(
+          libraryId: coffee.id,
+          ingredients: const [],
+          recipes: [martini],
+        );
+
+        expect(
+          (await api.watch().first).recipes,
+          equals([stored, martini]),
+        );
+      });
+
+      for (final (failingKey, written) in [
+        (LocalStorageRecipesApi.kIngredientsKey, <String>[]),
+        (
+          LocalStorageRecipesApi.kRecipesKey,
+          [LocalStorageRecipesApi.kIngredientsKey],
+        ),
+      ]) {
+        test('a failed $failingKey write throws and emits nothing', () async {
+          final store = await open();
+          final emitted = <RecipesSnapshot>[];
+          final subscription = api.watch().skip(1).listen(emitted.add);
+          addTearDown(subscription.cancel);
+          store.failingKey = failingKey;
+
+          await expectLater(
+            () => api.importRecipes(
+              libraryId: cocktails.id,
+              ingredients: [campari],
+              recipes: [negroni],
+            ),
+            throwsA(isA<RecipesPersistenceException>()),
+          );
+          await pumpEventQueue();
+
+          expect(emitted, isEmpty);
+          expect(await api.watch().first, equals(before));
+          expect(store.writtenKeys, equals(written));
+        });
+      }
     });
 
     group('deleteLibrary', () {

@@ -69,11 +69,12 @@ class LocalStorageRecipesApi extends RecipesApi {
 
   /// The schema version a fresh install is seeded at.
   ///
-  /// Version 3 added [kIngredientLibrariesKey], and version 4 added Cocktails
-  /// glassware options. An install stored below it is not migrated: every key
-  /// is re-seeded, discarding what it held.
+  /// Version 3 added [kIngredientLibrariesKey], version 4 added Cocktails
+  /// glassware options, and version 5 added library templates. An install
+  /// stored below it is not migrated: every key is re-seeded, discarding what
+  /// it held.
   @visibleForTesting
-  static const kSchemaVersion = 4;
+  static const kSchemaVersion = 5;
 
   final SharedPreferences _plugin;
   final LibraryTemplates _templates;
@@ -111,6 +112,13 @@ class LocalStorageRecipesApi extends RecipesApi {
         throw IngredientNotFoundException(row.catalogId);
       }
     }
+    final taken = current.recipes.any(
+      (stored) =>
+          stored.id != recipe.id &&
+          stored.libraryId == recipe.libraryId &&
+          compareCaseInsensitive(stored.name, recipe.name) == 0,
+    );
+    if (taken) throw RecipeNameTakenException(recipe.name);
 
     final recipes = [...current.recipes];
     final index = recipes.indexWhere((stored) => stored.id == recipe.id);
@@ -240,6 +248,55 @@ class LocalStorageRecipesApi extends RecipesApi {
       recipes: recipes,
       ingredientLibraries: ingredientLibraries,
     );
+  });
+
+  @override
+  Future<void> importRecipes({
+    required String libraryId,
+    required List<CatalogIngredient> ingredients,
+    required List<Recipe> recipes,
+  }) => _serialized(() async {
+    final current = _subject.value;
+    final library = current.libraries
+        .where((stored) => stored.id == libraryId)
+        .firstOrNull;
+    if (library == null) throw LibraryNotFoundException(libraryId);
+
+    var catalog = current.ingredients;
+    for (final ingredient in ingredients) {
+      catalog = _merged(catalog, ingredient);
+    }
+    final offered = {
+      for (final entry in catalog)
+        if (entry.ingredientLibraryId == library.ingredientLibraryId) entry.id,
+    };
+    for (final row in recipes.expand((recipe) => recipe.ingredients)) {
+      if (!offered.contains(row.catalogId)) {
+        throw IngredientNotFoundException(row.catalogId);
+      }
+    }
+
+    final names = [
+      for (final stored in current.recipes)
+        if (stored.libraryId == libraryId) stored.name,
+    ];
+    for (final recipe in recipes) {
+      final taken = names.any(
+        (name) => compareCaseInsensitive(name, recipe.name) == 0,
+      );
+      if (taken) throw RecipeNameTakenException(recipe.name);
+      names.add(recipe.name);
+    }
+
+    final stored = [...current.recipes, ...recipes];
+
+    // Ingredients first: a failure after it leaves entries no row uses, which
+    // renders. The reverse would leave rows referencing entries that are gone.
+    if (ingredients.isNotEmpty) {
+      await _write(kIngredientsKey, _encodeIngredients(catalog));
+    }
+    await _write(kRecipesKey, _encodeRecipes(stored));
+    _emit(recipes: stored, ingredients: catalog);
   });
 
   @override

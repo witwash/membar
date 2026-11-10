@@ -33,6 +33,7 @@ class LibraryTemplates {
     id: idBuilder(),
     name: 'Cocktails',
     ingredientLibraryId: ingredientLibraryId,
+    template: LibraryTemplate.cocktails,
     fields: [
       FieldDefinition(
         id: idBuilder(),
@@ -67,6 +68,7 @@ class LibraryTemplates {
     id: idBuilder(),
     name: 'Coffee',
     ingredientLibraryId: ingredientLibraryId,
+    template: LibraryTemplate.coffee,
     fields: [
       FieldDefinition(
         id: idBuilder(),

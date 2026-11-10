@@ -22,6 +22,7 @@ class Library extends Equatable {
     required this.ingredientLibraryId,
     String? id,
     List<FieldDefinition> fields = const [],
+    this.template,
   }) : assert(name.trim().isNotEmpty, 'A library name must not be blank.'),
        assert(
          ingredientLibraryId.trim().isNotEmpty,
@@ -55,9 +56,13 @@ class Library extends Equatable {
   /// Fixed once the library is created.
   final String ingredientLibraryId;
 
+  /// The starting point this library was created from, or null for one
+  /// started blank. Fixed once the library is created.
+  final LibraryTemplate? template;
+
   /// Converts this [Library] into a JSON [Map].
   Map<String, dynamic> toJson() => _$LibraryToJson(this);
 
   @override
-  List<Object?> get props => [id, name, fields, ingredientLibraryId];
+  List<Object?> get props => [id, name, fields, ingredientLibraryId, template];
 }
