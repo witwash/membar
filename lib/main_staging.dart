@@ -1,9 +1,11 @@
+import 'package:flutter/services.dart';
 import 'package:local_storage_recipes_api/local_storage_recipes_api.dart';
 import 'package:membar/app/app.dart';
 import 'package:membar/bootstrap.dart';
 import 'package:membar/logging/logging.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 import 'package:talker/talker.dart';
 
 Future<void> main() async {
@@ -15,6 +17,14 @@ Future<void> main() async {
       ),
     );
 
-    return App(recipesRepository: recipesRepository, talker: talker);
+    final starterRecipesRepository = StarterRecipesRepository(
+      loader: StarterRecipesLoader(rootBundle),
+    );
+
+    return App(
+      recipesRepository: recipesRepository,
+      starterRecipesRepository: starterRecipesRepository,
+      talker: talker,
+    );
   });
 }

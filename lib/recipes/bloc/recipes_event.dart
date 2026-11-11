@@ -133,6 +133,30 @@ final class RecipesIngredientDeleted extends RecipesEvent {
   List<Object?> get props => [id];
 }
 
+/// Imports the recipes of [set] picked in [names] into the library carrying
+/// [libraryId], with their rows written in [system].
+final class RecipesStarterRecipesImported extends RecipesEvent {
+  const RecipesStarterRecipesImported({
+    required this.libraryId,
+    required this.set,
+    required this.names,
+    required this.system,
+  });
+
+  final String libraryId;
+
+  final StarterSet set;
+
+  /// The name each picked recipe is imported under, keyed by recipe key. A
+  /// recipe missing from it is not imported.
+  final Map<String, String> names;
+
+  final MeasureSystem system;
+
+  @override
+  List<Object?> get props => [libraryId, set, names, system];
+}
+
 /// Narrows the visible recipes to those whose name contains [term].
 final class RecipesSearchTermChanged extends RecipesEvent {
   const RecipesSearchTermChanged(this.term);

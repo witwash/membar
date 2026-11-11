@@ -21,10 +21,12 @@ class RecipesRepository {
   /// Stores [recipe], replacing any recipe that already carries its id.
   ///
   /// Every row must reference a catalog entry in the ingredient library of
-  /// the recipe's library. Throws a [LibraryNotFoundException] when that
-  /// library does not exist, an [IngredientNotFoundException] when a row
-  /// references an entry that does not exist or belongs to another ingredient
-  /// library, and a [RecipesPersistenceException] when the write fails.
+  /// the recipe's library, and no other recipe in that library may carry the
+  /// same name without regard to case. Throws a [LibraryNotFoundException]
+  /// when that library does not exist, an [IngredientNotFoundException] when a
+  /// row references an entry that does not exist or belongs to another
+  /// ingredient library, a [RecipeNameTakenException] when the name is taken,
+  /// and a [RecipesPersistenceException] when the write fails.
   Future<void> saveRecipe(Recipe recipe) => _recipesApi.saveRecipe(recipe);
 
   /// Removes the recipe carrying [id].
@@ -72,7 +74,7 @@ class RecipesRepository {
   /// naming an option the field no longer offers is dropped.
   ///
   /// Precondition: a replace keeps the stored `ingredientLibraryId` and
-  /// passes no [ingredientLibrary].
+  /// `template`, and passes no [ingredientLibrary].
   ///
   /// Throws a [LibraryNameTakenException] when a different library already
   /// carries the same name without regard to case, an
@@ -90,6 +92,33 @@ class RecipesRepository {
     library,
     ingredientLibrary: ingredientLibrary,
     optionRenames: optionRenames,
+  );
+
+  /// Adds [ingredients] and [recipes] together, all into the library carrying
+  /// [libraryId]. Nothing is stored when any of them is refused.
+  ///
+  /// Every row must reference an entry in the library's ingredient library,
+  /// stored or among [ingredients]. A new entry's name must be free in that
+  /// ingredient library and among [ingredients], and a recipe's name must be
+  /// free in the library and among [recipes], all without regard to case.
+  ///
+  /// Preconditions: no id in [ingredients] or [recipes] is already stored,
+  /// every recipe's `libraryId` is [libraryId], and every entry's
+  /// `ingredientLibraryId` is that library's. An import only adds.
+  ///
+  /// Throws a [LibraryNotFoundException] when [libraryId] matches no library,
+  /// an [IngredientNameTakenException] when a new entry's name is taken, an
+  /// [IngredientNotFoundException] when a row references no such entry, a
+  /// [RecipeNameTakenException] when a recipe's name is taken, and a
+  /// [RecipesPersistenceException] when a write fails.
+  Future<void> importRecipes({
+    required String libraryId,
+    required List<CatalogIngredient> ingredients,
+    required List<Recipe> recipes,
+  }) => _recipesApi.importRecipes(
+    libraryId: libraryId,
+    ingredients: ingredients,
+    recipes: recipes,
   );
 
   /// Removes the library carrying [id] along with every recipe in it.

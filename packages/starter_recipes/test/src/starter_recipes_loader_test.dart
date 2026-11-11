@@ -18,7 +18,7 @@ class _MapBundle extends CachingAssetBundle {
 
 void main() {
   group(StarterRecipesLoader, () {
-    test('reads both files of a collection from the package', () async {
+    test('reads both files of a template from the package', () async {
       final loader = StarterRecipesLoader(
         _MapBundle({
           'packages/starter_recipes/assets/coffee/ingredients.json': [
@@ -45,7 +45,7 @@ void main() {
       );
 
       expect(
-        await loader.load(StarterCollection.coffee),
+        await loader.load(LibraryTemplate.coffee),
         equals(
           const StarterSet(
             ingredients: [

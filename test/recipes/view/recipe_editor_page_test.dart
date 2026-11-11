@@ -178,6 +178,44 @@ void main() {
       verifyNever(() => recipesBloc.add(any(that: isA<RecipesRecipeSaved>())));
     });
 
+    testWidgets('blocks a name another recipe of the library carries, '
+        'ignoring case and padding', (tester) async {
+      await pumpEditor(tester);
+
+      await tester.enterText(nameField(), '  nEGRONI ');
+      await tapSave(tester);
+
+      expect(
+        find.text('Another recipe here is already called Negroni.'),
+        findsOneWidget,
+      );
+      verifyNever(() => recipesBloc.add(any(that: isA<RecipesRecipeSaved>())));
+    });
+
+    testWidgets('accepts a name only another library carries', (
+      tester,
+    ) async {
+      await pumpEditor(tester, library: coffeeLibrary);
+
+      await tester.enterText(nameField(), 'Negroni');
+      await tapSave(tester);
+
+      expect(savedRecipe().name, 'Negroni');
+    });
+
+    testWidgets('saves its own name with only its case changed', (
+      tester,
+    ) async {
+      await pumpEditor(tester, recipe: negroni);
+
+      await tester.enterText(nameField(), 'NEGRONI');
+      await tapSave(tester);
+
+      final recipe = savedRecipe();
+      expect(recipe.id, negroni.id);
+      expect(recipe.name, 'NEGRONI');
+    });
+
     testWidgets('saves the recipe the form describes', (tester) async {
       await pumpEditor(tester);
 
@@ -802,6 +840,30 @@ void main() {
 
         states.add(
           const RecipesState(
+            mutation: RecipesMutation.recipeSaved,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(RecipeEditorPage), findsOneWidget);
+        expect(find.text('Your recipe could not be saved.'), findsOneWidget);
+      });
+
+      testWidgets('reports a save refused because the name was taken after '
+          'it was checked', (tester) async {
+        await pushEditor(tester);
+
+        await tester.enterText(nameField(), 'Martini');
+        await tapSave(tester);
+        expect(savedRecipe().name, 'Martini');
+
+        states.add(
+          RecipesState(
+            libraries: [cocktailsLibrary],
+            recipes: [
+              Recipe(libraryId: cocktailsLibrary.id, name: 'Martini'),
+            ],
             mutation: RecipesMutation.recipeSaved,
             mutationStatus: RecipesMutationStatus.failure,
           ),

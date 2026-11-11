@@ -6,7 +6,8 @@ The bundled starter recipes: 42 cocktails and 12 coffees, each set with its own
 canonical ingredient list, and `StarterRecipesLoader`, which reads a set from
 the package's assets.
 
-Each collection is two JSON files under `assets/<collection>/`:
+Each set is two JSON files under `assets/<template>/`, named after its
+`LibraryTemplate`:
 
 - `ingredients.json` lists every ingredient once, with a stable `key`, a
   `name` and a `defaultUnit`.

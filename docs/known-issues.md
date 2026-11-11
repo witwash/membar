@@ -62,16 +62,46 @@ row's free-text unit.
 **Closing it:** add ARB keys per `StandardUnit` for display, keeping `label`
 as the stored and copied spelling.
 
-## Ingredient names fold on case and surrounding whitespace only
+## Ingredient and recipe names fold on case and surrounding whitespace only
 
-`St. Germain` and `St Germain` are two catalog entries. Folding matches the
-rule tags already use, so the app has one notion of "the same name".
+`St. Germain` and `St Germain` are two catalog entries, and `Negroni` and
+`Negroni.` are two recipes in one library. Folding matches the rule tags
+already use, so the app has one notion of "the same name".
 
 **Why it was left:** a stricter rule for one entity would leave the app with
 two, and merging near-duplicates is a rename on the ingredients screen.
 
-**Closing it:** introduce a shared normalization for tags and ingredients
-together, and migrate existing duplicates deliberately.
+**Closing it:** introduce a shared normalization for tags, ingredients and
+recipe names together, and migrate existing duplicates deliberately.
+
+## Unmatched field values are dropped silently on import
+
+A starter recipe's field value is imported only when the library has a field
+whose label matches it, ignoring case, and whose type accepts the value. A
+Cocktails library whose `Glassware` field was renamed or deleted imports its
+recipes without a glass, and the user is not told.
+
+**Why it was left:** the bundle is schema-tested against the templates, so a
+value is lost only after the user has reshaped the library, and the recipe
+itself still lands. A report per import was judged more noise than help.
+
+**Closing it:** count the dropped values while building the import and state
+the count on the catalog before it runs, the way schema edits state the values
+they clear.
+
+## A failed import can leave unused ingredients
+
+An import writes the new ingredients, then the recipes. If the recipes write
+fails after the ingredients write succeeded, nothing is emitted: the new
+entries are on disk but not in memory. They appear only after a relaunch, as
+unused entries, and the next ingredient write erases them.
+
+**Why it was left:** the storage layer is key-value, with no transaction
+across keys, and the entries are harmless: nothing references them, and they
+do not survive the next ingredient write.
+
+**Closing it:** move to a store with transactions, or write both lists under
+one key.
 
 ## Empty inline callbacks stand in for "do nothing"
 

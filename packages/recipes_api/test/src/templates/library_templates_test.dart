@@ -63,6 +63,15 @@ void main() {
         expect(cocktails.fields.last.type, equals(FieldType.text));
       });
 
+      test('marks the library as created from cocktails', () {
+        expect(
+          const LibraryTemplates()
+              .cocktails(ingredientLibraryId: 'il1')
+              .template,
+          equals(LibraryTemplate.cocktails),
+        );
+      });
+
       test('leaves every field optional', () {
         final cocktails = LibraryTemplates(
           idBuilder: _counterIds(),
@@ -98,6 +107,13 @@ void main() {
             FieldType.text,
             FieldType.longText,
           ]),
+        );
+      });
+
+      test('marks the library as created from coffee', () {
+        expect(
+          const LibraryTemplates().coffee(ingredientLibraryId: 'il1').template,
+          equals(LibraryTemplate.coffee),
         );
       });
 

@@ -180,6 +180,7 @@ void main() {
         final event = savedEvent();
         expect(event.library.name, 'Tea');
         expect(event.library.fields, isEmpty);
+        expect(event.library.template, isNull);
         expect(event.optionRenames, isEmpty);
         expect(
           initialState.libraries.map((library) => library.id),
@@ -205,8 +206,8 @@ void main() {
         );
       });
 
-      testWidgets("creates a library with the coffee template's fields under "
-          'the typed name', (tester) async {
+      testWidgets("creates a library with the coffee template's fields and "
+          'marker under the typed name', (tester) async {
         await openSheet(tester);
 
         await tester.enterText(nameField, 'Tea');
@@ -215,6 +216,7 @@ void main() {
 
         final library = savedEvent().library;
         expect(library.name, 'Tea');
+        expect(library.template, LibraryTemplate.coffee);
         expect(
           labelsOf(library),
           labelsOf(
@@ -223,8 +225,8 @@ void main() {
         );
       });
 
-      testWidgets("creates a library with the cocktails template's fields "
-          'under the typed name', (tester) async {
+      testWidgets("creates a library with the cocktails template's fields and "
+          'marker under the typed name', (tester) async {
         await openSheet(tester);
 
         await tester.enterText(nameField, 'Mocktails');
@@ -233,6 +235,7 @@ void main() {
 
         final library = savedEvent().library;
         expect(library.name, 'Mocktails');
+        expect(library.template, LibraryTemplate.cocktails);
         expect(
           labelsOf(library),
           labelsOf(
@@ -256,7 +259,7 @@ void main() {
         expect(templateSelect, findsNothing);
       });
 
-      testWidgets('saves the new name under the same id, fields and '
+      testWidgets('saves the new name under the same id, fields, template and '
           'ingredient library', (
         tester,
       ) async {
@@ -273,6 +276,7 @@ void main() {
               name: 'Drinks',
               ingredientLibraryId: cocktailsLibrary.ingredientLibraryId,
               fields: cocktailsLibrary.fields,
+              template: LibraryTemplate.cocktails,
             ),
           ),
         );

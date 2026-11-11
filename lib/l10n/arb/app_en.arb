@@ -132,6 +132,16 @@
     "@recipeEditorNameRequiredError": {
         "description": "Validation error shown when the recipe name is blank"
     },
+    "recipeEditorNameTakenError": "Another recipe here is already called {recipe}.",
+    "@recipeEditorNameTakenError": {
+        "description": "Validation error shown when the typed name is one another recipe in the same library carries, ignoring case",
+        "placeholders": {
+            "recipe": {
+                "type": "String",
+                "example": "Negroni"
+            }
+        }
+    },
     "recipeEditorRequiredFieldError": "This field is required.",
     "@recipeEditorRequiredFieldError": {
         "description": "Validation error shown when a required schema field is blank"
@@ -855,5 +865,129 @@
     "fieldEditorSaveFailure": "Your field could not be saved.",
     "@fieldEditorSaveFailure": {
         "description": "Shown in the field sheet when saving fails, keeping the sheet open"
+    },
+    "starterCatalogTitle": "Starter recipes",
+    "@starterCatalogTitle": {
+        "description": "Title of the screen listing the bundled starter recipes a library can import"
+    },
+    "starterCatalogOpenLabel": "Browse starter recipes",
+    "@starterCatalogOpenLabel": {
+        "description": "Label of the recipe list's header action that opens the starter recipes catalog"
+    },
+    "starterCatalogMeasureLabel": "Measures",
+    "@starterCatalogMeasureLabel": {
+        "description": "Label of the selector choosing the system imported cocktail volumes are written in"
+    },
+    "starterCatalogMetricLabel": "ml",
+    "@starterCatalogMetricLabel": {
+        "description": "Option of the measures selector that writes imported volumes in millilitres"
+    },
+    "starterCatalogImperialLabel": "oz",
+    "@starterCatalogImperialLabel": {
+        "description": "Option of the measures selector that writes imported volumes in fluid ounces"
+    },
+    "starterCatalogSearchHint": "Search starter recipes",
+    "@starterCatalogSearchHint": {
+        "description": "Hint of the search field narrowing the starter recipes catalog by name"
+    },
+    "starterCatalogSelectAllLabel": "Select all",
+    "@starterCatalogSelectAllLabel": {
+        "description": "Label of the tile selecting every starter recipe the search shows"
+    },
+    "starterCatalogDeselectAllLabel": "Deselect all",
+    "@starterCatalogDeselectAllLabel": {
+        "description": "Label of the tile deselecting every starter recipe the search shows, offered once they are all selected"
+    },
+    "starterCatalogInLibraryBadge": "In library",
+    "@starterCatalogInLibraryBadge": {
+        "description": "Badge on a starter recipe whose name a recipe in the library already carries"
+    },
+    "starterCatalogImportLabel": "{count, plural, =0{Import} other{Import {count}}}",
+    "@starterCatalogImportLabel": {
+        "description": "Label of the button importing the selected starter recipes, counting every selected recipe including ones the search hides",
+        "placeholders": {
+            "count": {
+                "type": "int",
+                "example": "3"
+            }
+        }
+    },
+    "starterCatalogLoadFailure": "The starter recipes could not be loaded.",
+    "@starterCatalogLoadFailure": {
+        "description": "Shown in place of the catalog when the bundled starter recipes fail to load"
+    },
+    "starterCatalogImportFailure": "The starter recipes could not be imported.",
+    "@starterCatalogImportFailure": {
+        "description": "Shown above the catalog when an import fails, keeping the selection"
+    },
+    "starterCatalogNoResults": "No starter recipes match your search.",
+    "@starterCatalogNoResults": {
+        "description": "Shown in place of the catalog list when the search term matches no starter recipe"
+    },
+    "recipesBrowseStarterLabel": "Browse starter recipes",
+    "@recipesBrowseStarterLabel": {
+        "description": "Label of the empty library's button opening the starter recipes catalog"
+    },
+    "starterRenameTitle": "Rename or skip",
+    "@starterRenameTitle": {
+        "description": "Title of the sheet resolving starter recipes whose names are already taken in the library"
+    },
+    "starterRenameDescription": "These recipes share a name with one already in {library}. Give each a new name, or skip it.",
+    "@starterRenameDescription": {
+        "description": "Body of the sheet resolving name clashes before an import",
+        "placeholders": {
+            "library": {
+                "type": "String",
+                "example": "Cocktails"
+            }
+        }
+    },
+    "starterRenameFieldLabel": "New name for {recipe}",
+    "@starterRenameFieldLabel": {
+        "description": "Label of the field renaming one clashing starter recipe",
+        "placeholders": {
+            "recipe": {
+                "type": "String",
+                "example": "Negroni"
+            }
+        }
+    },
+    "starterRenameNameRequiredError": "Enter a name, or skip this recipe.",
+    "@starterRenameNameRequiredError": {
+        "description": "Validation error shown when a clashing starter recipe is given a blank name"
+    },
+    "starterRenameNameTakenError": "Another recipe here is already called {recipe}.",
+    "@starterRenameNameTakenError": {
+        "description": "Validation error shown when the typed name is one a recipe in the library already carries, ignoring case",
+        "placeholders": {
+            "recipe": {
+                "type": "String",
+                "example": "Negroni"
+            }
+        }
+    },
+    "starterRenameDuplicateError": "Another recipe you are importing has this name.",
+    "@starterRenameDuplicateError": {
+        "description": "Validation error shown when two recipes being imported would share a name, ignoring case"
+    },
+    "starterRenameSkipLabel": "Skip",
+    "@starterRenameSkipLabel": {
+        "description": "Label of the action leaving one clashing starter recipe out of the import"
+    },
+    "starterRenameUndoSkipLabel": "Undo skip",
+    "@starterRenameUndoSkipLabel": {
+        "description": "Label of the action putting a skipped starter recipe back into the import"
+    },
+    "starterRenameSkipAllLabel": "Skip all",
+    "@starterRenameSkipAllLabel": {
+        "description": "Label of the action leaving every clashing starter recipe out of the import"
+    },
+    "starterRenameImportLabel": "Import",
+    "@starterRenameImportLabel": {
+        "description": "Label of the button importing the picked starter recipes under the names given in the sheet"
+    },
+    "starterRenameCancelLabel": "Cancel",
+    "@starterRenameCancelLabel": {
+        "description": "Label of the button closing the rename sheet without importing"
     }
 }

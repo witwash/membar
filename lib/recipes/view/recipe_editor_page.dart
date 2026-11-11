@@ -257,9 +257,18 @@ class _RecipeEditorPageState extends State<RecipeEditorPage> {
     );
   }
 
-  String? _validateName(String? value) => (value ?? '').trim().isEmpty
-      ? context.l10n.recipeEditorNameRequiredError
-      : null;
+  String? _validateName(String? value) {
+    final l10n = context.l10n;
+    final name = (value ?? '').trim();
+    if (name.isEmpty) return l10n.recipeEditorNameRequiredError;
+
+    final state = context.read<RecipesBloc>().state;
+    if (state.recipeNamed(name, libraryId: widget.library.id) case final other?
+        when other.id != widget.recipe?.id) {
+      return l10n.recipeEditorNameTakenError(other.name);
+    }
+    return null;
+  }
 
   void _addIngredient() {
     setState(() => _ingredientRows.add(IngredientRowControllers(_nextRowId++)));

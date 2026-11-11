@@ -6,18 +6,24 @@ import 'package:membar/logging/logging.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 import 'package:talker/talker.dart';
 
 import '../../helpers/helpers.dart';
 
 class _MockRecipesRepository extends Mock implements RecipesRepository {}
 
+class _MockStarterRecipesRepository extends Mock
+    implements StarterRecipesRepository {}
+
 void main() {
   group('App', () {
     late RecipesRepository recipesRepository;
+    late StarterRecipesRepository starterRecipesRepository;
 
     setUp(() {
       recipesRepository = _MockRecipesRepository();
+      starterRecipesRepository = _MockStarterRecipesRepository();
       when(recipesRepository.watch).thenAnswer(
         (_) => Stream.value(
           RecipesSnapshot(
@@ -31,20 +37,30 @@ void main() {
       );
     });
 
+    App buildApp({Talker? talker}) => App(
+      recipesRepository: recipesRepository,
+      starterRecipesRepository: starterRecipesRepository,
+      talker: talker,
+    );
+
     testWidgets('renders RecipesPage', (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
+      await tester.pumpWidget(buildApp());
       expect(find.byType(RecipesPage), findsOneWidget);
     });
 
-    testWidgets('provides the repository to the tree', (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
+    testWidgets('provides both repositories to the tree', (tester) async {
+      await tester.pumpWidget(buildApp());
 
       final context = tester.element(find.byType(RecipesPage));
       expect(context.read<RecipesRepository>(), same(recipesRepository));
+      expect(
+        context.read<StarterRecipesRepository>(),
+        same(starterRecipesRepository),
+      );
     });
 
     testWidgets("boots to the active library's recipe list", (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
+      await tester.pumpWidget(buildApp());
       await tester.pump();
 
       expect(find.text(cocktailsLibrary.name), findsOneWidget);
@@ -52,9 +68,7 @@ void main() {
 
     testWidgets('logs navigation when given a talker', (tester) async {
       final talker = createTalker(level: LogLevel.verbose);
-      await tester.pumpWidget(
-        App(recipesRepository: recipesRepository, talker: talker),
-      );
+      await tester.pumpWidget(buildApp(talker: talker));
 
       expect(
         talker.history.whereType<RouteLog>(),
@@ -64,7 +78,7 @@ void main() {
     });
 
     testWidgets('observes nothing when given no talker', (tester) async {
-      await tester.pumpWidget(App(recipesRepository: recipesRepository));
+      await tester.pumpWidget(buildApp());
 
       final navigator = tester.widget<MaterialApp>(find.byType(MaterialApp));
       expect(navigator.navigatorObservers, isEmpty);

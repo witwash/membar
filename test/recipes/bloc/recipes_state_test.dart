@@ -119,6 +119,30 @@ void main() {
         });
       });
 
+      group('recipeNamed', () {
+        test('is the recipe in that library whose name matches, ignoring '
+            'case and padding', () {
+          expect(
+            schema.recipeNamed('  rECIPE R2 ', libraryId: cocktailsLibrary.id),
+            schema.recipes[1],
+          );
+        });
+
+        test('is null for a name only another library carries', () {
+          expect(
+            schema.recipeNamed('Recipe r5', libraryId: cocktailsLibrary.id),
+            isNull,
+          );
+        });
+
+        test('is null for a blank name', () {
+          expect(
+            schema.recipeNamed('   ', libraryId: cocktailsLibrary.id),
+            isNull,
+          );
+        });
+      });
+
       group('recipeCountIn', () {
         test('counts the recipes of that library alone', () {
           expect(schema.recipeCountIn(cocktailsLibrary.id), 4);

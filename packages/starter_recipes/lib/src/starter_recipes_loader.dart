@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
+import 'package:recipes_api/recipes_api.dart';
 import 'package:starter_recipes/starter_recipes.dart';
 
 /// {@template starter_recipes_loader}
@@ -12,10 +13,10 @@ class StarterRecipesLoader {
 
   final AssetBundle _bundle;
 
-  /// Loads the ingredients and recipes of [collection].
-  Future<StarterSet> load(StarterCollection collection) async {
-    final ingredients = await _list(collection, 'ingredients');
-    final recipes = await _list(collection, 'recipes');
+  /// Loads the ingredients and recipes bundled for [template].
+  Future<StarterSet> load(LibraryTemplate template) async {
+    final ingredients = await _list(template, 'ingredients');
+    final recipes = await _list(template, 'recipes');
     return StarterSet(
       ingredients: ingredients.map(StarterIngredient.fromJson).toList(),
       recipes: recipes.map(StarterRecipe.fromJson).toList(),
@@ -23,11 +24,11 @@ class StarterRecipesLoader {
   }
 
   Future<List<Map<String, dynamic>>> _list(
-    StarterCollection collection,
+    LibraryTemplate template,
     String file,
   ) async {
     final json = await _bundle.loadString(
-      'packages/starter_recipes/assets/${collection.name}/$file.json',
+      'packages/starter_recipes/assets/${template.name}/$file.json',
     );
     return (jsonDecode(json) as List).cast<Map<String, dynamic>>();
   }

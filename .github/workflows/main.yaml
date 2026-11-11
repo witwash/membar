@@ -43,3 +43,9 @@ jobs:
     with:
       flutter_version: "3.47.x"
       working_directory: packages/starter_recipes
+
+  build-starter-recipes-repository:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1
+    with:
+      flutter_version: "3.47.x"
+      working_directory: packages/starter_recipes_repository

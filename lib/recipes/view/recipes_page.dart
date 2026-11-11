@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 /// The app's home route: the recipe list of the active library.
 ///
@@ -15,9 +16,10 @@ class RecipesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          RecipesBloc(recipesRepository: context.read<RecipesRepository>())
-            ..add(const RecipesSubscriptionRequested()),
+      create: (context) => RecipesBloc(
+        recipesRepository: context.read<RecipesRepository>(),
+        starterRecipesRepository: context.read<StarterRecipesRepository>(),
+      )..add(const RecipesSubscriptionRequested()),
       child: const RecipesView(),
     );
   }

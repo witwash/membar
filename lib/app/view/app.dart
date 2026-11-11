@@ -5,16 +5,25 @@ import 'package:membar/l10n/l10n.dart';
 import 'package:membar/logging/logging.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 import 'package:talker/talker.dart';
 
-/// The theme every screen renders under. There is one repository, so it is
-/// provided with a single `RepositoryProvider.value`.
+/// The theme every screen renders under, and the repositories above it.
 class App extends StatelessWidget {
-  /// Creates an [App] backed by [recipesRepository], logging through [talker].
-  const App({required this.recipesRepository, this.talker, super.key});
+  /// Creates an [App] backed by [recipesRepository] and
+  /// [starterRecipesRepository], logging through [talker].
+  const App({
+    required this.recipesRepository,
+    required this.starterRecipesRepository,
+    this.talker,
+    super.key,
+  });
 
   /// The repository every recipe screen reads and writes through.
   final RecipesRepository recipesRepository;
+
+  /// The repository the bundled starter recipes are read through.
+  final StarterRecipesRepository starterRecipesRepository;
 
   /// The logger navigation changes are reported to.
   ///
@@ -26,8 +35,11 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = FTheme.neutral.light.touch;
 
-    return RepositoryProvider.value(
-      value: recipesRepository,
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider.value(value: recipesRepository),
+        RepositoryProvider.value(value: starterRecipesRepository),
+      ],
       child: MaterialApp(
         theme: theme.toApproximateMaterialTheme(),
         localizationsDelegates: const [

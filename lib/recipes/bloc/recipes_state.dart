@@ -25,6 +25,7 @@ enum RecipesMutation {
   fieldMoved,
   ingredientSaved,
   ingredientDeleted,
+  starterRecipesImported,
 }
 
 final class RecipesState extends Equatable {
@@ -107,6 +108,23 @@ final class RecipesState extends Equatable {
     if (folded.isEmpty) return null;
     for (final library in libraries) {
       if (_fold(library.name) == folded) return library;
+    }
+    return null;
+  }
+
+  /// The recipe in the library carrying [libraryId] whose name matches [name]
+  /// without regard to case or surrounding whitespace, or null when none does
+  /// or [name] is blank.
+  ///
+  /// Recipe names are unique per library on that same folding, so at most one
+  /// can match.
+  Recipe? recipeNamed(String name, {required String libraryId}) {
+    final folded = _fold(name);
+    if (folded.isEmpty) return null;
+    for (final recipe in recipes) {
+      if (recipe.libraryId == libraryId && _fold(recipe.name) == folded) {
+        return recipe;
+      }
     }
     return null;
   }

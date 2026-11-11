@@ -15,8 +15,8 @@ class _DiskBundle extends CachingAssetBundle {
   }
 }
 
-const Map<StarterCollection, Set<String>> _tags = {
-  StarterCollection.cocktails: {
+const Map<LibraryTemplate, Set<String>> _tags = {
+  LibraryTemplate.cocktails: {
     'stirred',
     'sour',
     'long',
@@ -30,7 +30,7 @@ const Map<StarterCollection, Set<String>> _tags = {
     'brandy',
     'cachaça',
   },
-  StarterCollection.coffee: {
+  LibraryTemplate.coffee: {
     'espresso',
     'milk',
     'filter',
@@ -40,9 +40,9 @@ const Map<StarterCollection, Set<String>> _tags = {
   },
 };
 
-const Map<StarterCollection, int> _counts = {
-  StarterCollection.cocktails: 42,
-  StarterCollection.coffee: 12,
+const Map<LibraryTemplate, int> _counts = {
+  LibraryTemplate.cocktails: 42,
+  LibraryTemplate.coffee: 12,
 };
 
 /// Units a counted cocktail row may not use, because they are volumes or
@@ -54,13 +54,13 @@ const Set<StandardUnit> _measuredUnits = {
   StandardUnit.gram,
 };
 
-Library _template(StarterCollection collection) {
+Library _template(LibraryTemplate template) {
   const templates = LibraryTemplates();
-  return switch (collection) {
-    StarterCollection.cocktails => templates.cocktails(
+  return switch (template) {
+    LibraryTemplate.cocktails => templates.cocktails(
       ingredientLibraryId: 'x',
     ),
-    StarterCollection.coffee => templates.coffee(ingredientLibraryId: 'x'),
+    LibraryTemplate.coffee => templates.coffee(ingredientLibraryId: 'x'),
   };
 }
 
@@ -80,11 +80,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('pubspec', () {
-    for (final collection in StarterCollection.values) {
+    for (final template in LibraryTemplate.values) {
       for (final file in ['ingredients', 'recipes']) {
-        test('declares assets/${collection.name}/$file.json', () async {
+        test('declares assets/${template.name}/$file.json', () async {
           await expectLater(
-            rootBundle.loadString('assets/${collection.name}/$file.json'),
+            rootBundle.loadString('assets/${template.name}/$file.json'),
             completes,
           );
         });
@@ -92,15 +92,15 @@ void main() {
     }
   });
 
-  for (final collection in StarterCollection.values) {
-    group('${collection.name} bundle', () {
+  for (final template in LibraryTemplate.values) {
+    group('${template.name} bundle', () {
       late StarterSet set;
       late Map<String, FieldDefinition> fields;
 
       setUpAll(() async {
-        set = await StarterRecipesLoader(_DiskBundle()).load(collection);
+        set = await StarterRecipesLoader(_DiskBundle()).load(template);
         fields = {
-          for (final field in _template(collection).fields) field.label: field,
+          for (final field in _template(template).fields) field.label: field,
         };
       });
 
@@ -109,8 +109,8 @@ void main() {
           for (final row in recipe.rows) (recipe, row),
       ];
 
-      test('has ${_counts[collection]} recipes', () {
-        expect(set.recipes, hasLength(_counts[collection]));
+      test('has ${_counts[template]} recipes', () {
+        expect(set.recipes, hasLength(_counts[template]));
       });
 
       test('has unique recipe keys and names', () {
@@ -216,7 +216,7 @@ void main() {
           [
             for (final recipe in set.recipes)
               for (final tag in recipe.tags)
-                if (!_tags[collection]!.contains(tag)) '${recipe.key}: $tag',
+                if (!_tags[template]!.contains(tag)) '${recipe.key}: $tag',
           ],
           isEmpty,
         );
@@ -246,8 +246,8 @@ void main() {
         );
       });
 
-      switch (collection) {
-        case StarterCollection.cocktails:
+      switch (template) {
+        case LibraryTemplate.cocktails:
           test('writes every volume as ml = oz × 30', () {
             expect(
               [
@@ -281,7 +281,7 @@ void main() {
             );
           });
 
-        case StarterCollection.coffee:
+        case LibraryTemplate.coffee:
           test('writes every row metric, in gram or ml', () {
             expect(
               [

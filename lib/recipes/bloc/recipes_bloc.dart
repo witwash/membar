@@ -2,6 +2,7 @@ import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:equatable/equatable.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 part 'recipes_event.dart';
 part 'recipes_state.dart';
@@ -15,8 +16,10 @@ part 'recipes_state.dart';
 /// {@endtemplate}
 class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
   /// {@macro recipes_bloc}
-  RecipesBloc({required this._recipesRepository})
-    : super(const RecipesState()) {
+  RecipesBloc({
+    required this._recipesRepository,
+    required this._starterRecipesRepository,
+  }) : super(const RecipesState()) {
     on<RecipesSubscriptionRequested>(
       _onSubscriptionRequested,
       transformer: restartable(),
@@ -41,11 +44,17 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       _onIngredientDeleted,
       transformer: sequential(),
     );
+    on<RecipesStarterRecipesImported>(
+      _onStarterRecipesImported,
+      transformer: sequential(),
+    );
     on<RecipesSearchTermChanged>(_onSearchTermChanged);
     on<RecipesTagFilterToggled>(_onTagFilterToggled);
   }
 
   final RecipesRepository _recipesRepository;
+
+  final StarterRecipesRepository _starterRecipesRepository;
 
   Future<void> _onSubscriptionRequested(
     RecipesSubscriptionRequested event,
@@ -102,6 +111,15 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
     } on IngredientNotFoundException {
       // A row's entry was deleted from another screen while the editor was
       // open.
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.recipeSaved,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipeNameTakenException {
+      // The editor refuses a taken name, so another recipe took this one
+      // after the editor validated it.
       emit(
         state.copyWith(
           mutation: RecipesMutation.recipeSaved,
@@ -329,6 +347,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
           id: library.id,
           name: library.name,
           ingredientLibraryId: library.ingredientLibraryId,
+          template: library.template,
           fields: [
             for (final field in library.fields)
               if (field.id != event.fieldId) field,
@@ -404,6 +423,7 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
           id: library.id,
           name: library.name,
           ingredientLibraryId: library.ingredientLibraryId,
+          template: library.template,
           fields: [...library.fields]
             ..removeAt(index)
             ..insert(target, library.fields[index]),
@@ -508,6 +528,108 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       emit(
         state.copyWith(
           mutation: RecipesMutation.ingredientDeleted,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    }
+  }
+
+  /// Imports the event's picks into the event's library.
+  ///
+  /// The import is built here, against the state, so the picks link to the
+  /// freshest catalog. Anything that changed since is caught by the
+  /// repository's validation and reported as a failure.
+  Future<void> _onStarterRecipesImported(
+    RecipesStarterRecipesImported event,
+    Emitter<RecipesState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        mutation: RecipesMutation.starterRecipesImported,
+        mutationStatus: RecipesMutationStatus.loading,
+      ),
+    );
+
+    final library = state.libraryById(event.libraryId);
+    if (library == null) {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+      return;
+    }
+
+    final ({List<CatalogIngredient> ingredients, List<Recipe> recipes}) import;
+    try {
+      import = _starterRecipesRepository.buildImport(
+        set: event.set,
+        names: event.names,
+        library: library,
+        entries: state.ingredientsIn(library.ingredientLibraryId),
+        system: event.system,
+      );
+    } on Object catch (error, stackTrace) {
+      // buildImport documents no failure, so a throw is a bug. Left uncaught
+      // it would strand the catalog in loading with Import disabled.
+      addError(error, stackTrace);
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _recipesRepository.importRecipes(
+        libraryId: library.id,
+        ingredients: import.ingredients,
+        recipes: import.recipes,
+      );
+      // A filter left over from before would hide what was just imported.
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.success,
+          searchTerm: '',
+          activeTags: const {},
+        ),
+      );
+    } on LibraryNotFoundException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on IngredientNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on IngredientNotFoundException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipeNameTakenException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+    } on RecipesPersistenceException {
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
           mutationStatus: RecipesMutationStatus.failure,
         ),
       );

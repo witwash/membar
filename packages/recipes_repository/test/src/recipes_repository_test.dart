@@ -210,6 +210,57 @@ void main() {
       });
     });
 
+    group('importRecipes', () {
+      final campari = CatalogIngredient(
+        name: 'Campari',
+        ingredientLibraryId: 'il1',
+      );
+      final negroni = Recipe(libraryId: 'l1', name: 'Negroni');
+
+      test('delegates to the api', () async {
+        when(
+          () => api.importRecipes(
+            libraryId: any(named: 'libraryId'),
+            ingredients: any(named: 'ingredients'),
+            recipes: any(named: 'recipes'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await repository.importRecipes(
+          libraryId: 'l1',
+          ingredients: [campari],
+          recipes: [negroni],
+        );
+
+        verify(
+          () => api.importRecipes(
+            libraryId: 'l1',
+            ingredients: [campari],
+            recipes: [negroni],
+          ),
+        ).called(1);
+      });
+
+      test('passes a RecipeNameTakenException through untranslated', () {
+        when(
+          () => api.importRecipes(
+            libraryId: any(named: 'libraryId'),
+            ingredients: any(named: 'ingredients'),
+            recipes: any(named: 'recipes'),
+          ),
+        ).thenThrow(const RecipeNameTakenException('Negroni'));
+
+        expect(
+          () => repository.importRecipes(
+            libraryId: 'l1',
+            ingredients: const [],
+            recipes: [negroni],
+          ),
+          throwsA(isA<RecipeNameTakenException>()),
+        );
+      });
+    });
+
     group('deleteLibrary', () {
       test('delegates to the api', () async {
         when(

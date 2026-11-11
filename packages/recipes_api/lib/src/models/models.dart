@@ -4,6 +4,7 @@ export 'field_type.dart';
 export 'ingredient.dart';
 export 'ingredient_library.dart';
 export 'library.dart';
+export 'library_template.dart';
 export 'recipe.dart';
 export 'recipes_snapshot.dart';
 export 'tags.dart';

@@ -112,6 +112,39 @@ void main() {
       expect(decoded, equals(library));
     });
 
+    test('round-trips its template through JSON', () {
+      for (final template in LibraryTemplate.values) {
+        final library = Library(
+          id: 'l1',
+          name: 'Cocktails',
+          ingredientLibraryId: 'il1',
+          template: template,
+        );
+
+        final decoded = Library.fromJson(
+          json.decode(json.encode(library.toJson())) as Map<String, dynamic>,
+        );
+
+        expect(decoded.template, equals(template));
+      }
+    });
+
+    test('tells two libraries apart by their template', () {
+      expect(
+        Library(id: 'l1', name: 'Cocktails', ingredientLibraryId: 'il1'),
+        isNot(
+          equals(
+            Library(
+              id: 'l1',
+              name: 'Cocktails',
+              ingredientLibraryId: 'il1',
+              template: LibraryTemplate.cocktails,
+            ),
+          ),
+        ),
+      );
+    });
+
     test('decodes a payload with no fields', () {
       final decoded = Library.fromJson(const {
         'id': 'l1',
@@ -120,6 +153,7 @@ void main() {
       });
 
       expect(decoded.fields, isEmpty);
+      expect(decoded.template, isNull);
     });
   });
 

@@ -3,15 +3,21 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:membar/ingredients/ingredients.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:membar/starter_catalog/starter_catalog.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:recipes_repository/recipes_repository.dart';
+import 'package:starter_recipes_repository/starter_recipes_repository.dart';
 
 import '../../helpers/helpers.dart';
 
 class _MockRecipesBloc extends MockBloc<RecipesEvent, RecipesState>
     implements RecipesBloc {}
+
+class _MockStarterRecipesRepository extends Mock
+    implements StarterRecipesRepository {}
 
 void main() {
   group('RecipesView', () {
@@ -352,6 +358,147 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(RecipeDetailsPage), findsOneWidget);
+    });
+    group('starter catalog', () {
+      late StarterRecipesRepository starterRecipesRepository;
+
+      final blankLibrary = Library(
+        id: 'library-blank',
+        name: 'Blank',
+        ingredientLibraryId: cocktailsPantry.id,
+      );
+
+      setUp(() {
+        starterRecipesRepository = _MockStarterRecipesRepository();
+        when(
+          () => starterRecipesRepository.load(LibraryTemplate.cocktails),
+        ).thenAnswer(
+          (_) async => const StarterSet(ingredients: [], recipes: []),
+        );
+      });
+
+      Future<void> pumpWithCatalog(WidgetTester tester) => tester.pumpApp(
+        const RecipesView(),
+        recipesBloc: recipesBloc,
+        starterRecipesRepository: starterRecipesRepository,
+      );
+
+      void expectCatalogPushed(WidgetTester tester) {
+        final page = find.byType(StarterCatalogPage);
+        expect(page, findsOneWidget);
+        expect(
+          ModalRoute.of(tester.element(page))?.settings.name,
+          'starter-catalog',
+        );
+      }
+
+      testWidgets('opens the catalog from the header action', (tester) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            recipes: [negroni],
+            activeLibraryId: cocktailsLibrary.id,
+          ),
+        );
+        await pumpWithCatalog(tester);
+
+        await tester.tap(find.bySemanticsLabel('Browse starter recipes'));
+        await tester.pumpAndSettle();
+
+        expectCatalogPushed(tester);
+      });
+
+      testWidgets('opens the catalog from the empty state', (tester) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            activeLibraryId: cocktailsLibrary.id,
+          ),
+        );
+        await pumpWithCatalog(tester);
+
+        await tester.tap(
+          find.widgetWithText(FButton, 'Browse starter recipes'),
+        );
+        await tester.pumpAndSettle();
+
+        expectCatalogPushed(tester);
+      });
+
+      testWidgets('opens the Coffee catalog from a Coffee library', (
+        tester,
+      ) async {
+        when(
+          () => starterRecipesRepository.load(LibraryTemplate.coffee),
+        ).thenAnswer(
+          (_) async => const StarterSet(ingredients: [], recipes: []),
+        );
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [coffeeLibrary],
+            recipes: [
+              Recipe(
+                id: 'recipe-v60',
+                libraryId: coffeeLibrary.id,
+                name: 'V60',
+              ),
+            ],
+            activeLibraryId: coffeeLibrary.id,
+          ),
+        );
+        await pumpWithCatalog(tester);
+
+        await tester.tap(find.bySemanticsLabel('Browse starter recipes'));
+        await tester.pumpAndSettle();
+
+        expectCatalogPushed(tester);
+        expect(
+          tester
+              .widget<StarterCatalogPage>(find.byType(StarterCatalogPage))
+              .template,
+          LibraryTemplate.coffee,
+        );
+      });
+
+      testWidgets('offers no empty-state button once the library has recipes', (
+        tester,
+      ) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            recipes: [negroni],
+            activeLibraryId: cocktailsLibrary.id,
+            searchTerm: 'martini',
+          ),
+        );
+        await pumpView(tester);
+
+        expect(
+          find.widgetWithText(FButton, 'Browse starter recipes'),
+          findsNothing,
+        );
+      });
+
+      testWidgets('offers no catalog in a library without a template', (
+        tester,
+      ) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [blankLibrary],
+            activeLibraryId: blankLibrary.id,
+          ),
+        );
+        await pumpView(tester);
+
+        expect(find.bySemanticsLabel('Browse starter recipes'), findsNothing);
+        expect(find.text('Browse starter recipes'), findsNothing);
+        expect(find.widgetWithText(FButton, 'Add recipe'), findsOneWidget);
+      });
     });
   });
 }
