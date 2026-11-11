@@ -17,34 +17,33 @@ extension PumpApp on WidgetTester {
     StarterRecipesRepository? starterRecipesRepository,
     RecipesBloc? recipesBloc,
   }) {
-    var child = widget;
-    if (recipesBloc != null) {
-      child = BlocProvider.value(value: recipesBloc, child: child);
-    }
+    final home = recipesBloc == null
+        ? widget
+        : BlocProvider.value(value: recipesBloc, child: widget);
+    Widget app = MaterialApp(
+      theme: FTheme.neutral.light.touch.toApproximateMaterialTheme(),
+      localizationsDelegates: const [
+        ...AppLocalizations.localizationsDelegates,
+        ...FLocalizations.localizationsDelegates,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      builder: (context, child) => FTheme(
+        data: FTheme.neutral.light.touch,
+        child: FToaster(child: FTooltipGroup(child: child!)),
+      ),
+      home: home,
+    );
+    // Above the navigator, as in `App`, so a pushed route can read them too.
     if (recipesRepository != null) {
-      child = RepositoryProvider.value(value: recipesRepository, child: child);
+      app = RepositoryProvider.value(value: recipesRepository, child: app);
     }
     if (starterRecipesRepository != null) {
-      child = RepositoryProvider.value(
+      app = RepositoryProvider.value(
         value: starterRecipesRepository,
-        child: child,
+        child: app,
       );
     }
 
-    return pumpWidget(
-      MaterialApp(
-        theme: FTheme.neutral.light.touch.toApproximateMaterialTheme(),
-        localizationsDelegates: const [
-          ...AppLocalizations.localizationsDelegates,
-          ...FLocalizations.localizationsDelegates,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        builder: (context, child) => FTheme(
-          data: FTheme.neutral.light.touch,
-          child: FToaster(child: FTooltipGroup(child: child!)),
-        ),
-        home: child,
-      ),
-    );
+    return pumpWidget(app);
   }
 }

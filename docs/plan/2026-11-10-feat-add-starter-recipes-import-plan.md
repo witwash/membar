@@ -321,30 +321,30 @@ Tests:
 
 ### 2. App: repository wiring, unique names, template marker, import event
 
-- [ ] `pubspec.yaml`: add `starter_recipes_repository: path: packages/starter_recipes_repository`.
+- [x] `pubspec.yaml`: add `starter_recipes_repository: path: packages/starter_recipes_repository`.
   `starter_recipes` is only a transitive dependency.
-- [ ] `lib/main_{development,staging,production}.dart`: build
+- [x] `lib/main_{development,staging,production}.dart`: build
   `StarterRecipesRepository(loader: StarterRecipesLoader(rootBundle))` and pass it to
   `App`.
-- [ ] `lib/app/view/app.dart`: take `starterRecipesRepository` and switch to
+- [x] `lib/app/view/app.dart`: take `starterRecipesRepository` and switch to
   `MultiRepositoryProvider`.
-- [ ] `lib/recipes/view/recipes_page.dart`: pass
+- [x] `lib/recipes/view/recipes_page.dart`: pass
   `context.read<StarterRecipesRepository>()` to `RecipesBloc`.
-- [ ] `test/helpers/pump_app.dart`: add an optional `starterRecipesRepository`.
-- [ ] Rebuild sites pass `template: library.template`:
+- [x] `test/helpers/pump_app.dart`: add an optional `starterRecipesRepository`.
+- [x] Rebuild sites pass `template: library.template`:
   - `lib/libraries/widgets/library_editor_sheet.dart:184` (rename);
   - `lib/libraries/widgets/field_editor_sheet.dart:305`;
   - `lib/recipes/bloc/recipes_bloc.dart:328, 403` (field delete and move).
-- [ ] `lib/libraries/widgets/library_editor_sheet.dart` (create): build the chosen template's
+- [x] `lib/libraries/widgets/library_editor_sheet.dart` (create): build the chosen template's
   `Library` once and pass both its `fields` and its `template` to the new `Library`. Blank
   passes neither.
-- [ ] `lib/recipes/bloc/recipes_state.dart`:
+- [x] `lib/recipes/bloc/recipes_state.dart`:
   - add `RecipesMutation.starterRecipesImported`;
   - add `Recipe? recipeNamed(String name, {required String libraryId})` (with `_fold`, blank
     → null).
-- [ ] `lib/recipes/bloc/recipes_event.dart`:
+- [x] `lib/recipes/bloc/recipes_event.dart`:
   `RecipesStarterRecipesImported({libraryId, set, names, system})`.
-- [ ] `lib/recipes/bloc/recipes_bloc.dart`:
+- [x] `lib/recipes/bloc/recipes_bloc.dart`:
   - The constructor gains `required StarterRecipesRepository starterRecipesRepository`.
   - `_onRecipeSaved` catches `RecipeNameTakenException` and reports failure.
   - New `_onStarterRecipesImported`, registered as `sequential()`:
@@ -355,35 +355,35 @@ Tests:
     4. Call `recipesRepository.importRecipes`.
     5. On success, emit with `searchTerm: ''` and `activeTags: {}`.
     6. Catch every exception `importRecipes` documents and emit failure.
-- [ ] `lib/recipes/view/recipe_editor_page.dart`: `_validateName` refuses
+- [x] `lib/recipes/view/recipe_editor_page.dart`: `_validateName` refuses
   `state.recipeNamed(name, libraryId: widget.library.id)` when its id differs from
   `widget.recipe?.id`.
-- [ ] ARB: `recipeEditorNameTakenError` ("Another recipe here is already called {recipe}.").
+- [x] ARB: `recipeEditorNameTakenError` ("Another recipe here is already called {recipe}.").
 
 Tests:
-- [ ] Bloc:
+- [x] Bloc:
   - recipe save fails on `RecipeNameTakenException`;
   - import success emits loading, then success with cleared filters, and passes the built
     lists to the repository (both repositories mocked);
   - a missing library fails without calling either repository;
   - each `importRecipes` exception fails;
   - field delete and field move keep the library's template.
-- [ ] State: `recipeNamed` (fold, other library, blank).
-- [ ] Library editor:
+- [x] State: `recipeNamed` (fold, other library, blank).
+- [x] Library editor:
   - creating from Cocktails or Coffee sends the matching template;
   - Blank sends null;
   - a rename keeps the template.
-- [ ] Field editor: a save keeps the library's template.
-- [ ] Recipe editor:
+- [x] Field editor: a save keeps the library's template.
+- [x] Recipe editor:
   - a taken name shows the inline error and dispatches nothing;
   - its own name with a case change saves;
   - a failure emitted for a race shows the banner.
-- [ ] App test: both repositories are provided.
+- [x] App test: both repositories are provided.
 
 ### 3. Presentation: catalog, rename sheet, entry points
 
 New feature `lib/starter_catalog/` (barrel `starter_catalog.dart`):
-- [ ] `bloc/starter_catalog_bloc.dart` (+ `_event`, `_state`), built as
+- [x] `bloc/starter_catalog_bloc.dart` (+ `_event`, `_state`), built as
   `StarterCatalogBloc({required StarterRecipesRepository starterRecipesRepository, required LibraryTemplate template})`.
   - Events:
     - `StarterCatalogRequested`
@@ -398,7 +398,7 @@ New feature `lib/starter_catalog/` (barrel `starter_catalog.dart`):
     - getters `visibleRecipes` (name contains the term, ignoring case), `allVisibleSelected`
       and `selectedRecipes` (in set order).
   - A `load` throw becomes failure.
-- [ ] `view/starter_catalog_page.dart`:
+- [x] `view/starter_catalog_page.dart`:
   - `static Route<void> route({required RecipesBloc bloc, required Library library, required LibraryTemplate template})`
     with route name `starter-catalog`. It re-provides the `RecipesBloc` and creates a
     `StarterCatalogBloc` from `context.read<StarterRecipesRepository>()`.
@@ -417,19 +417,19 @@ New feature `lib/starter_catalog/` (barrel `starter_catalog.dart`):
     in the label, so screen readers read it on focus.
   - A `RecipesMutationListener(starterRecipesImported)` pops the page on success and shows a
     `FailureBanner(starterCatalogImportFailure)` on failure.
-- [ ] `widgets/starter_rename_sheet.dart`:
+- [x] `widgets/starter_rename_sheet.dart`:
   - `static Future<Map<String, String?>?> show(context, {required Library library, required List<StarterRecipe> clashes, required List<StarterRecipe> others})`.
   - The sheet has one row per clash: a name field labelled "New name for {recipe}" with
     autovalidate always, and a `Skip` / `Undo skip` toggle.
   - The header has `Skip all`. The footer has `Import` and `Cancel`.
   - Validation follows *Rename sheet rules*. `others` are the non-clashing picks whose names
     count as taken.
-- [ ] `lib/recipes/view/recipes_view.dart`:
+- [x] `lib/recipes/view/recipes_view.dart`:
   - When `library.template` is non-null, add a header action (`FLucideIcons.bookOpen`,
     `starterCatalogOpenLabel`) placed before the `+`.
   - `_EmptyState` gains `onBrowse`. When the library is empty and has a template, an outline
     button `recipesBrowseStarterLabel` sits under `Add recipe`.
-- [ ] ARB keys, each with `@` metadata:
+- [x] ARB keys, each with `@` metadata:
   - `starterCatalogTitle`, `starterCatalogOpenLabel`, `starterCatalogMeasureLabel`
   - `starterCatalogMetricLabel`, `starterCatalogImperialLabel`
   - `starterCatalogSearchHint`, `starterCatalogSelectAllLabel`,
@@ -444,14 +444,14 @@ New feature `lib/starter_catalog/` (barrel `starter_catalog.dart`):
   - `starterRenameImportLabel`, `starterRenameCancelLabel`
 
 Tests (`test/starter_catalog/…`, `test/recipes/view/recipes_view_test.dart`):
-- [ ] Bloc (`bloc_test`, mocked `StarterRecipesRepository`):
+- [x] Bloc (`bloc_test`, mocked `StarterRecipesRepository`):
   - load success and failure;
   - search narrows `visibleRecipes`;
   - toggling a recipe;
   - `VisibleToggled` selects the visible rows, then deselects them, and leaves hidden
     selections alone;
   - the measure change keeps the selection.
-- [ ] Page (mocked `StarterRecipesRepository` and `RecipesBloc`):
+- [x] Page (mocked `StarterRecipesRepository` and `RecipesBloc`):
   - every state in the table;
   - the toggle is absent for coffee;
   - the `In library` badge;
@@ -461,23 +461,23 @@ Tests (`test/starter_catalog/…`, `test/recipes/view/recipes_view_test.dart`):
   - success pops;
   - failure shows the banner and keeps the selection;
   - Import is disabled while loading.
-- [ ] Rename sheet:
+- [x] Rename sheet:
   - blank, taken and duplicate-among-picks errors;
   - Skip removes a row from validation and from duplicate checks;
   - `Skip all` with no other picks disables Import;
   - the returned map holds renames and nulls;
   - Cancel returns null.
-- [ ] Recipes view:
+- [x] Recipes view:
   - the header action and the empty-state button show only with a template;
   - each pushes `starter-catalog`.
 
 ### Docs
-- [ ] `docs/known-issues.md`:
+- [x] `docs/known-issues.md`:
   - add "Unmatched field values are dropped silently on import";
   - add "A failed import can leave unused ingredients", using the relaunch/next-write
     wording from *Decisions made in this plan*;
   - widen "Ingredient names fold on case…" to cover recipe names.
-- [ ] Oct 17 brainstorm: extend the superseded note: "The import flow is implemented by
+- [x] Oct 17 brainstorm: extend the superseded note: "The import flow is implemented by
   `docs/plan/2026-11-10-feat-add-starter-recipes-import-plan.md`; its *any failure writes
   nothing* is narrowed there."
 
@@ -506,7 +506,7 @@ Tests (`test/starter_catalog/…`, `test/recipes/view/recipes_view_test.dart`):
 
 ### Phase 1: Data layer and starter repository
 
-- **Status:** Complete
+- **Status:** Done
 - **Scope:** Delivers the template marker, unique recipe names, `importRecipes` across the
   API, storage and repository, the `StarterCollection`→`LibraryTemplate` swap, and the new
   `starter_recipes_repository` package with its CI job. The app still compiles unchanged.
@@ -525,7 +525,7 @@ Tests (`test/starter_catalog/…`, `test/recipes/view/recipes_view_test.dart`):
 
 ### Phase 2: App wiring for names, templates and import
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** The app depends on `starter_recipes_repository` and provides it. Libraries keep
   their template through every rebuild, and the editor records it on create. The recipe
   editor refuses taken names. `RecipesBloc` gains the import event, the mutation kind and
@@ -543,7 +543,7 @@ Tests (`test/starter_catalog/…`, `test/recipes/view/recipes_view_test.dart`):
 
 ### Phase 3: Catalog UI, rename sheet, entry points, docs
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** Delivers the `lib/starter_catalog/` feature, the recipe list entry points, the
   catalog ARB strings, and the known-issues and brainstorm updates.
 - **Files touched:** `lib/starter_catalog/**`, `lib/recipes/view/recipes_view.dart`,

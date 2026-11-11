@@ -9,7 +9,9 @@ topic: starter-recipes-import
 > `2026-11-06-starter-recipes-content-brainstorm-doc.md` and
 > `docs/plan/2026-11-06-feat-add-starter-recipes-content-plan.md`: 42 cocktails and 12
 > coffees, a keyed ingredient list per set, and coffee in metric only. The rest of this
-> document stands.
+> document stands. The import flow is implemented by
+> `docs/plan/2026-11-10-feat-add-starter-recipes-import-plan.md`; its *any failure writes
+> nothing* is narrowed there.
 
 ## What We're Building
 

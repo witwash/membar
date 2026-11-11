@@ -4,6 +4,7 @@ import 'package:forui/forui.dart';
 import 'package:membar/ingredients/ingredients.dart';
 import 'package:membar/l10n/l10n.dart';
 import 'package:membar/recipes/recipes.dart';
+import 'package:membar/starter_catalog/starter_catalog.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
@@ -36,6 +37,12 @@ class RecipesView extends StatelessWidget {
                 IngredientsPage.route(bloc: context.read<RecipesBloc>()),
               ),
             ),
+            if (library.template case final template?)
+              FHeaderAction(
+                icon: const Icon(FLucideIcons.bookOpen),
+                semanticsLabel: l10n.starterCatalogOpenLabel,
+                onPress: () => _openStarterCatalog(context, library, template),
+              ),
             FHeaderAction(
               icon: const Icon(FLucideIcons.plus),
               semanticsLabel: l10n.recipeAddLabel,
@@ -114,6 +121,17 @@ class _RecipeList extends StatelessWidget {
                   onAdd: libraryRecipes.isEmpty
                       ? () => RecipeEditorPage.open(context, library)
                       : null,
+                  onBrowse: switch ((
+                    libraryRecipes.isEmpty,
+                    library.template,
+                  )) {
+                    (true, final template?) => () => _openStarterCatalog(
+                      context,
+                      library,
+                      template,
+                    ),
+                    _ => null,
+                  },
                 )
               : FTileGroup.builder(
                   count: visible.length,
@@ -188,11 +206,13 @@ class _EmptyState extends StatelessWidget {
     required this.title,
     required this.description,
     this.onAdd,
+    this.onBrowse,
   });
 
   final String title;
   final String description;
   final VoidCallback? onAdd;
+  final VoidCallback? onBrowse;
 
   @override
   Widget build(BuildContext context) {
@@ -220,8 +240,32 @@ class _EmptyState extends StatelessWidget {
               child: Text(context.l10n.recipeAddLabel),
             ),
           ],
+          if (onBrowse case final onBrowse?) ...[
+            const SizedBox(height: AppSpacing.spacing100),
+            FButton(
+              variant: FButtonVariant.outline,
+              mainAxisSize: MainAxisSize.min,
+              prefix: const Icon(FLucideIcons.bookOpen),
+              onPress: onBrowse,
+              child: Text(context.l10n.recipesBrowseStarterLabel),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+void _openStarterCatalog(
+  BuildContext context,
+  Library library,
+  LibraryTemplate template,
+) {
+  Navigator.of(context).push(
+    StarterCatalogPage.route(
+      bloc: context.read<RecipesBloc>(),
+      library: library,
+      template: template,
+    ),
+  );
 }
