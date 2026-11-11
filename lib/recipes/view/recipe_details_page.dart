@@ -118,7 +118,7 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
                 title: l10n.recipeIngredientsSectionTitle,
                 children: [
                   for (final ingredient in recipe.ingredients)
-                    if (_ingredientLine(ingredient, state) case final line?)
+                    if (ingredientLine(state, ingredient) case final line?)
                       Text(line),
                 ],
               ),
@@ -168,19 +168,6 @@ class _RecipeDetailsPageState extends State<RecipeDetailsPage> {
     setState(() => _deleteFailed = false);
     context.read<RecipesBloc>().add(RecipesRecipeDeleted(recipe.id));
   }
-
-  /// A row reads as its entry's current name, which is what makes a rename
-  /// show. A row whose entry is gone has no name to show, so it yields null
-  /// and is skipped.
-  String? _ingredientLine(Ingredient ingredient, RecipesState state) =>
-      switch (state.ingredientById(ingredient.catalogId)) {
-        final entry? => [
-          ingredient.quantity,
-          ingredient.unit,
-          entry.name,
-        ].where((part) => part.isNotEmpty).join(' '),
-        null => null,
-      };
 }
 
 class _Section extends StatelessWidget {

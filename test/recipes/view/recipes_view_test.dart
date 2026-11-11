@@ -1,10 +1,12 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:membar/ingredients/ingredients.dart';
+import 'package:membar/quiz/quiz.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:membar/starter_catalog/starter_catalog.dart';
 import 'package:mocktail/mocktail.dart';
@@ -359,6 +361,89 @@ void main() {
 
       expect(find.byType(RecipeDetailsPage), findsOneWidget);
     });
+
+    group('quiz', () {
+      final quizButton = find.widgetWithText(FButton, 'Quiz');
+
+      testWidgets('offers no Quiz button on an empty library', (tester) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            activeLibraryId: cocktailsLibrary.id,
+          ),
+        );
+        await pumpView(tester);
+
+        expect(quizButton, findsNothing);
+      });
+
+      testWidgets('offers the Quiz button once the library has recipes', (
+        tester,
+      ) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            recipes: [negroni],
+            activeLibraryId: cocktailsLibrary.id,
+          ),
+        );
+        await pumpView(tester);
+
+        expect(quizButton, findsOneWidget);
+      });
+
+      testWidgets('keeps the Quiz button when a search hides every recipe', (
+        tester,
+      ) async {
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary],
+            recipes: [negroni],
+            activeLibraryId: cocktailsLibrary.id,
+            searchTerm: 'martini',
+          ),
+        );
+        await pumpView(tester);
+
+        expect(find.text('No matching recipes'), findsOneWidget);
+        expect(quizButton, findsOneWidget);
+      });
+
+      testWidgets('quizzes every recipe of the active library', (
+        tester,
+      ) async {
+        final espresso = Recipe(
+          id: 'recipe-espresso',
+          libraryId: coffeeLibrary.id,
+          name: 'Espresso',
+        );
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [cocktailsLibrary, coffeeLibrary],
+            recipes: [negroni, daiquiri, espresso],
+            activeLibraryId: cocktailsLibrary.id,
+            searchTerm: 'neg',
+          ),
+        );
+        await pumpView(tester);
+
+        await tester.tap(quizButton);
+        await tester.pumpAndSettle();
+
+        final view = find.byType(QuizView);
+        expect(view, findsOneWidget);
+        expect(ModalRoute.of(tester.element(view))?.settings.name, 'quiz');
+        expect(
+          tester.element(view).read<QuizBloc>().state.deck,
+          unorderedEquals([negroni, daiquiri]),
+        );
+      });
+    });
+
     group('starter catalog', () {
       late StarterRecipesRepository starterRecipesRepository;
 
