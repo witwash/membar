@@ -19,7 +19,10 @@ Inside an `FTileGroup` or `FItemGroup`, forui routes a press to the deepest `FTa
 
 - For checkbox rows, use `SelectableTile` from `package:membar/ui/ui.dart`.
 - For any other display-only control, wrap it as `FTappableGroup.isolate(child: ExcludeFocus(child: IgnorePointer(child: ExcludeSemantics(child: ...))))`.
+- If the hidden control carries state, expose it on the tile (`FTile(selected: …)` or `Semantics` with `checked`/`toggled`), as `SelectableTile` does.
 
 ## Test
 
 Tap the non-text parts of a row (the prefix control, blank space), not only the title. Use `tester.tapAt(tester.getCenter(finder))` for anything under `IgnorePointer`.
+
+Inside a tile or item group, press Tab twice and check that focus moves tile to tile and never lands inside the prefix control (see `test/ui/selectable_tile_test.dart`).

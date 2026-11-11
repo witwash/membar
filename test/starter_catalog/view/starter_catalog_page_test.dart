@@ -320,10 +320,12 @@ void main() {
       await tester.tapAt(tester.getCenter(checkbox));
       await tester.pumpAndSettle();
       expect(find.text('Import 1'), findsOneWidget);
+      expect(tester.widget<FCheckbox>(checkbox).value, isTrue);
 
       await tester.tapAt(tester.getCenter(checkbox));
       await tester.pumpAndSettle();
       expect(find.text('Import'), findsOneWidget);
+      expect(tester.widget<FCheckbox>(checkbox).value, isFalse);
     });
 
     testWidgets('selects every visible row, then deselects them', (

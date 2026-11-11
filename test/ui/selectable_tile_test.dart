@@ -41,8 +41,9 @@ void main() {
           Expanded(
             child: FTileGroup.builder(
               count: 2,
-              tileBuilder: (context, index) =>
-                  tile(index == 0 ? 'Negroni' : 'Daiquiri', subtitle: 'Gin'),
+              tileBuilder: (context, index) => index == 0
+                  ? tile('Negroni', subtitle: 'Gin')
+                  : tile('Daiquiri', subtitle: 'Rum'),
             ),
           ),
         ],
@@ -91,23 +92,30 @@ void main() {
       expect(presses, ['Select all']);
     });
 
-    testWidgets('presses from its title, subtitle and blank right edge', (
-      tester,
-    ) async {
-      await pumpTile(tester, tile('Negroni', subtitle: 'Gin'));
+    testWidgets(
+      'inside a tile group, presses from its title, subtitle and blank right '
+      'edge',
+      (tester) async {
+        await pumpGroup(tester);
 
-      await tapCenter(tester, find.text('Negroni'));
-      await tapCenter(tester, find.text('Gin'));
-      final rect = tester.getRect(find.byType(FTile));
-      await tester.tapAt(Offset(rect.right - 2, rect.center.dy));
-      await tester.pumpAndSettle();
+        await tapCenter(tester, find.text('Daiquiri'));
+        await tapCenter(tester, find.text('Rum'));
+        final rect = tester.getRect(
+          find.ancestor(
+            of: find.text('Daiquiri'),
+            matching: find.byType(FTile),
+          ),
+        );
+        await tester.tapAt(Offset(rect.right - 2, rect.center.dy));
+        await tester.pumpAndSettle();
 
-      expect(presses, ['Negroni', 'Negroni', 'Negroni']);
-    });
+        expect(presses, ['Daiquiri', 'Daiquiri', 'Daiquiri']);
+      },
+    );
 
     testWidgets(
       'inside a tile group, Tab moves tile to tile without stopping on a '
-      'checkbox, and Enter presses the focused tile',
+      'checkbox, and Enter or Space presses the focused tile',
       (tester) async {
         await pumpGroup(tester);
 
@@ -124,6 +132,10 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await tester.pumpAndSettle();
         expect(presses, ['Daiquiri']);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.space);
+        await tester.pumpAndSettle();
+        expect(presses, ['Daiquiri', 'Daiquiri']);
       },
     );
 
@@ -137,7 +149,11 @@ void main() {
 
       expect(
         tester.getSemantics(find.text('Negroni')),
-        isSemantics(label: 'Negroni, Gin, In library', isSelected: true),
+        isSemantics(
+          label: 'Negroni, Gin, In library',
+          isSelected: true,
+          hasTapAction: true,
+        ),
       );
     });
 
@@ -156,10 +172,7 @@ void main() {
       await pumpTile(tester, tile('Negroni', subtitle: ''));
 
       expect(tester.getSemantics(find.text('Negroni')).label, 'Negroni');
-      expect(
-        find.descendant(of: find.byType(FTile), matching: find.byType(Text)),
-        findsOneWidget,
-      );
+      expect(find.text(''), findsNothing);
     });
 
     testWidgets('ticks its checkbox when selected', (tester) async {
