@@ -2194,6 +2194,34 @@ void main() {
           expect(store.writtenKeys, equals(written));
         });
       }
+
+      test(
+        'a failed recipes write leaves the new entries on disk only',
+        () async {
+          final store = await open();
+          store.failingKey = LocalStorageRecipesApi.kRecipesKey;
+
+          await expectLater(
+            () => api.importRecipes(
+              libraryId: cocktails.id,
+              ingredients: [campari],
+              recipes: [negroni],
+            ),
+            throwsA(isA<RecipesPersistenceException>()),
+          );
+
+          final disk = await store.getAll();
+          expect(
+            disk['flutter.${LocalStorageRecipesApi.kIngredientsKey}'],
+            contains(campari.id),
+          );
+          expect(
+            disk['flutter.${LocalStorageRecipesApi.kRecipesKey}'],
+            isNot(contains(negroni.id)),
+          );
+          expect(await api.watch().first, equals(before));
+        },
+      );
     });
 
     group('deleteLibrary', () {

@@ -77,6 +77,8 @@ class StarterRecipesRepository {
             },
             ingredients: [
               for (final row in starter.rows)
+                // Always matches: the `case` only destructures the record, so
+                // no row is dropped here.
                 if (row.measured(system) case (final quantity, final unit))
                   Ingredient(
                     catalogId: catalogIdOf(row.ingredient),

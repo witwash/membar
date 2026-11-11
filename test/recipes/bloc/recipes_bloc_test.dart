@@ -1086,6 +1086,34 @@ void main() {
       );
 
       blocTest<RecipesBloc, RecipesState>(
+        'reports a throwing build as a failure without importing',
+        setUp: () => when(
+          () => starterRepository.buildImport(
+            set: set,
+            names: names,
+            library: cocktails,
+            entries: [gin],
+            system: MeasureSystem.imperial,
+          ),
+        ).thenThrow(StateError('unknown ingredient key')),
+        build: buildBloc,
+        seed: () => loaded,
+        act: (bloc) => bloc.add(imported),
+        expect: () => [
+          loaded.copyWith(
+            mutation: RecipesMutation.starterRecipesImported,
+            mutationStatus: RecipesMutationStatus.loading,
+          ),
+          loaded.copyWith(
+            mutation: RecipesMutation.starterRecipesImported,
+            mutationStatus: RecipesMutationStatus.failure,
+          ),
+        ],
+        errors: () => [isA<StateError>()],
+        verify: (_) => verifyNever(importCall()),
+      );
+
+      blocTest<RecipesBloc, RecipesState>(
         'emits failure without calling either repository when the library '
         'is not there',
         build: buildBloc,

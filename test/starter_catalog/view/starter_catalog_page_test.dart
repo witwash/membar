@@ -199,7 +199,7 @@ void main() {
     ) async {
       when(
         () => repository.load(LibraryTemplate.cocktails),
-      ).thenThrow(const FormatException('bad bundle'));
+      ).thenAnswer((_) => Future.error(const FormatException('bad bundle')));
       mockState(baseState);
       await openCatalog(tester);
 
@@ -294,8 +294,14 @@ void main() {
       expect(find.text('Import 1'), findsOneWidget);
 
       await tap(tester, 'Daiquiri');
-
       expect(find.text('Import 2'), findsOneWidget);
+
+      await tap(tester, 'Import 2');
+
+      expect(dispatched().names, const {
+        'negroni': 'Negroni',
+        'daiquiri': 'Daiquiri',
+      });
     });
 
     testWidgets('selects every visible row, then deselects them', (
@@ -437,6 +443,65 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Import 1'), findsOneWidget);
+    });
+
+    testWidgets('clears the failure banner when the import is retried', (
+      tester,
+    ) async {
+      mockState(baseState);
+      await openCatalog(tester);
+      await tap(tester, 'Daiquiri');
+      await tap(tester, 'Import 1');
+      states.add(
+        baseState.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tap(tester, 'Import 1');
+
+      expect(
+        find.text('The starter recipes could not be imported.'),
+        findsNothing,
+      );
+      verify(() => recipesBloc.add(any())).called(2);
+    });
+
+    testWidgets('reopens the rename sheet with original names after a '
+        'failed import', (tester) async {
+      final failed = baseState.copyWith(recipes: [storedNegroni]);
+      mockState(failed);
+      await openCatalog(tester);
+      await tap(tester, 'Negroni');
+      await tap(tester, 'Import 1');
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(StarterRenameSheet),
+          matching: find.byType(EditableText),
+        ),
+        'Negroni (mine)',
+      );
+      await tester.pumpAndSettle();
+      await tap(tester, 'Import');
+      states.add(
+        failed.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tap(tester, 'Import 1');
+
+      final field = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byType(StarterRenameSheet),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(field.controller.text, 'Negroni');
     });
 
     testWidgets('disables Import while an import is in flight', (

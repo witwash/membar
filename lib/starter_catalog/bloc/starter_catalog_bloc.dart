@@ -39,9 +39,11 @@ class StarterCatalogBloc
     try {
       final set = await _starterRecipesRepository.load(_template);
       emit(state.copyWith(status: StarterCatalogStatus.success, set: set));
+    } on Object catch (error, stackTrace) {
       // The bundle is schema-tested, so whatever a load throws is a bug. It is
-      // caught whole so the screen reports it rather than spinning forever.
-    } on Object {
+      // caught whole so the screen reports it rather than spinning forever,
+      // and passed to addError so it still reaches the logs.
+      addError(error, stackTrace);
       emit(state.copyWith(status: StarterCatalogStatus.failure));
     }
   }

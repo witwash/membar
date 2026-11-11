@@ -65,6 +65,7 @@ class _StarterCatalogPageState extends State<StarterCatalogPage> {
           bloc.state.mutationStatus == RecipesMutationStatus.loading,
     );
     final count = state.selectedKeys.length;
+    final set = state.set;
 
     return RecipesMutationListener(
       mutation: RecipesMutation.starterRecipesImported,
@@ -77,18 +78,19 @@ class _StarterCatalogPageState extends State<StarterCatalogPage> {
             FHeaderAction.back(onPress: () => Navigator.of(context).maybePop()),
           ],
         ),
-        footer: state.status == StarterCatalogStatus.success
-            ? Padding(
+        footer: set == null
+            ? null
+            : Padding(
                 padding: const EdgeInsets.all(AppSpacing.spacing200),
                 child: FButton(
-                  onPress: count == 0 || importing ? null : _import,
+                  onPress: count == 0 || importing ? null : () => _import(set),
                   child: Text(l10n.starterCatalogImportLabel(count)),
                 ),
-              )
-            : null,
+              ),
         child: switch (state.status) {
-          StarterCatalogStatus.success => _Catalog(
+          _ when set != null => _Catalog(
             state: state,
+            set: set,
             library: widget.library,
             template: widget.template,
             importFailed: _importFailed,
@@ -102,7 +104,7 @@ class _StarterCatalogPageState extends State<StarterCatalogPage> {
     );
   }
 
-  Future<void> _import() async {
+  Future<void> _import(StarterSet set) async {
     final catalog = context.read<StarterCatalogBloc>().state;
     final recipesBloc = context.read<RecipesBloc>();
     final picked = catalog.selectedRecipes;
@@ -142,7 +144,7 @@ class _StarterCatalogPageState extends State<StarterCatalogPage> {
     recipesBloc.add(
       RecipesStarterRecipesImported(
         libraryId: widget.library.id,
-        set: catalog.set!,
+        set: set,
         names: names,
         system: catalog.system,
       ),
@@ -153,12 +155,14 @@ class _StarterCatalogPageState extends State<StarterCatalogPage> {
 class _Catalog extends StatelessWidget {
   const _Catalog({
     required this.state,
+    required this.set,
     required this.library,
     required this.template,
     required this.importFailed,
   });
 
   final StarterCatalogState state;
+  final StarterSet set;
   final Library library;
   final LibraryTemplate template;
   final bool importFailed;
@@ -170,8 +174,7 @@ class _Catalog extends StatelessWidget {
     final recipesState = context.watch<RecipesBloc>().state;
     final visible = state.visibleRecipes;
     final ingredientNames = {
-      for (final ingredient in state.set!.ingredients)
-        ingredient.key: ingredient.name,
+      for (final ingredient in set.ingredients) ingredient.key: ingredient.name,
     };
 
     return Column(

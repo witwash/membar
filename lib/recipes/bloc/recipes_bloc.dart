@@ -561,13 +561,27 @@ class RecipesBloc extends Bloc<RecipesEvent, RecipesState> {
       return;
     }
 
-    final import = _starterRecipesRepository.buildImport(
-      set: event.set,
-      names: event.names,
-      library: library,
-      entries: state.ingredientsIn(library.ingredientLibraryId),
-      system: event.system,
-    );
+    final ({List<CatalogIngredient> ingredients, List<Recipe> recipes}) import;
+    try {
+      import = _starterRecipesRepository.buildImport(
+        set: event.set,
+        names: event.names,
+        library: library,
+        entries: state.ingredientsIn(library.ingredientLibraryId),
+        system: event.system,
+      );
+    } on Object catch (error, stackTrace) {
+      // buildImport documents no failure, so a throw is a bug. Left uncaught
+      // it would strand the catalog in loading with Import disabled.
+      addError(error, stackTrace);
+      emit(
+        state.copyWith(
+          mutation: RecipesMutation.starterRecipesImported,
+          mutationStatus: RecipesMutationStatus.failure,
+        ),
+      );
+      return;
+    }
 
     try {
       await _recipesRepository.importRecipes(

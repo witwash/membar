@@ -427,6 +427,42 @@ void main() {
         expectCatalogPushed(tester);
       });
 
+      testWidgets('opens the Coffee catalog from a Coffee library', (
+        tester,
+      ) async {
+        when(
+          () => starterRecipesRepository.load(LibraryTemplate.coffee),
+        ).thenAnswer(
+          (_) async => const StarterSet(ingredients: [], recipes: []),
+        );
+        mockState(
+          RecipesState(
+            status: RecipesStatus.success,
+            libraries: [coffeeLibrary],
+            recipes: [
+              Recipe(
+                id: 'recipe-v60',
+                libraryId: coffeeLibrary.id,
+                name: 'V60',
+              ),
+            ],
+            activeLibraryId: coffeeLibrary.id,
+          ),
+        );
+        await pumpWithCatalog(tester);
+
+        await tester.tap(find.bySemanticsLabel('Browse starter recipes'));
+        await tester.pumpAndSettle();
+
+        expectCatalogPushed(tester);
+        expect(
+          tester
+              .widget<StarterCatalogPage>(find.byType(StarterCatalogPage))
+              .template,
+          LibraryTemplate.coffee,
+        );
+      });
+
       testWidgets('offers no empty-state button once the library has recipes', (
         tester,
       ) async {

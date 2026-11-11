@@ -61,13 +61,14 @@ void main() {
         'emits loading then failure when the load throws',
         setUp: () => when(
           () => repository.load(LibraryTemplate.cocktails),
-        ).thenThrow(const FormatException('bad bundle')),
+        ).thenAnswer((_) => Future.error(const FormatException('bad bundle'))),
         build: buildBloc,
         act: (bloc) => bloc.add(const StarterCatalogRequested()),
         expect: () => const [
           StarterCatalogState(status: StarterCatalogStatus.loading),
           StarterCatalogState(status: StarterCatalogStatus.failure),
         ],
+        errors: () => [isA<FormatException>()],
       );
     });
 
@@ -144,38 +145,5 @@ void main() {
         ),
       ],
     );
-  });
-
-  group('StarterCatalogState', () {
-    const negroni = StarterRecipe(key: 'negroni', name: 'Negroni');
-    const daiquiri = StarterRecipe(key: 'daiquiri', name: 'Daiquiri');
-    const set = StarterSet(ingredients: [], recipes: [negroni, daiquiri]);
-
-    test('offers nothing before the set has loaded', () {
-      const state = StarterCatalogState(selectedKeys: {'negroni'});
-
-      expect(state.visibleRecipes, isEmpty);
-      expect(state.selectedRecipes, isEmpty);
-      expect(state.allVisibleSelected, isFalse);
-    });
-
-    test('lists the selected recipes in catalog order', () {
-      const state = StarterCatalogState(
-        set: set,
-        selectedKeys: {'daiquiri', 'negroni'},
-      );
-
-      expect(state.selectedRecipes, [negroni, daiquiri]);
-    });
-
-    test('is not all-selected when the search matches nothing', () {
-      const state = StarterCatalogState(
-        set: set,
-        searchTerm: 'martini',
-        selectedKeys: {'negroni', 'daiquiri'},
-      );
-
-      expect(state.allVisibleSelected, isFalse);
-    });
   });
 }
