@@ -158,25 +158,33 @@ class _RecipeList extends StatelessWidget {
               // The deck is the whole library, so the button stays while a
               // search or tag filter hides recipes.
               if (libraryRecipes.isNotEmpty)
-                Positioned(
-                  right: 0,
+                PositionedDirectional(
+                  end: 0,
                   bottom: AppSpacing.spacing200,
-                  child: FButton(
-                    mainAxisSize: MainAxisSize.min,
-                    prefix: const Icon(FLucideIcons.layers),
-                    onPress: () => Navigator.of(context).push(
-                      QuizPage.route(
-                        bloc: context.read<RecipesBloc>(),
-                        recipes: libraryRecipes,
-                      ),
-                    ),
-                    child: Text(l10n.quizStartLabel),
-                  ),
+                  child: _QuizButton(recipes: libraryRecipes),
                 ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _QuizButton extends StatelessWidget {
+  const _QuizButton({required this.recipes});
+
+  final List<Recipe> recipes;
+
+  @override
+  Widget build(BuildContext context) {
+    return FButton(
+      mainAxisSize: MainAxisSize.min,
+      prefix: const Icon(FLucideIcons.layers),
+      onPress: () => Navigator.of(context).push(
+        QuizPage.route(bloc: context.read<RecipesBloc>(), recipes: recipes),
+      ),
+      child: Text(context.l10n.quizStartLabel),
     );
   }
 }

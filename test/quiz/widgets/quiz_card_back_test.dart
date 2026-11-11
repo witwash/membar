@@ -92,6 +92,40 @@ void main() {
       expect(find.text('Gin'), findsNothing);
     });
 
+    testWidgets('lists only the rows whose catalog entry remains', (
+      tester,
+    ) async {
+      when(() => recipesBloc.state).thenReturn(
+        RecipesState(
+          status: RecipesStatus.success,
+          libraries: [cocktailsLibrary],
+          ingredientLibraries: [cocktailsPantry],
+          ingredients: [ginIngredient],
+          activeLibraryId: cocktailsLibrary.id,
+        ),
+      );
+
+      await pumpBack(tester, negroni);
+
+      expect(find.text('30 ml Gin'), findsOneWidget);
+      expect(find.text('sugar'), findsNothing);
+      expect(find.text('No ingredients'), findsNothing);
+    });
+
+    testWidgets('scrolls a long step list', (tester) async {
+      final long = Recipe(
+        id: 'recipe-long',
+        libraryId: cocktailsLibrary.id,
+        name: 'Long',
+        steps: [for (var i = 1; i <= 40; i++) 'Step $i'],
+      );
+
+      await pumpBack(tester, long);
+      await tester.scrollUntilVisible(find.text('40. Step 40'), 100);
+
+      expect(find.text('40. Step 40'), findsOneWidget);
+    });
+
     testWidgets('announces the name as a header in a live region', (
       tester,
     ) async {

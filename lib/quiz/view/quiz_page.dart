@@ -1,7 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:membar/quiz/bloc/quiz_bloc.dart';
-import 'package:membar/quiz/view/quiz_view.dart';
+import 'package:membar/quiz/quiz.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 

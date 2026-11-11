@@ -47,6 +47,10 @@ void main() {
         expect(QuizBloc(recipes: recipes).state.deck, unorderedEquals(recipes));
       });
 
+      test('asserts a non-empty list of recipes', () {
+        expect(() => QuizBloc(recipes: const []), throwsAssertionError);
+      });
+
       test('leaves the given list untouched', () {
         final given = [...recipes];
         buildBloc(deck: given);
@@ -171,6 +175,29 @@ void main() {
         ),
         act: (bloc) => bloc.add(const QuizMissedRetried()),
         expect: () => const <QuizState>[],
+      );
+
+      blocTest<QuizBloc, QuizState>(
+        'reshuffles the missed recipes with the injected Random',
+        build: buildBloc,
+        seed: () => QuizState(
+          deck: recipes,
+          index: 4,
+          outcomes: [
+            for (final recipe in recipes) outcome(recipe, remembered: false),
+          ],
+        ),
+        act: (bloc) => bloc.add(const QuizMissedRetried()),
+        verify: (bloc) {
+          // Replays the bloc's Random: one shuffle for the first pass, then
+          // the retry's.
+          final random = Random(7);
+          [...recipes].shuffle(random);
+          final expected = [...recipes]..shuffle(random);
+
+          expect(expected, isNot(recipes));
+          expect(bloc.state.deck, expected);
+        },
       );
 
       blocTest<QuizBloc, QuizState>(

@@ -1,6 +1,7 @@
-import 'dart:async';
+import 'dart:math';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:forui/forui.dart';
@@ -22,7 +23,6 @@ void main() {
   group('QuizView', () {
     late RecipesBloc recipesBloc;
     late QuizBloc quizBloc;
-    late StreamController<QuizState> states;
 
     final negroni = Recipe(
       id: 'recipe-negroni',
@@ -75,13 +75,14 @@ void main() {
     setUp(() {
       recipesBloc = _MockRecipesBloc();
       quizBloc = _MockQuizBloc();
-      states = StreamController<QuizState>.broadcast();
-      addTearDown(states.close);
       when(() => recipesBloc.state).thenReturn(const RecipesState());
     });
 
-    void mockState(QuizState state) =>
-        whenListen(quizBloc, states.stream, initialState: state);
+    void mockState(QuizState state) => whenListen(
+      quizBloc,
+      const Stream<QuizState>.empty(),
+      initialState: state,
+    );
 
     Future<void> pumpView(WidgetTester tester, QuizState state) async {
       mockState(state);
@@ -178,7 +179,7 @@ void main() {
     testWidgets('focuses the front of the next card after a grade', (
       tester,
     ) async {
-      final bloc = QuizBloc(recipes: deck);
+      final bloc = QuizBloc(recipes: deck, random: Random(1));
       addTearDown(bloc.close);
       await tester.pumpApp(
         BlocProvider.value(value: bloc, child: const QuizView()),
@@ -206,6 +207,67 @@ void main() {
         ),
         findsOneWidget,
       );
+    });
+
+    testWidgets('focuses the front of the next card after a keyboard grade', (
+      tester,
+    ) async {
+      final bloc = QuizBloc(recipes: deck, random: Random(1));
+      addTearDown(bloc.close);
+      await tester.pumpApp(
+        BlocProvider.value(value: bloc, child: const QuizView()),
+        recipesBloc: recipesBloc,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      Focus.of(tester.element(find.text('Remembered'))).requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+
+      expect(bloc.state.index, 1);
+      final focused = FocusManager.instance.primaryFocus!.context!;
+      expect(
+        find.descendant(
+          of: find.byWidget(focused.widget),
+          matching: find.text(bloc.state.currentRecipe!.name),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('runs a pass to the summary and retries only the missed', (
+      tester,
+    ) async {
+      final bloc = QuizBloc(recipes: deck, random: Random(1));
+      addTearDown(bloc.close);
+      await tester.pumpApp(
+        BlocProvider.value(value: bloc, child: const QuizView()),
+        recipesBloc: recipesBloc,
+      );
+      await tester.pumpAndSettle();
+      final order = bloc.state.deck;
+
+      for (final (i, recipe) in order.indexed) {
+        expect(find.text('Card ${i + 1} of 3'), findsOneWidget);
+        await tester.tap(find.text(recipe.name));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(i == 0 ? 'Remembered' : "Didn't remember"));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text('1 of 3 remembered'), findsOneWidget);
+      expect(find.text(order[0].name), findsNothing);
+      expect(find.text(order[1].name), findsOneWidget);
+      expect(find.text(order[2].name), findsOneWidget);
+
+      await tester.tap(find.text('Retry missed'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Card 1 of 2'), findsOneWidget);
+      expect(bloc.state.deck, unorderedEquals([order[1], order[2]]));
     });
 
     testWidgets('shows the summary in place of the card when finished', (

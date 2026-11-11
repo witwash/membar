@@ -5,27 +5,15 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/l10n/l10n.dart';
-import 'package:membar/quiz/bloc/quiz_bloc.dart';
-import 'package:membar/quiz/widgets/quiz_card_back.dart';
+import 'package:membar/quiz/quiz.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
-/// How far, as a fraction of the card's width, a released drag must have
-/// travelled to grade the card.
-const swipeDistanceFraction = 0.35;
-
-/// How fast, in logical pixels per second, a released drag must be moving to
-/// grade the card however short it was.
-const swipeVelocity = 800.0;
-
 /// How long the card takes to turn over.
-const flipDuration = Duration(milliseconds: 300);
-
-/// How long a graded card takes to leave the screen.
-const flyOffDuration = Duration(milliseconds: 200);
+const _flipDuration = Duration(milliseconds: 300);
 
 /// How long a released, ungraded card takes to settle back.
-const springBackDuration = Duration(milliseconds: 250);
+const _springBackDuration = Duration(milliseconds: 250);
 
 /// How far the card tilts, in radians, when dragged one full width.
 const _maxTilt = 0.3;
@@ -38,6 +26,17 @@ const _maxTilt = 0.3;
 class QuizCard extends StatefulWidget {
   /// Creates a [QuizCard] for [recipe], showing its back when [flipped].
   const QuizCard({required this.recipe, required this.flipped, super.key});
+
+  /// How far, as a fraction of the card's width, a released drag must have
+  /// travelled to grade the card.
+  static const swipeDistanceFraction = 0.35;
+
+  /// How fast, in logical pixels per second, a released drag must be moving
+  /// outward to grade the card however short it was.
+  static const swipeVelocity = 800.0;
+
+  /// How long a graded card takes to leave the screen.
+  static const flyOffDuration = Duration(milliseconds: 200);
 
   /// The recipe the card shows.
   final Recipe recipe;
@@ -71,10 +70,14 @@ class _QuizCardState extends State<QuizCard>
   void _onDragEnd(DragEndDetails details, double width) {
     if (_flyingOff) return;
     final velocity = details.primaryVelocity ?? 0;
-    if (velocity.abs() > swipeVelocity) {
-      unawaited(_flyOff(remembered: velocity > 0, width: width));
-    } else if (_offset.value.abs() > width * swipeDistanceFraction) {
-      unawaited(_flyOff(remembered: _offset.value > 0, width: width));
+    final offset = _offset.value;
+    // A fast flick back toward the centre is the user changing their mind,
+    // not a grade for the other side.
+    final graded = velocity.abs() > QuizCard.swipeVelocity
+        ? velocity * offset > 0
+        : offset.abs() > width * QuizCard.swipeDistanceFraction;
+    if (graded) {
+      unawaited(_flyOff(remembered: offset > 0, width: width));
     } else {
       _springBack();
     }
@@ -84,7 +87,7 @@ class _QuizCardState extends State<QuizCard>
     if (_flyingOff) return;
     _offset.animateTo(
       0,
-      duration: _duration(springBackDuration),
+      duration: _duration(_springBackDuration),
       curve: Curves.easeOut,
     );
   }
@@ -97,7 +100,7 @@ class _QuizCardState extends State<QuizCard>
     final bloc = context.read<QuizBloc>();
     await _offset.animateTo(
       (remembered ? 1 : -1) * width * 1.5,
-      duration: _duration(flyOffDuration),
+      duration: _duration(QuizCard.flyOffDuration),
       curve: Curves.easeIn,
     );
     if (!mounted) return;
@@ -126,7 +129,7 @@ class _QuizCardState extends State<QuizCard>
               ),
             ),
             child: AnimatedSwitcher(
-              duration: _duration(flipDuration),
+              duration: _duration(_flipDuration),
               // Each side turns during its own half, so the outgoing side is
               // edge-on before the incoming one starts to show.
               switchInCurve: const Interval(0.5, 1),

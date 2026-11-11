@@ -28,21 +28,4 @@ void main() {
       expect(QuizMissedRetried(), QuizMissedRetried());
     });
   });
-
-  group('CardOutcome', () {
-    final answeredAt = DateTime(2026, 11, 11, 9);
-
-    test('supports value equality', () {
-      expect(
-        CardOutcome(recipeId: 'a', remembered: true, answeredAt: answeredAt),
-        CardOutcome(recipeId: 'a', remembered: true, answeredAt: answeredAt),
-      );
-      expect(
-        CardOutcome(recipeId: 'a', remembered: true, answeredAt: answeredAt),
-        isNot(
-          CardOutcome(recipeId: 'a', remembered: false, answeredAt: answeredAt),
-        ),
-      );
-    });
-  });
 }

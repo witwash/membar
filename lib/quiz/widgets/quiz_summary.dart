@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/l10n/l10n.dart';
-import 'package:membar/quiz/bloc/quiz_bloc.dart';
+import 'package:membar/quiz/quiz.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:membar/ui/ui.dart';
 

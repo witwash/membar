@@ -51,18 +51,16 @@ final class QuizState extends Equatable {
   List<CardOutcome> get _passOutcomes => outcomes.sublist(passStart);
 
   QuizState copyWith({
-    List<Recipe>? deck,
     int? index,
     bool? flipped,
     List<CardOutcome>? outcomes,
-    int? passStart,
   }) {
     return QuizState(
-      deck: deck ?? this.deck,
+      deck: deck,
       index: index ?? this.index,
       flipped: flipped ?? this.flipped,
       outcomes: outcomes ?? this.outcomes,
-      passStart: passStart ?? this.passStart,
+      passStart: passStart,
     );
   }
 

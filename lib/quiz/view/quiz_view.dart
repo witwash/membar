@@ -4,9 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:membar/l10n/l10n.dart';
-import 'package:membar/quiz/bloc/quiz_bloc.dart';
-import 'package:membar/quiz/widgets/quiz_card.dart';
-import 'package:membar/quiz/widgets/quiz_summary.dart';
+import 'package:membar/quiz/quiz.dart';
 import 'package:membar/ui/ui.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 

@@ -1,4 +1,4 @@
-import 'package:membar/recipes/bloc/recipes_bloc.dart';
+import 'package:membar/recipes/recipes.dart';
 import 'package:recipes_repository/recipes_repository.dart';
 
 /// The text [row] renders as: its quantity, unit and catalog entry's name.

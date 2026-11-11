@@ -361,6 +361,7 @@ void main() {
 
       expect(find.byType(RecipeDetailsPage), findsOneWidget);
     });
+
     group('quiz', () {
       final quizButton = find.widgetWithText(FButton, 'Quiz');
 
