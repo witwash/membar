@@ -989,5 +989,99 @@
     "starterRenameCancelLabel": "Cancel",
     "@starterRenameCancelLabel": {
         "description": "Label of the button closing the rename sheet without importing"
+    },
+    "quizTitle": "Quiz",
+    "@quizTitle": {
+        "description": "Title of the flash-card quiz screen"
+    },
+    "quizProgressLabel": "Card {current} of {total}",
+    "@quizProgressLabel": {
+        "description": "Progress through the running quiz pass, announced after each grade",
+        "placeholders": {
+            "current": {
+                "type": "int",
+                "example": "1"
+            },
+            "total": {
+                "type": "int",
+                "example": "12"
+            }
+        }
+    },
+    "quizRevealHint": "Tap to reveal",
+    "@quizRevealHint": {
+        "description": "Visible hint on the front of a quiz card, which shows only the recipe name"
+    },
+    "quizRevealAction": "reveal the recipe",
+    "@quizRevealAction": {
+        "description": "Screen reader hint for what activating the front of a quiz card does"
+    },
+    "quizNoIngredients": "No ingredients",
+    "@quizNoIngredients": {
+        "description": "Shown on the back of a quiz card whose recipe has no ingredient to show"
+    },
+    "quizNoSteps": "No steps",
+    "@quizNoSteps": {
+        "description": "Shown on the back of a quiz card whose recipe has no steps"
+    },
+    "quizForgotLabel": "Didn't remember",
+    "@quizForgotLabel": {
+        "description": "Label of the button grading the flipped quiz card as not remembered"
+    },
+    "quizRememberedLabel": "Remembered",
+    "@quizRememberedLabel": {
+        "description": "Label of the button grading the flipped quiz card as remembered"
+    },
+    "quizSummaryScore": "{remembered} of {total} remembered",
+    "@quizSummaryScore": {
+        "description": "Score shown once a quiz pass is finished",
+        "placeholders": {
+            "remembered": {
+                "type": "int",
+                "example": "8"
+            },
+            "total": {
+                "type": "int",
+                "example": "12"
+            }
+        }
+    },
+    "quizSummaryAllRemembered": "{total, plural, =1{You remembered it!} other{You remembered all {total}!}}",
+    "@quizSummaryAllRemembered": {
+        "description": "Congratulation shown in place of the missed list when every card of the pass was remembered",
+        "placeholders": {
+            "total": {
+                "type": "int",
+                "example": "12"
+            }
+        }
+    },
+    "quizSummaryMissedTitle": "Missed",
+    "@quizSummaryMissedTitle": {
+        "description": "Heading above the recipes the finished quiz pass missed"
+    },
+    "quizRetryMissedLabel": "Retry missed",
+    "@quizRetryMissedLabel": {
+        "description": "Label of the button starting a new quiz pass over only the missed recipes"
+    },
+    "quizDoneLabel": "Done",
+    "@quizDoneLabel": {
+        "description": "Label of the button leaving the finished quiz"
+    },
+    "quizLeaveTitle": "Leave the quiz?",
+    "@quizLeaveTitle": {
+        "description": "Title of the dialog shown when leaving a quiz pass that has graded cards"
+    },
+    "quizLeaveDescription": "Your progress in this pass will be lost.",
+    "@quizLeaveDescription": {
+        "description": "Body of the dialog shown when leaving a quiz pass that has graded cards"
+    },
+    "quizLeaveConfirm": "Leave",
+    "@quizLeaveConfirm": {
+        "description": "Label of the button confirming leaving the quiz"
+    },
+    "quizKeepGoingLabel": "Keep going",
+    "@quizKeepGoingLabel": {
+        "description": "Label of the button staying in the quiz"
     }
 }

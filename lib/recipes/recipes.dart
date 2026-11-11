@@ -4,6 +4,7 @@ export 'view/recipe_editor_page.dart';
 export 'view/recipes_page.dart';
 export 'view/recipes_view.dart';
 export 'widgets/ingredient_create_sheet.dart';
+export 'widgets/ingredient_line.dart';
 export 'widgets/ingredient_picker.dart';
 export 'widgets/ingredient_row_field.dart';
 export 'widgets/library_switcher.dart';

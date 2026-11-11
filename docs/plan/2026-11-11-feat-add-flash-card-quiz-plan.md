@@ -347,7 +347,7 @@ The current pass's slice of `outcomes` is private.
 
 ### Phase 2: Quiz screens
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** The shared `ingredientLine` helper, and the quiz page, view, card, card back,
   summary and strings. The route works, but nothing links to it yet.
 - **Files touched:** `lib/recipes/widgets/ingredient_line.dart`, `lib/recipes/recipes.dart`,
