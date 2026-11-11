@@ -209,7 +209,7 @@ class _Catalog extends StatelessWidget {
         if (visible.isEmpty)
           Expanded(child: Center(child: Text(l10n.starterCatalogNoResults)))
         else ...[
-          _SelectableTile(
+          SelectableTile(
             title: state.allVisibleSelected
                 ? l10n.starterCatalogDeselectAllLabel
                 : l10n.starterCatalogSelectAllLabel,
@@ -221,7 +221,7 @@ class _Catalog extends StatelessWidget {
               count: visible.length,
               tileBuilder: (context, index) {
                 final recipe = visible[index];
-                return _SelectableTile(
+                return SelectableTile(
                   title: recipe.name,
                   subtitle: _subtitle(recipe, ingredientNames),
                   badge:
@@ -257,49 +257,4 @@ class _Catalog extends StatelessWidget {
               .join(', '),
         LibraryTemplate.coffee => recipe.fields['Brew method']?.toString(),
       };
-}
-
-/// A tile carrying a checkbox, read out as one node: its title, subtitle and
-/// badge, and whether it is selected.
-class _SelectableTile extends StatelessWidget {
-  const _SelectableTile({
-    required this.title,
-    required this.selected,
-    required this.onPress,
-    this.subtitle,
-    this.badge,
-  });
-
-  final String title;
-  final String? subtitle;
-  final String? badge;
-  final bool selected;
-  final VoidCallback onPress;
-
-  @override
-  Widget build(BuildContext context) {
-    final subtitle = this.subtitle;
-    final badge = this.badge;
-
-    return FTile(
-      semanticsLabel: [title, ?subtitle, ?badge].join(', '),
-      selected: selected,
-      // The tile is the one tap target; the checkbox only shows its state.
-      prefix: IgnorePointer(
-        child: ExcludeSemantics(child: FCheckbox(value: selected)),
-      ),
-      // The label above already reads these; left in, the tile would merge
-      // them in a second time.
-      title: ExcludeSemantics(child: Text(title)),
-      subtitle: subtitle == null || subtitle.isEmpty
-          ? null
-          : ExcludeSemantics(child: Text(subtitle)),
-      suffix: badge == null
-          ? null
-          : ExcludeSemantics(
-              child: FBadge(variant: FBadgeVariant.outline, child: Text(badge)),
-            ),
-      onPress: onPress,
-    );
-  }
 }
