@@ -5,6 +5,8 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  # TODO(hotfix): also trigger on pubspec.lock and packages/**/pubspec.yaml;
+  # dependency changes through those files currently skip the license check.
   pull_request:
     branches:
       - main
@@ -22,4 +24,10 @@ jobs:
   license_check:
     uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/license_check.yml@v1
     with:
-      allowed: "MIT,BSD-3-Clause,BSD-2-Clause,Apache-2.0"
+      flutter_version: "3.47.x"
+      # OFL-1.1 covers forui's bundled fonts and ISC forui_lucide's icons;
+      # both packages' code is MIT.
+      allowed: "MIT,BSD-3-Clause,BSD-2-Clause,Apache-2.0,OFL-1.1,ISC"
+      # pubspec_lock_parse is Apache-2.0, but its notice-only LICENSE is
+      # undetectable ("unknown"). It is dev-only, pulled in by bloc_lint.
+      skip_packages: "pubspec_lock_parse"
