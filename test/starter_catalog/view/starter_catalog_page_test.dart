@@ -304,6 +304,28 @@ void main() {
       });
     });
 
+    testWidgets('toggles a recipe on and off from its checkbox', (
+      tester,
+    ) async {
+      mockState(baseState);
+      await openCatalog(tester);
+      final checkbox = find.descendant(
+        of: find.ancestor(
+          of: find.text('Negroni'),
+          matching: find.byType(FTile),
+        ),
+        matching: find.byType(FCheckbox),
+      );
+
+      await tester.tapAt(tester.getCenter(checkbox));
+      await tester.pumpAndSettle();
+      expect(find.text('Import 1'), findsOneWidget);
+
+      await tester.tapAt(tester.getCenter(checkbox));
+      await tester.pumpAndSettle();
+      expect(find.text('Import'), findsOneWidget);
+    });
+
     testWidgets('selects every visible row, then deselects them', (
       tester,
     ) async {
