@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:forui/forui.dart';
 import 'package:membar/ingredients/ingredients.dart';
 import 'package:membar/l10n/l10n.dart';
+import 'package:membar/quiz/quiz.dart';
 import 'package:membar/recipes/recipes.dart';
 import 'package:membar/starter_catalog/starter_catalog.dart';
 import 'package:membar/ui/ui.dart';
@@ -107,48 +108,73 @@ class _RecipeList extends StatelessWidget {
         ],
         const SizedBox(height: 12),
         Expanded(
-          child: visible.isEmpty
-              ? _EmptyState(
-                  title: libraryRecipes.isEmpty
-                      ? l10n.recipesEmptyLibraryTitle(library.name)
-                      : l10n.recipesNoResultsTitle,
-                  description: libraryRecipes.isEmpty
-                      ? l10n.recipesEmptyLibraryDescription
-                      : l10n.recipesNoResultsDescription,
-                  // A blank screen needs a stronger affordance than the
-                  // header's `+`; a screen filtered down to nothing does not,
-                  // and offering one there would misread as "nothing exists".
-                  onAdd: libraryRecipes.isEmpty
-                      ? () => RecipeEditorPage.open(context, library)
-                      : null,
-                  onBrowse: switch ((
-                    libraryRecipes.isEmpty,
-                    library.template,
-                  )) {
-                    (true, final template?) => () => _openStarterCatalog(
-                      context,
-                      library,
-                      template,
-                    ),
-                    _ => null,
-                  },
-                )
-              : FTileGroup.builder(
-                  count: visible.length,
-                  tileBuilder: (context, index) {
-                    final recipe = visible[index];
-                    return RecipeTile(
-                      recipe: recipe,
-                      onPress: () => Navigator.of(context).push(
-                        RecipeDetailsPage.route(
-                          bloc: context.read<RecipesBloc>(),
-                          recipe: recipe,
-                          library: library,
-                        ),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: visible.isEmpty
+                    ? _EmptyState(
+                        title: libraryRecipes.isEmpty
+                            ? l10n.recipesEmptyLibraryTitle(library.name)
+                            : l10n.recipesNoResultsTitle,
+                        description: libraryRecipes.isEmpty
+                            ? l10n.recipesEmptyLibraryDescription
+                            : l10n.recipesNoResultsDescription,
+                        // A blank screen needs a stronger affordance than
+                        // the header's `+`; a screen filtered down to
+                        // nothing does not, and offering one there would
+                        // misread as "nothing exists".
+                        onAdd: libraryRecipes.isEmpty
+                            ? () => RecipeEditorPage.open(context, library)
+                            : null,
+                        onBrowse: switch ((
+                          libraryRecipes.isEmpty,
+                          library.template,
+                        )) {
+                          (true, final template?) => () => _openStarterCatalog(
+                            context,
+                            library,
+                            template,
+                          ),
+                          _ => null,
+                        },
+                      )
+                    : FTileGroup.builder(
+                        count: visible.length,
+                        tileBuilder: (context, index) {
+                          final recipe = visible[index];
+                          return RecipeTile(
+                            recipe: recipe,
+                            onPress: () => Navigator.of(context).push(
+                              RecipeDetailsPage.route(
+                                bloc: context.read<RecipesBloc>(),
+                                recipe: recipe,
+                                library: library,
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
+              ),
+              // The deck is the whole library, so the button stays while a
+              // search or tag filter hides recipes.
+              if (libraryRecipes.isNotEmpty)
+                Positioned(
+                  right: 0,
+                  bottom: AppSpacing.spacing200,
+                  child: FButton(
+                    mainAxisSize: MainAxisSize.min,
+                    prefix: const Icon(FLucideIcons.layers),
+                    onPress: () => Navigator.of(context).push(
+                      QuizPage.route(
+                        bloc: context.read<RecipesBloc>(),
+                        recipes: libraryRecipes,
+                      ),
+                    ),
+                    child: Text(l10n.quizStartLabel),
+                  ),
                 ),
+            ],
+          ),
         ),
       ],
     );

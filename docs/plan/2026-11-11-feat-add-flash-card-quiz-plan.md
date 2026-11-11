@@ -361,7 +361,7 @@ The current pass's slice of `outcomes` is private.
 
 ### Phase 3: Entry point and docs
 
-- **Status:** Not started
+- **Status:** Done
 - **Scope:** The floating Quiz button on the recipe list, its tests, and the known-issues
   entry. The feature becomes reachable here.
 - **Files touched:** `lib/recipes/view/recipes_view.dart`, `lib/l10n/arb/app_en.arb`,

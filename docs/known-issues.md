@@ -173,3 +173,21 @@ Two things to settle before step 2:
 - The pricing page lists the CI/CD key under the Teams plan. Confirm whether
   a Free licence can run in `.github/workflows/main.yaml`; if not, DCM is a
   local and IDE check only.
+
+## A quiz session is lost when the user leaves
+
+A flash-card quiz lives only in the quiz screen's memory. Leaving it — with
+Done, back, or by confirming the Leave dialog — discards every grade, and so
+does the OS killing the app in the background. The next quiz starts from a
+fresh shuffle, and nothing records which recipes were missed.
+
+**Why it was left:** tracking how well each recipe is remembered is the next
+slice. The quiz already logs each grade as a `CardOutcome(recipeId,
+remembered, answeredAt)` in its state, the shape that slice will store, so
+it can be added without reworking the quiz flow.
+
+**Closing it:** move `CardOutcome` into a package, persist each outcome as it
+is graded through a repository the quiz reads from `RepositoryProvider`, and
+decide whether outcomes from a Retry missed pass count toward a recipe's
+record. Resuming an unfinished session is a separate decision; persisting
+outcomes does not need it.

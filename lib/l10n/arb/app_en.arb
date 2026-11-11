@@ -1083,5 +1083,9 @@
     "quizKeepGoingLabel": "Keep going",
     "@quizKeepGoingLabel": {
         "description": "Label of the button staying in the quiz"
+    },
+    "quizStartLabel": "Quiz",
+    "@quizStartLabel": {
+        "description": "Label of the floating button on the recipe list that starts a flash-card quiz over every recipe in the active library"
     }
 }
