@@ -32,10 +32,16 @@ class QuizView extends StatelessWidget {
             FHeaderAction.back(onPress: () => Navigator.of(context).maybePop()),
           ],
         ),
-        child: switch (state.currentRecipe) {
-          final recipe? => _Pass(state: state, recipe: recipe),
-          null => const QuizSummary(),
-        },
+        // The scaffold pads the sides but not the bottom, so without this
+        // the buttons would sit on the home indicator.
+        child: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.only(bottom: AppSpacing.spacing200),
+          child: switch (state.currentRecipe) {
+            final recipe? => _Pass(state: state, recipe: recipe),
+            null => const QuizSummary(),
+          },
+        ),
       ),
     );
   }
@@ -57,16 +63,38 @@ class QuizView extends StatelessWidget {
   }
 }
 
-class _Pass extends StatelessWidget {
+class _Pass extends StatefulWidget {
   const _Pass({required this.state, required this.recipe});
 
   final QuizState state;
   final Recipe recipe;
 
   @override
+  State<_Pass> createState() => _PassState();
+}
+
+class _PassState extends State<_Pass> {
+  // A new key per card, across passes too, so the next card never inherits
+  // the last one's drag, fly-off or focus.
+  var _card = GlobalKey<QuizCardState>();
+
+  @override
+  void didUpdateWidget(_Pass oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final old = oldWidget.state;
+    final current = widget.state;
+    if (old.passStart != current.passStart || old.index != current.index) {
+      _card = GlobalKey<QuizCardState>();
+    }
+  }
+
+  void _grade({required bool remembered}) =>
+      _card.currentState?.grade(remembered: remembered);
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final bloc = context.read<QuizBloc>();
+    final state = widget.state;
     final flipped = state.flipped;
 
     return Column(
@@ -82,10 +110,8 @@ class _Pass extends StatelessWidget {
         ),
         Expanded(
           child: QuizCard(
-            // A new key per card, across passes too, so the next card never
-            // inherits the last one's drag, fly-off or focus.
-            key: ValueKey((state.passStart, state.index)),
-            recipe: recipe,
+            key: _card,
+            recipe: widget.recipe,
             flipped: flipped,
           ),
         ),
@@ -96,18 +122,14 @@ class _Pass extends StatelessWidget {
               child: FButton(
                 variant: FButtonVariant.outline,
                 prefix: const Icon(FLucideIcons.x),
-                onPress: flipped
-                    ? () => bloc.add(const QuizCardGraded(remembered: false))
-                    : null,
+                onPress: flipped ? () => _grade(remembered: false) : null,
                 child: Text(l10n.quizForgotLabel),
               ),
             ),
             Expanded(
               child: FButton(
                 prefix: const Icon(FLucideIcons.check),
-                onPress: flipped
-                    ? () => bloc.add(const QuizCardGraded(remembered: true))
-                    : null,
+                onPress: flipped ? () => _grade(remembered: true) : null,
                 child: Text(l10n.quizRememberedLabel),
               ),
             ),

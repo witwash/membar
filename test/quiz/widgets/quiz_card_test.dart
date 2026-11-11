@@ -358,30 +358,82 @@ void main() {
       verifyNever(() => quizBloc.add(any(that: isA<QuizCardGraded>())));
     });
 
-    testWidgets('records one outcome when a button grades during a fly-off', (
-      tester,
-    ) async {
-      final bloc = QuizBloc(recipes: [negroni, daiquiri], random: Random(1));
-      addTearDown(bloc.close);
-      await tester.pumpApp(
-        BlocProvider.value(value: bloc, child: const QuizView()),
-        recipesBloc: recipesBloc,
-      );
+    testWidgets(
+      'keeps the swipe grade when a button is pressed mid-flight',
+      (
+        tester,
+      ) async {
+        final bloc = QuizBloc(recipes: [negroni, daiquiri], random: Random(1));
+        addTearDown(bloc.close);
+        await tester.pumpApp(
+          BlocProvider.value(value: bloc, child: const QuizView()),
+          recipesBloc: recipesBloc,
+        );
 
-      await tester.tap(find.text(bloc.state.currentRecipe!.name));
-      await tester.pumpAndSettle();
-      await tester.timedDrag(
-        find.byType(QuizCard),
-        Offset(-cardWidth(tester), 0),
-        const Duration(seconds: 1),
-      );
-      await tester.pump(QuizCard.flyOffDuration ~/ 4);
-      await tester.tap(find.text('Remembered'));
-      await tester.pumpAndSettle();
+        await tester.tap(find.text(bloc.state.currentRecipe!.name));
+        await tester.pumpAndSettle();
+        await tester.timedDrag(
+          find.byType(QuizCard),
+          Offset(-cardWidth(tester), 0),
+          const Duration(seconds: 1),
+        );
+        await tester.pump(QuizCard.flyOffDuration ~/ 4);
+        await tester.tap(find.text('Remembered'));
+        await tester.pumpAndSettle();
 
-      expect(bloc.state.outcomes, hasLength(1));
-      expect(bloc.state.outcomes.single.remembered, isTrue);
-      expect(bloc.state.index, 1);
+        expect(bloc.state.outcomes, hasLength(1));
+        expect(bloc.state.outcomes.single.remembered, isFalse);
+        expect(bloc.state.index, 1);
+      },
+    );
+
+    group('grade', () {
+      Future<GlobalKey<QuizCardState>> pumpKeyed(WidgetTester tester) async {
+        final key = GlobalKey<QuizCardState>();
+        await tester.pumpApp(
+          BlocProvider.value(
+            value: quizBloc,
+            child: QuizCard(key: key, recipe: negroni, flipped: true),
+          ),
+          recipesBloc: recipesBloc,
+        );
+        await tester.pumpAndSettle();
+        return key;
+      }
+
+      testWidgets('flies the card off before grading it', (tester) async {
+        final key = await pumpKeyed(tester);
+        final start = tester.getCenter(card);
+
+        key.currentState!.grade(remembered: true);
+        await tester.pump();
+        await tester.pump(QuizCard.flyOffDuration ~/ 2);
+
+        expect(tester.getCenter(card).dx, greaterThan(start.dx));
+        verifyNever(() => quizBloc.add(any()));
+
+        await tester.pumpAndSettle();
+
+        verify(
+          () => quizBloc.add(const QuizCardGraded(remembered: true)),
+        ).called(1);
+      });
+
+      testWidgets('ignores a second grade while flying off', (tester) async {
+        final key = await pumpKeyed(tester);
+
+        key.currentState!.grade(remembered: false);
+        await tester.pump(QuizCard.flyOffDuration ~/ 2);
+        key.currentState!.grade(remembered: true);
+        await tester.pumpAndSettle();
+
+        verify(
+          () => quizBloc.add(const QuizCardGraded(remembered: false)),
+        ).called(1);
+        verifyNever(
+          () => quizBloc.add(const QuizCardGraded(remembered: true)),
+        );
+      });
     });
   });
 }

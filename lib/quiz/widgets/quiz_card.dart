@@ -19,7 +19,9 @@ const _springBackDuration = Duration(milliseconds: 250);
 const _maxTilt = 0.3;
 
 /// One flash card: [recipe]'s name until tapped, then its back, which a
-/// horizontal swipe grades — right as remembered, left as not.
+/// horizontal swipe grades — right as remembered, left as not. A
+/// [GlobalKey] reaching [QuizCardState.grade] grades it the same way, so the
+/// card flies off for a button as it does for a swipe.
 ///
 /// Key it per card, so a new card never inherits a drag or fly-off in
 /// progress.
@@ -45,10 +47,11 @@ class QuizCard extends StatefulWidget {
   final bool flipped;
 
   @override
-  State<QuizCard> createState() => _QuizCardState();
+  State<QuizCard> createState() => QuizCardState();
 }
 
-class _QuizCardState extends State<QuizCard>
+/// The state of a [QuizCard], which owns its drag and fly-off.
+class QuizCardState extends State<QuizCard>
     with SingleTickerProviderStateMixin {
   late final _offset = AnimationController.unbounded(vsync: this);
   var _flyingOff = false;
@@ -57,6 +60,15 @@ class _QuizCardState extends State<QuizCard>
   void dispose() {
     _offset.dispose();
     super.dispose();
+  }
+
+  /// Flies the card off toward the [remembered] side, then grades it.
+  ///
+  /// Ignored while the card is already flying off, so the grade a swipe
+  /// started is the one recorded.
+  void grade({required bool remembered}) {
+    if (_flyingOff) return;
+    unawaited(_flyOff(remembered: remembered, width: context.size!.width));
   }
 
   Duration _duration(Duration duration) =>

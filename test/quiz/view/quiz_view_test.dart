@@ -164,6 +164,39 @@ void main() {
         ).called(1);
       });
 
+      testWidgets('fly the card off before grading it', (tester) async {
+        await pumpView(tester, flipped);
+        final card = find.byType(QuizCardBack);
+        final start = tester.getCenter(card);
+
+        await tester.tap(find.text("Didn't remember"));
+        await tester.pump();
+        await tester.pump(QuizCard.flyOffDuration ~/ 2);
+
+        expect(tester.getCenter(card).dx, lessThan(start.dx));
+        verifyNever(() => quizBloc.add(any()));
+
+        await tester.pumpAndSettle();
+
+        verify(
+          () => quizBloc.add(const QuizCardGraded(remembered: false)),
+        ).called(1);
+      });
+
+      testWidgets('keep clear of the bottom safe area', (tester) async {
+        tester.view.padding = const FakeViewPadding(bottom: 102);
+        addTearDown(tester.view.resetPadding);
+        await pumpView(tester, flipped);
+
+        final screenBottom =
+            tester.view.physicalSize.height / tester.view.devicePixelRatio;
+        final bottomInset = 102 / tester.view.devicePixelRatio;
+        expect(
+          tester.getBottomLeft(find.byType(FButton).last).dy,
+          lessThanOrEqualTo(screenBottom - bottomInset),
+        );
+      });
+
       testWidgets('grade the flipped card as remembered', (tester) async {
         await pumpView(tester, flipped);
 

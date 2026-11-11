@@ -58,13 +58,19 @@ Flash cards are the simplest self-check that works on any library, whatever its 
   whose catalog entries were all deleted therefore never shows a heading over nothing.
 - **The flip is one-way.** The back repeats the recipe name as its title, so the user never
   needs to flip back.
-- **Buttons grade immediately.** Only a swipe animates the card off. Retry missed
-  reshuffles.
+- **Buttons fly the card off like a swipe.** They call `QuizCardState.grade` through a
+  `GlobalKey`, so the card animates toward the button's side and then grades itself.
+  Retry missed reshuffles. *(Changed after device testing; the first build graded
+  immediately and felt dull.)*
 - **A double grade is impossible by construction:**
   - The bloc ignores a grade unless the current card is flipped. A grade resets `flipped`,
     so a second tap does nothing.
-  - The card is keyed on `(passStart, index)`. When ✓ is tapped during a fly-off, the old
-    card's state and controller are disposed, so its completion never fires.
+  - The card ignores a grade while it is already flying off, so the swipe's grade wins
+    over a button tapped mid-flight.
+  - Each card gets a new key. A card replaced mid-flight is disposed with its controller,
+    so its completion never fires.
+- **The pass and the summary sit inside a bottom `SafeArea`.** `FScaffold` pads only the
+  sides, so the buttons would otherwise sit on the home indicator.
 - **`canPop` changes with state.** It is `true` until a card in the running pass is graded,
   so the iOS edge swipe and Android back pop freely. After that it is `false`, and
   `onPopInvokedWithResult` asks for confirmation. The editor's always-false pattern would
